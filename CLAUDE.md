@@ -6,4 +6,5 @@
 - JJ plays on his phone a lot: every game needs touch controls (virtual sticks + big buttons) as well as keyboard and gamepad.
 - Style family (shared with Road Crew): safety yellow `#f5b800`, survey orange `#ff6b1a`, dark asphalt panels, Big Shoulders Display / IBM Plex Sans Condensed / IBM Plex Mono.
 - Show player-facing measurements in feet and inches (US).
-- Testing: headless Chromium via Playwright with `--use-gl=swiftshader`. `window.__pool` in Pool Dig exposes state and a `step(dt, input)` hook for scripted tests.
+- Testing: headless Chromium via Playwright with `--use-gl=swiftshader`. `window.__pool` (Pool Dig) and `window.__crane` (Topping Out) expose state and a `step(dt, input)` hook for scripted tests. When teleporting the crane in a test, zero `cr.prevV` and `cr.aT` or the load will swing wildly.
+- Skyscraper Sim is the long-term plan (demo → dig → pour → steel on one lot); see README. Build each phase as its own playable game first.
