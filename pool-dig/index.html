@@ -1,0 +1,938 @@
+<title>Pool Dig</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap">
+<style>
+  :root{
+    color-scheme: dark;
+    --asphalt:#17191b;
+    --panel:rgba(23,25,27,.88);
+    --line:#34373a;
+    --safety:#f5b800;
+    --survey:#ff6b1a;
+    --pool:#4cc3d6;
+    --ink:#f1ede4;
+    --muted:#a39d90;
+    --good:#8fcf5a;
+    --deep:#6f8dff;
+    --bad:#ff5a4a;
+    --display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+    --body:"IBM Plex Sans Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  [hidden]{display:none!important}
+  html,body{height:100%}
+  body{margin:0;background:var(--asphalt);color:var(--ink);font-family:var(--body);font-size:14px;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  #app{position:relative;height:100%;width:100%}
+  #c{display:block;width:100%;height:100%;outline:none}
+
+  .hud{position:absolute;inset:0;pointer-events:none;padding-inline:12px;padding-block:12px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+  .ticket{pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:4px;overflow:hidden;width:min(560px,100%);backdrop-filter:blur(4px)}
+  .ticket::before{content:"";display:block;height:5px;background:repeating-linear-gradient(-45deg,var(--safety) 0 9px,#141414 9px 18px)}
+  .ticket-body{padding:8px 10px 10px;display:grid;gap:8px}
+  .stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+  .stat{display:grid;gap:1px;min-width:0}
+  .stat span{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .stat b{font-family:var(--mono);font-weight:600;font-size:15px;font-variant-numeric:tabular-nums}
+  .row{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between}
+  .depth{display:flex;align-items:baseline;gap:8px;font-family:var(--mono)}
+  .depth span{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .depth b{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+  .depth.high b{color:var(--safety)}
+  .depth.ok b{color:var(--good)}
+  .depth.low b{color:var(--deep)}
+  .depth.warn b{color:var(--bad)}
+  .tools{display:flex;flex-wrap:wrap;gap:6px}
+  .btn{pointer-events:auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid #474b4f;border-radius:3px;padding:6px 9px;cursor:pointer}
+  .btn:hover{color:var(--ink);border-color:var(--muted)}
+  .btn[aria-pressed="true"]{color:#141414;background:var(--pool);border-color:var(--pool)}
+  .btn:focus-visible,.big:focus-visible,.tb:focus-visible{outline:2px solid var(--safety);outline-offset:2px}
+  .next{margin:0;font-size:13px;line-height:1.35;border-left:3px solid var(--survey);padding:2px 0 2px 8px;max-width:min(560px,100%);background:linear-gradient(90deg,rgba(23,25,27,.8),rgba(23,25,27,0));text-wrap:pretty}
+  .toast{align-self:center;margin-top:auto;margin-bottom:170px;font-size:14px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--survey);padding:8px 14px;border-radius:3px;max-width:min(520px,100%);text-align:center}
+  .no-touch .toast{margin-bottom:12px}
+  body:not(.no-touch) .toast{margin-bottom:240px}
+  .toast.alarm{border-left-color:var(--bad)}
+
+  /* touch controls */
+  #touch{position:absolute;inset:0;pointer-events:none}
+  .pad{position:absolute;bottom:22px;width:136px;height:136px;border-radius:50%;background:rgba(20,22,24,.42);border:2px solid rgba(245,184,0,.55);pointer-events:auto;touch-action:none}
+  .pad::after{content:attr(data-label);position:absolute;left:0;right:0;bottom:-18px;text-align:center;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(241,237,228,.75)}
+  #padL{left:16px}
+  #padR{right:16px}
+  .knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:var(--safety);box-shadow:0 2px 0 #8a6800;opacity:.9;pointer-events:none}
+  .tb{position:absolute;pointer-events:auto;touch-action:none;font-family:var(--display);font-weight:800;text-transform:uppercase;letter-spacing:.04em;border:0;border-radius:50%;cursor:pointer;color:#141414}
+  #tDig{right:34px;bottom:176px;width:88px;height:88px;font-size:26px;background:var(--safety);box-shadow:0 3px 0 #8a6800}
+  #tTrim{right:132px;bottom:170px;width:62px;height:62px;font-size:17px;background:#d9d3c5;box-shadow:0 3px 0 #7b766b}
+  .tb.on{transform:translateY(2px);box-shadow:none}
+  .vrow{position:absolute;left:16px;bottom:176px;display:flex;gap:8px;pointer-events:none}
+  .vrow button{pointer-events:auto;touch-action:none;width:36px;height:36px;border-radius:4px;border:1px solid #474b4f;background:rgba(20,22,24,.6);color:var(--ink);font-family:var(--mono);font-size:16px;cursor:pointer}
+
+  /* cards */
+  .overlay{position:absolute;inset:0;display:grid;place-items:center;padding-inline:16px;background:rgba(12,13,14,.6)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:4px;width:min(600px,100%);overflow:hidden;max-height:calc(100% - 32px);overflow-y:auto;touch-action:pan-y}
+  .card::before{content:"";display:block;height:10px;background:repeating-linear-gradient(-45deg,var(--safety) 0 12px,#141414 12px 24px)}
+  .card-body{padding:20px 22px 22px;display:grid;gap:14px}
+  .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .card h1{margin:0;font-family:var(--display);font-weight:900;font-size:clamp(48px,11vw,80px);line-height:.88;text-transform:uppercase;color:var(--safety);text-wrap:balance}
+  .card h1 em{font-style:normal;color:var(--pool)}
+  .card p{margin:0;line-height:1.5;color:#d6d1c6;max-width:62ch;text-wrap:pretty}
+  .legend{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .legend div{border:1px solid var(--line);border-radius:3px;padding:8px;display:grid;gap:4px;font-size:12.5px;line-height:1.3;color:#d6d1c6}
+  .legend i{display:block;height:8px;border-radius:2px}
+  .legend b{font-family:var(--display);font-size:17px;text-transform:uppercase;letter-spacing:.02em;color:var(--ink)}
+  .ctl{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:12px;line-height:1.45;color:var(--muted)}
+  .ctl b{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink);margin-bottom:2px}
+  .big{font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:.04em;text-transform:uppercase;background:var(--safety);color:#141414;border:0;border-radius:3px;padding:10px 22px;cursor:pointer}
+  .big.ghost{background:transparent;color:var(--ink);border:1px solid #5a5e62}
+  .btns{display:flex;flex-wrap:wrap;gap:10px}
+  .stars{font-size:34px;letter-spacing:.1em;color:var(--safety);line-height:1}
+  .stars s{text-decoration:none;color:#44484c}
+  .score{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:13.5px}
+  .score li{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding-block:4px}
+  .score b{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  @media (max-width:560px){
+    .legend,.ctl{grid-template-columns:1fr}
+    .stat b{font-size:13.5px}
+    .stat span{font-size:8.5px}
+    .card-body{padding:18px 16px 18px}
+    .row{flex-direction:column;align-items:flex-start}
+    .btn{padding:5px 7px;font-size:9.5px}
+  }
+  @media (prefers-reduced-motion:reduce){.tb{transition:none}}
+</style>
+
+<div id="app">
+  <canvas id="c" tabindex="0" aria-label="Backyard pool dig, excavator view"></canvas>
+  <div class="hud">
+    <section class="ticket" aria-label="Job ticket">
+      <div class="ticket-body">
+        <div class="stats">
+          <div class="stat"><span>Dug</span><b id="sDug">0%</b></div>
+          <div class="stat"><span>On grade</span><b id="sGrade">0%</b></div>
+          <div class="stat"><span>Truck</span><b id="sTruck">0/8</b></div>
+          <div class="stat"><span>Loads</span><b id="sLoads">0</b></div>
+          <div class="stat"><span>Time</span><b id="sTime">0:00</b></div>
+        </div>
+        <div class="row">
+          <div class="depth" id="depth"><span id="dLabel">Bucket</span><b id="dVal">Outside the paint</b></div>
+          <div class="tools">
+            <button class="btn" id="bGrade" type="button" aria-pressed="true">Grade view</button>
+            <button class="btn" id="bHaul" type="button">Send truck</button>
+            <button class="btn" id="bSound" type="button">Sound on</button>
+            <button class="btn" id="bReset" type="button">Restart</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <p class="next" id="next">Drive to the white paint and start digging.</p>
+    <div class="toast" id="toast" hidden></div>
+  </div>
+
+  <div id="touch" hidden>
+    <div class="vrow">
+      <button type="button" id="vL" aria-label="Rotate view left">&#x27F2;</button>
+      <button type="button" id="vR" aria-label="Rotate view right">&#x27F3;</button>
+      <button type="button" id="zOut" aria-label="Zoom out">&minus;</button>
+      <button type="button" id="zIn" aria-label="Zoom in">+</button>
+    </div>
+    <div class="pad" id="padL" data-label="Drive"><div class="knob"></div></div>
+    <div class="pad" id="padR" data-label="Swing &#183; Reach"><div class="knob"></div></div>
+    <button class="tb" id="tTrim" type="button">Trim</button>
+    <button class="tb" id="tDig" type="button">Dig</button>
+  </div>
+
+  <div class="overlay" id="intro">
+    <div class="card"><div class="card-body">
+      <div class="eyebrow">Work order 014 &#183; Backyard pool excavation</div>
+      <h1>Pool <em>Dig</em></h1>
+      <p>The layout crew painted a 33 &times; 16 ft pool in the backyard. Dig it to grade: 3 ft at the shallow end, sloping down to 6 ft at the deep end. Load the dump truck in the driveway, keep the tracks out of the hole, and watch the little white flags. That is the sprinkler line.</p>
+      <div class="legend">
+        <div><i style="background:#d99a2b"></i><b>Orange</b>Still high. Keep cutting.</div>
+        <div><i style="background:var(--good)"></i><b>Green</b>On grade, within 6 inches.</div>
+        <div><i style="background:var(--deep)"></i><b>Blue</b>Dug too deep. Dump dirt back in to fix it.</div>
+      </div>
+      <div class="ctl">
+        <div><b>Phone</b>Left stick drives. Right stick swings (left/right) and reaches (up/down). DIG scoops or dumps. TRIM shaves a thin layer.</div>
+        <div><b>Keyboard</b>WASD drive &#183; Q/E swing &#183; R/F reach &#183; Space dig or dump &#183; T trim &#183; H send truck &#183; G grade view &#183; Z/C rotate &#183; wheel zoom &#183; M sound</div>
+        <div><b>Controller</b>Left stick drive &#183; right stick swing and reach &#183; A dig or dump &#183; X trim &#183; Y send truck &#183; LB/RB rotate view</div>
+      </div>
+      <div class="btns"><button class="big" id="start" type="button">Start digging</button></div>
+    </div></div>
+  </div>
+
+  <div class="overlay" id="win" hidden>
+    <div class="card"><div class="card-body">
+      <div class="eyebrow">Work order 014 &#183; Ready for steel and gunite</div>
+      <h1>Pool's <em>dug</em></h1>
+      <div class="stars" id="stars" aria-label="Rating"></div>
+      <ul class="score" id="score"></ul>
+      <div class="btns">
+        <button class="big" id="keep" type="button">Keep digging</button>
+        <button class="big ghost" id="again" type="button">New yard</button>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+  // ---------- Yard grid (0.5 m cells) ----------
+  const CELL = 0.5, N = 80, V = N + 1, HALF = 20, AREA = CELL * CELL;
+  const POOL = { x: 0, z: 2, hl: 5, hw: 2.5, r: 1.3 };       // 10 x 5 m ~ 33 x 16 ft
+  const SHALLOW = 0.9, DEEP = 1.8, TOL = 0.15;                // 3 ft to 6 ft, +/- 6 in
+  const CAP = 1.4, TRUCK_CAP = 8, WIN_GRADE = 0.85;
+  const SPOT = { x: 11.5, z: -7 };
+  const PIPE = { x: -6.8, z0: -14.5, z1: 9, depth: 0.3 };
+  const DRIVE = { x0: 8.5, x1: 20, z0: -9.3, z1: -4.7 };
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const idx = (ix, iz) => iz * V + ix;
+  const $ = id => document.getElementById(id);
+
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function poolSdf(x, z) {
+    const qx = Math.abs(x - POOL.x) - (POOL.hl - POOL.r), qz = Math.abs(z - POOL.z) - (POOL.hw - POOL.r);
+    return Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0) - POOL.r;
+  }
+  function poolDepth(x) { const u = x - POOL.x; return u < -1 ? SHALLOW : u > 2 ? DEEP : lerp(SHALLOW, DEEP, (u + 1) / 3); }
+
+  let base, h, loose, rnd, pool, tgt, pipe, conc, poolIdx = [], V0 = 0;
+  let dirty = true;
+
+  function initTerrain() {
+    base = new Float32Array(V * V); h = new Float32Array(V * V); loose = new Float32Array(V * V);
+    rnd = new Float32Array(V * V); pool = new Uint8Array(V * V); tgt = new Float32Array(V * V);
+    pipe = new Uint8Array(V * V); conc = new Uint8Array(V * V); poolIdx = []; V0 = 0;
+    const R = mulberry32(11);
+    for (let iz = 0; iz < V; iz++) for (let ix = 0; ix < V; ix++) {
+      const x = ix * CELL - HALF, z = iz * CELL - HALF, i = idx(ix, iz);
+      let b = 0.06 * Math.sin(x * 0.21) + 0.05 * Math.cos(z * 0.17 + 1) + 0.03 * Math.sin((x - z) * 0.4);
+      if (x >= DRIVE.x0 && x <= DRIVE.x1 && z >= DRIVE.z0 && z <= DRIVE.z1) { conc[i] = 1; b = 0.02; }
+      base[i] = b; h[i] = b; rnd[i] = R();
+      const sd = poolSdf(x, z);
+      if (sd <= 0) { pool[i] = 1; tgt[i] = b - poolDepth(x); poolIdx.push(i); V0 += poolDepth(x) * AREA; }
+      else if (sd <= 0.45) pool[i] = 2; // paint line
+      if (Math.abs(x - PIPE.x) < 0.3 && z >= PIPE.z0 && z <= PIPE.z1) pipe[i] = 1;
+    }
+    dirty = true;
+  }
+
+  function heightAt(x, z) {
+    const fx = clamp((x + HALF) / CELL, 0, N - 0.001), fz = clamp((z + HALF) / CELL, 0, N - 0.001);
+    const ix = Math.floor(fx), iz = Math.floor(fz), tx = fx - ix, tz = fz - iz;
+    const a = h[idx(ix, iz)], b = h[idx(ix + 1, iz)], c = h[idx(ix, iz + 1)], d = h[idx(ix + 1, iz + 1)];
+    return lerp(lerp(a, b, tx), lerp(c, d, tx), tz);
+  }
+  function cellAt(x, z) { const ix = Math.round((x + HALF) / CELL), iz = Math.round((z + HALF) / CELL); if (ix < 0 || iz < 0 || ix > N || iz > N) return -1; return idx(ix, iz); }
+  function eachIn(cx, cz, r, fn) {
+    const x0 = Math.max(0, Math.ceil((cx - r + HALF) / CELL)), x1 = Math.min(N, Math.floor((cx + r + HALF) / CELL));
+    const z0 = Math.max(0, Math.ceil((cz - r + HALF) / CELL)), z1 = Math.min(N, Math.floor((cz + r + HALF) / CELL));
+    for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) {
+      const dx = ix * CELL - HALF - cx, dz = iz * CELL - HALF - cz, d = Math.hypot(dx, dz);
+      if (d <= r) fn(idx(ix, iz), d);
+    }
+  }
+
+  // Loose dirt slumps to its angle of repose; the cut walls stay put.
+  function relax(cx, cz, r, iters = 4) {
+    const x0 = Math.max(1, Math.floor((cx - r + HALF) / CELL)), x1 = Math.min(N - 1, Math.ceil((cx + r + HALF) / CELL));
+    const z0 = Math.max(1, Math.floor((cz - r + HALF) / CELL)), z1 = Math.min(N - 1, Math.ceil((cz + r + HALF) / CELL));
+    const REPOSE = 0.34;
+    for (let it = 0; it < iters; it++) for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) {
+      const i = idx(ix, iz);
+      if (loose[i] <= 0.001) continue;
+      for (const j of [i - 1, i + 1, i - V, i + V]) {
+        const diff = h[i] - h[j];
+        if (diff > REPOSE) {
+          const m = Math.min(loose[i], (diff - REPOSE) * 0.25);
+          h[i] -= m; loose[i] -= m; h[j] += m; loose[j] += m;
+        }
+      }
+    }
+  }
+  function deposit(cx, cz, vol, r) {
+    const cells = []; let sum = 0;
+    eachIn(cx, cz, r, (i, d) => { if (conc[i]) return; const w = Math.exp(-(d * d) / (0.45 * r * r)); cells.push([i, w]); sum += w; });
+    if (!sum) return;
+    for (const [i, w] of cells) { const a = vol * w / sum / AREA; h[i] += a; loose[i] += a; }
+    relax(cx, cz, r + 2.5, 5);
+    dirty = true;
+  }
+  // Flat-bottomed bucket cut. Returns cubic metres taken.
+  function cut(cx, cz, bite, room) {
+    const cells = []; eachIn(cx, cz, 0.95, i => cells.push(i));
+    if (!cells.length || room < 0.02) return 0;
+    const vol = L => { let s = 0; for (const i of cells) if (h[i] > L) s += h[i] - L; return s * AREA; };
+    let level = heightAt(cx, cz) - bite;
+    if (vol(level) > room) {
+      let lo = level, hi = level + bite + 4;
+      for (let k = 0; k < 22; k++) { const m = (lo + hi) / 2; if (vol(m) > room) lo = m; else hi = m; }
+      level = hi;
+    }
+    const got = vol(level);
+    if (got < 0.02) return 0;
+    for (const i of cells) if (h[i] > level) { const d = h[i] - level; h[i] = level; loose[i] = Math.max(0, loose[i] - d); }
+    checkPipe(cells);
+    dirty = true;
+    return got;
+  }
+
+  // ---------- Three setup ----------
+  const canvas = $('c');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x87a7b8);
+  scene.fog = new THREE.Fog(0x87a7b8, 90, 160);
+
+  const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 300);
+  let zoom = 1, az = Math.PI * 0.8;
+  const camT = new THREE.Vector3();
+
+  scene.add(new THREE.HemisphereLight(0xeef3ff, 0x5e4a33, 0.78));
+  const sun = new THREE.DirectionalLight(0xfff0d0, 0.95);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 120 });
+  sun.shadow.bias = -0.0008;
+  scene.add(sun, sun.target);
+
+  const tGeo = new THREE.BufferGeometry();
+  const tPos = new Float32Array(V * V * 3), tCol = new Float32Array(V * V * 3);
+  for (let iz = 0; iz < V; iz++) for (let ix = 0; ix < V; ix++) { const i = idx(ix, iz); tPos[i * 3] = ix * CELL - HALF; tPos[i * 3 + 2] = iz * CELL - HALF; }
+  const tIdx = [];
+  for (let iz = 0; iz < N; iz++) for (let ix = 0; ix < N; ix++) {
+    const a = idx(ix, iz), b = idx(ix + 1, iz), c = idx(ix, iz + 1), d = idx(ix + 1, iz + 1);
+    tIdx.push(a, c, b, b, c, d);
+  }
+  tGeo.setIndex(tIdx);
+  tGeo.setAttribute('position', new THREE.BufferAttribute(tPos, 3));
+  tGeo.setAttribute('color', new THREE.BufferAttribute(tCol, 3));
+  const terrain = new THREE.Mesh(tGeo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1, metalness: 0 }));
+  terrain.receiveShadow = true; terrain.castShadow = true;
+  scene.add(terrain);
+  const skirt = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: 0x5d7334, roughness: 1 }));
+  skirt.rotation.x = -Math.PI / 2; skirt.position.y = -0.05; skirt.receiveShadow = true;
+  scene.add(skirt);
+
+  const COL = {
+    grass: [0.42, 0.55, 0.25], grass2: [0.36, 0.49, 0.21], paint: [0.94, 0.94, 0.9],
+    top: [0.40, 0.29, 0.19], clay: [0.60, 0.36, 0.22], caliche: [0.74, 0.66, 0.52],
+    spoil: [0.52, 0.39, 0.26], conc: [0.70, 0.69, 0.66],
+    high: [0.85, 0.60, 0.17], ok: [0.45, 0.76, 0.33], low: [0.36, 0.48, 0.92]
+  };
+  let gradeView = true;
+  function mix(c, d, t) { return [lerp(c[0], d[0], t), lerp(c[1], d[1], t), lerp(c[2], d[2], t)]; }
+  function updateTerrain() {
+    for (let i = 0; i < V * V; i++) {
+      tPos[i * 3 + 1] = h[i];
+      const n = rnd[i], dug = base[i] - h[i];
+      let c;
+      if (conc[i]) c = COL.conc.map(v => v * (0.94 + 0.1 * n));
+      else if (loose[i] > 0.03) c = COL.spoil.map(v => v * (0.9 + 0.2 * n));
+      else if (dug > 0.04) {
+        c = dug < 0.6 ? mix(COL.top, COL.clay, dug / 0.6) : mix(COL.clay, COL.caliche, clamp((dug - 0.6) / 1.0, 0, 1));
+        const shade = (0.9 + 0.18 * n) * (1 - 0.3 * clamp(dug / 2, 0, 1));
+        c = c.map(v => v * shade);
+      } else c = n > 0.5 ? COL.grass : COL.grass2;
+      if (pool[i] === 2 && dug < 0.2 && loose[i] < 0.05) c = COL.paint;
+      if (gradeView && pool[i] === 1) {
+        const rem = h[i] - tgt[i];
+        if (rem > TOL) c = mix(c, COL.high, rem > 0.6 ? 0.28 : 0.55);
+        else if (rem >= -TOL) c = mix(c, COL.ok, 0.75);
+        else c = mix(c, COL.low, 0.75);
+      }
+      tCol[i * 3] = c[0]; tCol[i * 3 + 1] = c[1]; tCol[i * 3 + 2] = c[2];
+    }
+    tGeo.attributes.position.needsUpdate = true;
+    tGeo.attributes.color.needsUpdate = true;
+    tGeo.computeBoundingSphere();
+    dirty = false;
+  }
+
+  // ---------- Models ----------
+  const mats = {};
+  const mat = c => mats[c] || (mats[c] = new THREE.MeshStandardMaterial({ color: c, roughness: 0.75, metalness: 0.05, flatShading: true }));
+  function box(parent, w, hh, d, color, x = 0, y = 0, z = 0) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d), mat(color));
+    m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m;
+  }
+  function wheel(parent, r, w, color, x, y, z) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, w, 14), mat(color));
+    m.rotation.z = Math.PI / 2; m.position.set(x, y, z); m.castShadow = true; parent.add(m); return m;
+  }
+  const YEL = 0xf2b705, DARK = 0x262829, GLASS = 0x2f4450, DIRT = 0x7a5a3a;
+
+  const statics = [];
+  function house() {
+    const g = new THREE.Group();
+    box(g, 20, 3.2, 5, 0xe6dfd0, 0, 1.6, 0);
+    const roof = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 3.4, 20.6, 4, 1), mat(0x4a4f55));
+    roof.rotation.z = Math.PI / 2; roof.rotation.x = Math.PI / 4; roof.scale.set(1, 1, 0.55);
+    roof.position.y = 3.2 + 0.9; roof.castShadow = true; g.add(roof);
+    box(g, 1.1, 2.1, 0.1, 0x6b4a2e, 4, 1.05, 2.52);
+    for (const x of [-6, -1, 7]) box(g, 1.6, 1.1, 0.1, GLASS, x, 1.8, 2.52);
+    box(g, 6, 0.12, 3, 0xbab5aa, 3.5, 0.06, 4); // patio slab
+    g.position.set(-5, 0, -17.5); scene.add(g);
+    for (let x = -14; x <= 4; x += 2.4) statics.push({ x, z: -17, r: 2.6 });
+  }
+  function fence() {
+    const WOOD = 0x8a6a48, T = 19.6, Hh = 1.8;
+    box(scene, 39.2, Hh, 0.12, WOOD, 0, Hh / 2, -T);
+    box(scene, 39.2, Hh, 0.12, WOOD, 0, Hh / 2, T);
+    box(scene, 0.12, Hh, 39.2, WOOD, -T, Hh / 2, 0);
+    box(scene, 0.12, Hh, 29.4, WOOD, T, Hh / 2, 4.9);   // east fence, north of gate
+    box(scene, 0.12, Hh, 4.8, WOOD, T, Hh / 2, -17.2);   // east fence, south of gate
+  }
+  function tree(x, z, s) {
+    const g = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25 * s, 0.35 * s, 2.2 * s, 7), mat(0x5e4029));
+    trunk.position.y = 1.1 * s; trunk.castShadow = true; g.add(trunk);
+    for (const [ox, oy, oz, r] of [[0, 3, 0, 2.2], [1.2, 2.6, 0.6, 1.5], [-1.1, 2.7, -0.5, 1.6], [0.2, 3.9, -0.3, 1.4]]) {
+      const b = new THREE.Mesh(new THREE.IcosahedronGeometry(r * s, 0), mat(0x3d6a2a));
+      b.position.set(ox * s, oy * s, oz * s); b.castShadow = true; g.add(b);
+    }
+    g.position.set(x, heightAt(x, z), z); scene.add(g);
+    statics.push({ x, z, r: 0.6 * s });
+  }
+  const flagGroup = new THREE.Group(); scene.add(flagGroup);
+  function flags() {
+    while (flagGroup.children.length) flagGroup.remove(flagGroup.children[0]);
+    for (let z = PIPE.z0 + 0.5; z <= PIPE.z1; z += 2.5) {
+      const f = new THREE.Group();
+      box(f, 0.04, 0.6, 0.04, 0xcfcfcf, 0, 0.3, 0);
+      box(f, 0.28, 0.18, 0.02, 0xffffff, 0.14, 0.52, 0);
+      f.position.set(PIPE.x, heightAt(PIPE.x, z), z); flagGroup.add(f);
+    }
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.15, 10), mat(0x2b2b2b));
+    head.position.set(PIPE.x, heightAt(PIPE.x, PIPE.z1) + 0.07, PIPE.z1); flagGroup.add(head);
+  }
+
+  function makeExcavator() {
+    const g = new THREE.Group();
+    box(g, 0.8, 0.7, 4.2, DARK, 1.25, 0.35, 0);
+    box(g, 0.8, 0.7, 4.2, DARK, -1.25, 0.35, 0);
+    box(g, 1.6, 0.4, 2.6, 0x3a3c3e, 0, 0.7, 0);
+    const swing = new THREE.Group(); swing.position.y = 0.9; g.add(swing);
+    box(swing, 2.6, 1.0, 2.8, YEL, 0, 0.5, -0.2);
+    box(swing, 2.6, 0.9, 0.7, 0x3a3c3e, 0, 0.55, -1.8);
+    box(swing, 1.1, 1.3, 1.3, YEL, -0.7, 1.6, 0.4);
+    box(swing, 0.9, 0.9, 0.05, GLASS, -0.7, 1.7, 1.06);
+    const boom = new THREE.Group(); boom.position.set(0.55, 1.7, 1.0); swing.add(boom);
+    box(boom, 0.45, 0.5, 3.2, YEL, 0, 0, 1.6);
+    const stick = new THREE.Group(); stick.position.z = 3.2; boom.add(stick);
+    box(stick, 0.35, 0.4, 2.2, YEL, 0, 0, 1.1);
+    const bucket = new THREE.Group(); bucket.position.z = 2.2; stick.add(bucket);
+    box(bucket, 1.1, 0.12, 0.8, 0x4a4c4e, 0, -0.3, 0.3);
+    box(bucket, 1.1, 0.7, 0.12, 0x4a4c4e, 0, 0.02, 0.7);
+    box(bucket, 0.1, 0.6, 0.8, 0x4a4c4e, 0.5, 0, 0.3);
+    box(bucket, 0.1, 0.6, 0.8, 0x4a4c4e, -0.5, 0, 0.3);
+    for (const x of [-0.4, -0.13, 0.13, 0.4]) box(bucket, 0.08, 0.08, 0.2, 0x2a2a2a, x, -0.3, 0.78);
+    const load = box(bucket, 0.9, 0.45, 0.6, DIRT, 0, -0.05, 0.3); load.visible = false;
+    return { g, swingG: swing, boom, stick, bucketG: bucket, load };
+  }
+  function makeTruck() {
+    const g = new THREE.Group();
+    box(g, 2.0, 0.5, 5.6, DARK, 0, 0.85, 0);
+    box(g, 2.3, 1.6, 1.6, 0xd0e1ea, 0, 1.85, 2.0);
+    box(g, 2.0, 0.7, 0.05, GLASS, 0, 2.2, 2.81);
+    box(g, 2.3, 0.35, 0.3, 0x333333, 0, 1.0, 2.85);
+    const wheels = [];
+    for (const z of [2.0, -1.0, -2.1]) for (const x of [-1.15, 1.15]) wheels.push(wheel(g, 0.55, 0.45, 0x1c1c1c, x, 0.55, z));
+    const bed = new THREE.Group(); bed.position.set(0, 1.15, -2.75); g.add(bed);
+    box(bed, 2.4, 0.12, 3.9, 0x2f6f8a, 0, 0.06, 1.95);
+    box(bed, 0.1, 0.9, 3.9, 0x2f6f8a, 1.15, 0.5, 1.95);
+    box(bed, 0.1, 0.9, 3.9, 0x2f6f8a, -1.15, 0.5, 1.95);
+    box(bed, 2.4, 1.1, 0.12, 0x2f6f8a, 0, 0.6, 3.85);
+    const load = box(bed, 2.15, 1, 3.6, DIRT, 0, 0.12, 1.95);
+    load.geometry.translate(0, 0.5, 0); load.scale.y = 0.001;
+    return { g, bed, load, wheels };
+  }
+
+  const ex = Object.assign({ max: 3.0, accel: 4, brake: 7, turn: 1.05, r: 2.1, L: 3.6, W: 2.6 }, makeExcavator());
+  const truck = Object.assign({ L: 5, W: 2.2 }, makeTruck());
+  scene.add(ex.g, truck.g);
+
+  // sprinkler geyser
+  const drops = [];
+  const dropMat = new THREE.MeshStandardMaterial({ color: 0xbfe8ff, roughness: 0.2, transparent: true, opacity: 0.85 });
+  for (let k = 0; k < 70; k++) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.12), dropMat); m.visible = false; scene.add(m); drops.push({ m, vx: 0, vy: 0, vz: 0, life: 0 }); }
+  const geyser = { t: 0, x: 0, y: 0, z: 0 };
+
+  // ---------- State ----------
+  let pipeHits = 0, loads = 0, hauled = 0, shiftTime = 0, won = false, started = false;
+  function resetAll() {
+    initTerrain();
+    Object.assign(ex, { x: 8, z: -1.5, yaw: -Math.PI / 2, speed: 0, swing: 0, reach: 5, bucket: 0, anim: null, pitch: 0, roll: 0, px: 0, pz: 0 });
+    Object.assign(truck, { x: SPOT.x, z: SPOT.z, yaw: Math.PI / 2, speed: 0, scoops: 0, vol: 0, state: 'parked', timer: 0, spin: 0, pitch: 0, roll: 0, auto: 0 });
+    truck.g.visible = true;
+    pipeHits = 0; loads = 0; hauled = 0; shiftTime = 0; won = false; geyser.t = 0;
+    $('win').hidden = true;
+    flags();
+    pose(ex, 1); pose(truck, 1);
+    camT.set(ex.x, 0, ex.z);
+    updateTerrain(); computeStats();
+  }
+
+  function checkPipe(cells) {
+    for (const i of cells) {
+      if (pipe[i] !== 1 || h[i] > base[i] - PIPE.depth) continue;
+      const ix = i % V, iz = Math.floor(i / V), x = ix * CELL - HALF, z = iz * CELL - HALF;
+      eachIn(x, z, 1.6, j => { if (pipe[j] === 1) pipe[j] = 2; });
+      pipeHits++;
+      Object.assign(geyser, { t: 4.5, x, y: h[i], z });
+      sfx.water();
+      toast('You cut the sprinkler line! Stay a couple feet off the white flags.', 3.5, true);
+      return;
+    }
+  }
+
+  // ---------- Input ----------
+  const keys = new Set(), pressed = new Set();
+  addEventListener('keydown', e => {
+    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+    if (!e.repeat) pressed.add(e.code);
+    keys.add(e.code);
+    if (!started && (e.code === 'Enter' || e.code === 'Space')) { begin(); return; }
+    if (e.code === 'KeyM' && !e.repeat) toggleSound();
+    if (e.code === 'KeyG' && !e.repeat) toggleGrade();
+    if (e.code === 'KeyH' && !e.repeat) haul();
+  });
+  addEventListener('keyup', e => keys.delete(e.code));
+  addEventListener('blur', () => keys.clear());
+  canvas.addEventListener('wheel', e => { e.preventDefault(); zoom = clamp(zoom * (e.deltaY > 0 ? 1.1 : 0.9), 0.5, 2.2); }, { passive: false });
+
+  // touch sticks
+  const sticks = { L: { x: 0, y: 0 }, R: { x: 0, y: 0 } };
+  function bindPad(el, s) {
+    const knob = el.firstElementChild; let id = null;
+    const move = e => {
+      const r = el.getBoundingClientRect(), rad = r.width / 2 - 10;
+      let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+      const m = Math.hypot(dx, dy); if (m > rad) { dx *= rad / m; dy *= rad / m; }
+      s.x = dx / rad; s.y = dy / rad;
+      knob.style.transform = `translate(${dx}px,${dy}px)`;
+    };
+    el.addEventListener('pointerdown', e => { e.preventDefault(); id = e.pointerId; el.setPointerCapture(id); move(e); sfx.init(); });
+    el.addEventListener('pointermove', e => { if (e.pointerId === id) move(e); });
+    const end = e => { if (e.pointerId !== id) return; id = null; s.x = 0; s.y = 0; knob.style.transform = ''; };
+    el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+  }
+  bindPad($('padL'), sticks.L); bindPad($('padR'), sticks.R);
+  const held = { vL: 0, vR: 0, zIn: 0, zOut: 0 };
+  function bindTap(id, fn) {
+    const el = $(id);
+    el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('on'); sfx.init(); fn(); });
+    const off = () => el.classList.remove('on');
+    el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); el.addEventListener('pointerleave', off);
+  }
+  bindTap('tDig', () => pressed.add('TouchDig'));
+  bindTap('tTrim', () => pressed.add('TouchTrim'));
+  for (const k of Object.keys(held)) {
+    const el = $(k);
+    el.addEventListener('pointerdown', e => { e.preventDefault(); held[k] = 1; });
+    for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(ev, () => { held[k] = 0; });
+  }
+  const touchUI = $('touch');
+  function showTouch() { if (touchUI.hidden) { touchUI.hidden = false; document.body.classList.remove('no-touch'); } }
+  if (matchMedia('(pointer: coarse)').matches) showTouch(); else document.body.classList.add('no-touch');
+  addEventListener('touchstart', showTouch, { passive: true });
+
+  let prevPad = [];
+  const dz = v => Math.abs(v) < 0.16 ? 0 : v;
+  function readInput() {
+    const k = c => keys.has(c) ? 1 : 0;
+    const inp = {
+      fwd: k('KeyW') + k('ArrowUp') - k('KeyS') - k('ArrowDown') - sticks.L.y,
+      turn: k('KeyA') + k('ArrowLeft') - k('KeyD') - k('ArrowRight') - sticks.L.x,
+      swing: k('KeyQ') - k('KeyE') - sticks.R.x,
+      reach: k('KeyR') - k('KeyF') - sticks.R.y,
+      cam: k('KeyZ') - k('KeyC') + held.vL - held.vR,
+      zoom: held.zOut - held.zIn,
+      dig: pressed.has('Space') || pressed.has('TouchDig'),
+      trim: pressed.has('KeyT') || pressed.has('TouchTrim'),
+      start: false
+    };
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (const p of pads) {
+      if (!p) continue;
+      const b = i => p.buttons[i] ? p.buttons[i].value : 0;
+      const bp = i => p.buttons[i] && p.buttons[i].pressed && !prevPad[i];
+      inp.fwd += -dz(p.axes[1] || 0) + b(7) - b(6);
+      inp.turn += -dz(p.axes[0] || 0);
+      inp.swing += -dz(p.axes[2] || 0);
+      inp.reach += -dz(p.axes[3] || 0);
+      inp.cam += b(4) - b(5);
+      if (bp(0)) { inp.dig = true; inp.start = true; }
+      if (bp(2)) inp.trim = true;
+      if (bp(3)) haul();
+      if (bp(8)) toggleGrade();
+      if (bp(9)) inp.start = true;
+      prevPad = p.buttons.map(x => x.pressed);
+      break;
+    }
+    for (const key of ['fwd', 'turn', 'swing', 'reach', 'cam']) inp[key] = clamp(inp[key], -1, 1);
+    pressed.clear();
+    return inp;
+  }
+
+  // ---------- HUD ----------
+  let toastTimer = 0;
+  function toast(msg, t = 2.6, alarm = false) { const el = $('toast'); if (el.textContent !== msg) el.textContent = msg; el.classList.toggle('alarm', alarm); el.hidden = false; toastTimer = t; }
+  const hintCool = {};
+  function hint(key, msg, t) { const now = performance.now(); if ((hintCool[key] || 0) > now) return; hintCool[key] = now + 4000; toast(msg, t); }
+  function ftin(m) { const inch = Math.round(Math.abs(m) * 39.37); const ft = Math.floor(inch / 12), r = inch % 12; return ft ? `${ft}′ ${r}″` : `${r}″`; }
+  function toggleGrade() { gradeView = !gradeView; $('bGrade').setAttribute('aria-pressed', gradeView); dirty = true; }
+  function toggleSound() { const m = sfx.toggle(); $('bSound').textContent = m ? 'Sound off' : 'Sound on'; }
+  const stats = { dug: 0, grade: 0, over: 0, spoil: 0 };
+  function computeStats() {
+    let dugV = 0, ok = 0, over = 0;
+    for (const i of poolIdx) {
+      const want = base[i] - tgt[i];
+      dugV += clamp(base[i] - h[i], 0, want) * AREA;
+      const rem = h[i] - tgt[i];
+      if (Math.abs(rem) <= TOL) ok++; else if (rem < -TOL) over++;
+    }
+    let spoil = 0;
+    for (let i = 0; i < V * V; i++) if (!pool[i] || pool[i] === 2) spoil += Math.max(0, loose[i]) * AREA;
+    stats.dug = dugV / V0; stats.grade = ok / poolIdx.length; stats.over = over / poolIdx.length; stats.spoil = spoil;
+    $('sDug').textContent = Math.round(stats.dug * 100) + '%';
+    $('sGrade').textContent = Math.round(stats.grade * 100) + '%';
+    $('sTruck').textContent = truck.state === 'parked' ? `${truck.scoops}/${TRUCK_CAP}` : 'Out';
+    $('sLoads').textContent = loads;
+    let next;
+    if (won) next = 'Pool is dug. Keep shaping it, or tap Restart for a fresh yard.';
+    else if (ex.bucket > 0.05 && truck.state !== 'parked') next = 'Truck is out on a haul. Pile the dirt beside the hole, away from the paint.';
+    else if (ex.bucket > 0.05) next = 'Bucket is full. Swing over the blue truck bed and tap DIG to dump it.';
+    else if (stats.dug < 0.08) next = 'Drive to the white paint and dig inside it. The deep end is on the driveway side.';
+    else if (stats.dug < 0.85) next = 'Keep cutting. Orange is still high, green is on grade, blue is too deep.';
+    else next = `Almost there. Use TRIM to shave the orange spots until ${Math.round(WIN_GRADE * 100)}% of the floor is green.`;
+    $('next').textContent = next;
+    if (!won && stats.grade >= WIN_GRADE) finish();
+  }
+  function finish() {
+    won = true;
+    const m = Math.floor(shiftTime / 60), s = Math.floor(shiftTime % 60);
+    const cleanYard = stats.spoil < 3 && stats.over < 0.05;
+    const n = 1 + (pipeHits === 0 ? 1 : 0) + (cleanYard ? 1 : 0);
+    $('stars').innerHTML = '★'.repeat(n) + '<s>' + '★'.repeat(3 - n) + '</s>';
+    $('stars').setAttribute('aria-label', `${n} of 3 stars`);
+    const yd = v => (v * 1.308).toFixed(1) + ' yd³';
+    $('score').innerHTML = [
+      ['Time on the machine', `${m}:${String(s).padStart(2, '0')}`],
+      ['Floor on grade', Math.round(stats.grade * 100) + '%'],
+      ['Truckloads hauled', `${loads} (${yd(hauled)})`],
+      ['Dug too deep', Math.round(stats.over * 100) + '% of the floor'],
+      ['Dirt left in the yard', yd(stats.spoil)],
+      ['Sprinkler line cuts', pipeHits]
+    ].map(([a, b]) => `<li><span>${a}</span><b>${b}</b></li>`).join('');
+    $('win').hidden = false;
+  }
+  function updateDepth() {
+    const i = cellAt(ex.px, ex.pz), el = $('depth');
+    let cls = '', label = 'Bucket', val;
+    if (i >= 0 && pool[i] === 1) {
+      const rem = heightAt(ex.px, ex.pz) - tgt[i];
+      if (rem > TOL) { cls = 'high'; label = 'Cut to go'; val = ftin(rem); }
+      else if (rem >= -TOL) { cls = 'ok'; label = 'Bucket'; val = 'On grade'; }
+      else { cls = 'low'; label = 'Too deep by'; val = ftin(rem); }
+    } else if (Math.abs(ex.px - PIPE.x) < 1.2 && ex.pz > PIPE.z0 - 1 && ex.pz < PIPE.z1 + 1) { cls = 'warn'; val = 'Sprinkler line below'; }
+    else if (truck.state === 'parked' && Math.hypot(ex.px - (truck.x - 0.8), ex.pz - truck.z) < 2.3) { cls = 'ok'; val = 'Over the truck bed'; }
+    else val = 'Outside the paint';
+    if (el.className !== 'depth ' + cls) el.className = 'depth ' + cls;
+    if ($('dLabel').textContent !== label) $('dLabel').textContent = label;
+    if ($('dVal').textContent !== val) $('dVal').textContent = val;
+  }
+
+  // ---------- Sound (synthesized) ----------
+  const sfx = (() => {
+    let ac = null, master, noiseBuf, muted = false; const n = {};
+    const noiseSrc = () => { const s = ac.createBufferSource(); s.buffer = noiseBuf; s.loop = true; s.start(); return s; };
+    const gain = (v, to) => { const g = ac.createGain(); g.gain.value = v; if (to) g.connect(to); return g; };
+    const filt = (type, f, q, to) => { const b = ac.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; if (to) b.connect(to); return b; };
+    const osc = (type, f, to) => { const o = ac.createOscillator(); o.type = type; o.frequency.value = f; if (to) o.connect(to); o.start(); return o; };
+    function init() {
+      if (ac) { if (ac.resume) ac.resume(); return; }
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      try { ac = new AC(); } catch (e) { ac = null; return; }
+      const comp = ac.createDynamicsCompressor(); comp.connect(ac.destination);
+      master = gain(muted ? 0 : 0.6, comp);
+      noiseBuf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
+      const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      n.engOut = gain(0, master); n.chug = gain(0.55, n.engOut); n.engLP = filt('lowpass', 300, 1.2, n.chug);
+      n.o1 = osc('sawtooth', 33, n.engLP); n.o2g = gain(0.45, n.engLP); n.o2 = osc('square', 33.5, n.o2g);
+      n.lfoG = gain(0.45, n.chug.gain); n.lfo = osc('sine', 10, n.lfoG);
+      n.rumbleG = gain(0.35, n.engLP); noiseSrc().connect(filt('lowpass', 120, 0.7, n.rumbleG));
+      n.hydOut = gain(0, master); n.hyd = osc('sawtooth', 190, filt('bandpass', 520, 5, n.hydOut));
+      n.waterOut = gain(0, master); noiseSrc().connect(filt('highpass', 1800, 0.4, n.waterOut));
+      n.beepOut = gain(0, master); osc('square', 1040, filt('bandpass', 1040, 3, n.beepOut));
+    }
+    const set = (p, v, tc = 0.06) => p.setTargetAtTime(v, ac.currentTime, tc);
+    function update(s) {
+      if (!ac) return;
+      const rpm = clamp(s.rpm, 0, 1), f = 33 * (1 + rpm * 1.2);
+      set(n.o1.frequency, f); set(n.o2.frequency, f * 1.015); set(n.lfo.frequency, f * 0.28);
+      set(n.engLP.frequency, 220 + rpm * 900); set(n.engOut.gain, s.on ? 0.15 + rpm * 0.13 : 0, 0.12);
+      set(n.hydOut.gain, s.hyd ? 0.05 : 0, 0.05); set(n.hyd.frequency, 170 + s.hyd * 60, 0.1);
+      set(n.waterOut.gain, s.water ? 0.09 : 0, 0.2);
+      set(n.beepOut.gain, s.beep && (ac.currentTime % 1) < 0.5 ? 0.05 : 0, 0.004);
+    }
+    function burst(freq, q, dur, vol) {
+      if (!ac || muted) return;
+      const t = ac.currentTime, g = gain(0, master), f = filt('bandpass', freq, q, g);
+      const s = ac.createBufferSource(); s.buffer = noiseBuf; s.connect(f); s.start(t, Math.random()); s.stop(t + dur + 0.05);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    }
+    function thump(f0, f1, dur, vol) {
+      if (!ac || muted) return;
+      const t = ac.currentTime, g = gain(0, master), o = ac.createOscillator();
+      o.type = 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur); o.connect(g); o.start(t); o.stop(t + dur + 0.05);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    }
+    return {
+      init, update,
+      crunch() { burst(600, 0.8, 0.5, 0.5); burst(1900, 0.6, 0.2, 0.12); },
+      clunk() { thump(110, 45, 0.3, 0.6); burst(500, 0.7, 0.55, 0.45); },
+      water() { burst(2500, 0.5, 1.2, 0.3); thump(90, 40, 0.3, 0.4); },
+      toggle() { muted = !muted; if (ac) master.gain.value = muted ? 0 : 0.6; return muted; }
+    };
+  })();
+
+  // ---------- Simulation ----------
+  const fwdOf = v => [Math.sin(v.yaw), Math.cos(v.yaw)];
+  function truckColliders() {
+    if (truck.state !== 'parked') return [];
+    const [fx, fz] = fwdOf(truck);
+    return [{ x: truck.x + fx * 1.6, z: truck.z + fz * 1.6, r: 1.4 }, { x: truck.x - fx * 1.4, z: truck.z - fz * 1.4, r: 1.4 }];
+  }
+  function collide(e) {
+    for (const o of statics.concat(truckColliders())) {
+      const dx = e.x - o.x, dz2 = e.z - o.z, d = Math.hypot(dx, dz2), min = e.r + o.r;
+      if (d < min && d > 1e-4) {
+        const nx = dx / d, nz = dz2 / d;
+        e.x += nx * (min - d); e.z += nz * (min - d);
+        const dir = Math.sign(e.speed), into = -(Math.sin(e.yaw) * dir * nx + Math.cos(e.yaw) * dir * nz);
+        if (into > 0) e.speed *= 1 - Math.pow(into, 2.2) * 0.25;
+      }
+    }
+    e.x = clamp(e.x, -17.8, 17.8); e.z = clamp(e.z, -17.8, 17.8);
+  }
+  function minUnder(v, x, z) {
+    const [fx, fz] = fwdOf(v), lx = fz, lz = -fx; let m = Infinity;
+    for (const a of [-1, 0, 1]) for (const b of [-1, 1]) m = Math.min(m, heightAt(x + fx * a * v.L / 2 + lx * b * v.W / 2, z + fz * a * v.L / 2 + lz * b * v.W / 2));
+    return m;
+  }
+  function driveEx(inp, dt) {
+    const t = inp.fwd;
+    if (t !== 0) ex.speed += t * (t * ex.speed < 0 ? ex.brake : ex.accel) * dt;
+    else { const b = ex.brake * dt; ex.speed = Math.abs(ex.speed) < b ? 0 : ex.speed - Math.sign(ex.speed) * b; }
+    ex.speed = clamp(ex.speed, -ex.max * 0.6, ex.max);
+    ex.yaw += inp.turn * ex.turn * dt * (ex.speed < -0.1 ? -1 : 1);
+    const [fx, fz] = fwdOf(ex);
+    const ox = ex.x, oz = ex.z, before = minUnder(ex, ox, oz);
+    ex.x += fx * ex.speed * dt; ex.z += fz * ex.speed * dt;
+    collide(ex);
+    const after = minUnder(ex, ex.x, ex.z), y = ex.g.position.y;
+    if (y - after > 0.75 && after < before - 0.01) {
+      ex.x = ox; ex.z = oz; ex.speed = 0;
+      hint('edge', 'Whoa, that is the edge of the hole. Back up or turn along it.');
+    }
+  }
+  function pose(v, dt) {
+    const [fx, fz] = fwdOf(v), lx = fz, lz = -fx;
+    const hf = heightAt(v.x + fx * v.L / 2, v.z + fz * v.L / 2), hb = heightAt(v.x - fx * v.L / 2, v.z - fz * v.L / 2);
+    const hl = heightAt(v.x + lx * v.W / 2, v.z + lz * v.W / 2), hr = heightAt(v.x - lx * v.W / 2, v.z - lz * v.W / 2);
+    const y = Math.max(heightAt(v.x, v.z), (hf + hb + hl + hr) / 4);
+    const k = 1 - Math.exp(-10 * dt);
+    v.pitch = lerp(v.pitch, -Math.atan2(hf - hb, v.L), k);
+    v.roll = lerp(v.roll, Math.atan2(hl - hr, v.W), k);
+    v.g.position.set(v.x, y, v.z);
+    v.g.rotation.order = 'YXZ';
+    v.g.rotation.set(v.pitch, v.yaw, v.roll);
+  }
+  function bedCenter() { const [fx, fz] = fwdOf(truck); return [truck.x - fx * 0.8, truck.z - fz * 0.8]; }
+  function overBed(px, pz) { if (truck.state !== 'parked') return false; const [bx, bz] = bedCenter(); return Math.hypot(px - bx, pz - bz) < 2.3; }
+
+  function doCut(type) {
+    const i = cellAt(ex.px, ex.pz);
+    if (i >= 0 && conc[i]) { toast('That is the driveway. Dig inside the white paint.'); return; }
+    const room = CAP - ex.bucket;
+    const got = cut(ex.px, ex.pz, type === 'dig' ? 0.5 : 0.12, room);
+    if (got > 0) { ex.bucket += got; sfx.crunch(); }
+  }
+  function doDump() {
+    const load = ex.bucket;
+    if (overBed(ex.px, ex.pz)) {
+      if (truck.scoops >= TRUCK_CAP) { toast('Truck is full. Tap Send truck (or wait a second).'); return; }
+      truck.scoops++; truck.vol += load; ex.bucket = 0; sfx.clunk();
+      if (truck.scoops >= TRUCK_CAP) { truck.auto = 1.4; toast(`Bucket ${truck.scoops} of ${TRUCK_CAP}. Truck is full and heading out.`, 2); }
+      else toast(`Bucket ${truck.scoops} of ${TRUCK_CAP} in the truck.`, 1.4);
+    } else {
+      deposit(ex.px, ex.pz, load, 1.3); ex.bucket = 0; sfx.crunch();
+      const i = cellAt(ex.px, ex.pz);
+      if (i >= 0 && pool[i] === 1) hint('fill', 'Dumped into the hole. Handy for fixing spots you dug too deep.');
+      else hint('pile', 'Dumped on the lawn. The truck is the tidy way to get rid of it.');
+    }
+  }
+  function haul() {
+    if (!started || truck.state !== 'parked') return;
+    if (truck.scoops === 0) { toast('The truck is empty. Load it first.'); return; }
+    truck.state = 'out'; truck.auto = 0;
+    toast(`Truck is hauling ${truck.scoops} bucket${truck.scoops > 1 ? 's' : ''} to the dump site. Back in about 10 seconds.`, 2.6);
+  }
+  function truckTick(dt) {
+    if (truck.auto > 0) { truck.auto -= dt; if (truck.auto <= 0) haul(); }
+    let beep = false;
+    if (truck.state === 'out') {
+      truck.speed = Math.min(7, truck.speed + 3 * dt); truck.x += truck.speed * dt;
+      if (truck.x > 34) { truck.state = 'away'; truck.timer = 7; loads++; hauled += truck.vol; truck.vol = 0; truck.scoops = 0; truck.g.visible = false; }
+    } else if (truck.state === 'away') {
+      truck.timer -= dt;
+      if (truck.timer <= 0) { truck.state = 'back'; truck.g.visible = true; truck.speed = 0; }
+    } else if (truck.state === 'back') {
+      truck.speed = Math.max(-4, truck.speed - 3 * dt); truck.x += truck.speed * dt; beep = true;
+      if (truck.x <= SPOT.x) { truck.x = SPOT.x; truck.speed = 0; truck.state = 'parked'; toast('Truck is back in the driveway.', 1.8); }
+    }
+    truck.spin += truck.speed * dt / 0.55;
+    for (const w of truck.wheels) w.rotation.x = truck.spin;
+    truck.load.scale.y = Math.max(0.001, Math.min(1, truck.scoops / TRUCK_CAP) * 0.95);
+    pose(truck, dt);
+    return beep;
+  }
+
+  function armTick(inp, dt) {
+    ex.swing += inp.swing * 1.3 * dt;
+    ex.reach = clamp(ex.reach + inp.reach * 2.4 * dt, 3.4, 7.2);
+    ex.swingG.rotation.y = ex.swing;
+    const a = ex.yaw + ex.swing, fx = Math.sin(a), fz = Math.cos(a), rx = Math.cos(a), rz = -Math.sin(a);
+    ex.px = ex.x + fx * ex.reach + rx * 0.55; ex.pz = ex.z + fz * ex.reach + rz * 0.55;
+    const baseY = ex.g.position.y, pivotY = baseY + 2.6, groundY = heightAt(ex.px, ex.pz);
+    const carry = Math.max(baseY + 2.4, groundY + 1.2, overBed(ex.px, ex.pz) ? truck.g.position.y + 2.8 : -99);
+    let tipY = carry, curl = ex.bucket > 0.05 ? 0.9 : 0;
+    const A = ex.anim;
+    if (A) {
+      A.t += dt / A.dur;
+      const t = Math.min(1, A.t);
+      if (A.type === 'dump') {
+        if (!A.done && t >= 0.45) { A.done = true; doDump(); }
+        curl = t < 0.5 ? lerp(0.9, -1.5, t / 0.5) : lerp(-1.5, 0, (t - 0.5) / 0.5);
+      } else {
+        if (!A.done && t >= 0.5) { A.done = true; doCut(A.type); }
+        const low = groundY - (A.type === 'dig' ? 0.3 : 0.08);
+        const kk = t < 0.5 ? Math.sin(t / 0.5 * Math.PI / 2) : Math.cos((t - 0.5) / 0.5 * Math.PI / 2);
+        tipY = lerp(carry, low, kk);
+        curl = t < 0.45 ? -0.5 : lerp(-0.5, ex.bucket > 0.05 ? 0.9 : 0, Math.min(1, (t - 0.45) / 0.25));
+      }
+      if (A.t >= 1) ex.anim = null;
+    }
+    const L1 = 3.2, L2 = 2.2;
+    const hd = Math.max(0.3, ex.reach - 1.0), vd = pivotY - (tipY + 0.45);
+    const d = clamp(Math.hypot(hd, vd), L1 - L2 + 0.2, L1 + L2 - 0.05), phi = Math.atan2(vd, hd);
+    const a1 = phi - Math.acos(clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1));
+    const a2 = Math.PI - Math.acos(clamp((L1 * L1 + L2 * L2 - d * d) / (2 * L1 * L2), -1, 1));
+    ex.boom.rotation.x = a1; ex.stick.rotation.x = a2;
+    ex.bucketG.rotation.x = Math.PI / 2 - (a1 + a2) - curl;
+    ex.load.visible = ex.bucket > 0.05;
+    return Math.abs(inp.swing) > 0.1 || Math.abs(inp.reach) > 0.1 || !!ex.anim;
+  }
+
+  function geyserTick(dt) {
+    let active = geyser.t > 0;
+    if (active) geyser.t -= dt;
+    for (const p of drops) {
+      if (p.life <= 0 && active && Math.random() < 0.5) {
+        p.life = 1.4; p.m.visible = true; p.m.position.set(geyser.x, geyser.y + 0.1, geyser.z);
+        p.vx = (Math.random() - 0.5) * 1.6; p.vz = (Math.random() - 0.5) * 1.6; p.vy = 5 + Math.random() * 3;
+      }
+      if (p.life > 0) {
+        p.life -= dt; p.vy -= 12 * dt;
+        p.m.position.x += p.vx * dt; p.m.position.y += p.vy * dt; p.m.position.z += p.vz * dt;
+        if (p.life <= 0 || p.m.position.y < geyser.y - 0.5) { p.life = 0; p.m.visible = false; }
+      }
+    }
+    return active;
+  }
+
+  function step(dt, inp) {
+    shiftTime += dt;
+    driveEx(inp, dt);
+    pose(ex, dt);
+    if (!ex.anim) {
+      if (inp.dig) ex.anim = { type: ex.bucket > 0.05 ? 'dump' : 'dig', t: 0, dur: ex.bucket > 0.05 ? 0.8 : 1.1 };
+      else if (inp.trim) {
+        if (ex.bucket >= CAP - 0.05) ex.anim = { type: 'dump', t: 0, dur: 0.8 };
+        else ex.anim = { type: 'trim', t: 0, dur: 0.9 };
+      }
+    }
+    const hyd = armTick(inp, dt);
+    const beep = truckTick(dt);
+    const water = geyserTick(dt);
+    az += inp.cam * 1.6 * dt;
+    zoom = clamp(zoom * (1 + inp.zoom * 1.2 * dt), 0.5, 2.2);
+    updateDepth();
+    sfx.update({ on: true, rpm: 0.12 + 0.7 * Math.abs(ex.speed) / ex.max + (hyd ? 0.25 : 0), hyd: hyd ? 1 : 0, water, beep: beep || ex.speed < -0.3 });
+  }
+
+  let touchMode = false;
+  function updateCamera(dt) {
+    camT.lerp(ex.g.position, 1 - Math.exp(-4 * dt));
+    const d = 40;
+    cam.position.set(camT.x + Math.sin(az) * d, camT.y + d * 1.1, camT.z + Math.cos(az) * d);
+    cam.lookAt(camT);
+    const aspect = canvas.clientWidth / Math.max(1, canvas.clientHeight);
+    const viewH = zoom * (aspect < 1 ? 22 / aspect : 19);
+    touchMode = !touchUI.hidden;
+    const topF = touchMode && aspect < 1 ? 0.42 : 0.5;
+    cam.left = -viewH * aspect / 2; cam.right = viewH * aspect / 2; cam.top = viewH * topF; cam.bottom = -viewH * (1 - topF);
+    cam.updateProjectionMatrix();
+    sun.position.set(camT.x + 18, camT.y + 36, camT.z + 10);
+    sun.target.position.copy(camT);
+  }
+  function resize() { renderer.setSize(canvas.clientWidth, canvas.clientHeight, false); }
+  addEventListener('resize', resize);
+
+  function begin() {
+    if (started) return;
+    started = true; $('intro').hidden = true; canvas.focus(); sfx.init();
+    toast('Swing the bucket over the white paint and tap DIG.', 3.5);
+  }
+  $('start').addEventListener('click', begin);
+  $('keep').addEventListener('click', () => { $('win').hidden = true; canvas.focus(); });
+  $('again').addEventListener('click', () => { resetAll(); toast('Fresh yard. The layout crew repainted the pool.'); canvas.focus(); });
+  $('bReset').addEventListener('click', () => { resetAll(); toast('Fresh yard. The layout crew repainted the pool.'); canvas.focus(); });
+  $('bGrade').addEventListener('click', () => { toggleGrade(); canvas.focus(); });
+  $('bHaul').addEventListener('click', () => { haul(); canvas.focus(); });
+  $('bSound').addEventListener('click', () => { sfx.init(); toggleSound(); canvas.focus(); });
+
+  let statT = 0, last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    const inp = readInput();
+    if (!started && inp.start) begin();
+    if (started && $('win').hidden) step(dt, inp);
+    else if (started && inp.start) $('win').hidden = true;
+    if (dirty) updateTerrain();
+    statT -= dt;
+    if (statT <= 0) {
+      statT = 0.3; computeStats();
+      const m = Math.floor(shiftTime / 60), s = Math.floor(shiftTime % 60);
+      $('sTime').textContent = `${m}:${String(s).padStart(2, '0')}`;
+    }
+    if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) $('toast').hidden = true; }
+    updateCamera(dt);
+    renderer.render(scene, cam);
+    requestAnimationFrame(frame);
+  }
+
+  initTerrain();
+  house(); fence(); tree(-15, 13, 1.1); tree(15.5, 15, 0.8);
+  resetAll();
+  resize();
+  window.__pool = { ex, truck, stats, grid: () => ({ h, tgt, poolIdx, dirtyOn: () => { dirty = true; } }), step: (dt, i) => step(dt, i), cut, computeStats, haul, get won() { return won; } };
+  requestAnimationFrame(frame);
+})();
+</script>
