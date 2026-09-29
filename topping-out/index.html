@@ -59,6 +59,13 @@
   .vrow{position:absolute;left:16px;bottom:176px;display:flex;gap:8px;pointer-events:none}
   .vrow button{pointer-events:auto;touch-action:none;width:36px;height:36px;border-radius:4px;border:1px solid #474b4f;background:rgba(20,22,24,.6);color:var(--ink);font-family:var(--mono);font-size:16px;cursor:pointer}
 
+  .tray{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:6px;pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:6px}
+  .tray button{font-family:var(--display);font-weight:800;font-size:18px;letter-spacing:.03em;text-transform:uppercase;min-width:64px;height:48px;padding-inline:10px;border-radius:3px;border:1px solid #474b4f;background:#26292c;color:var(--ink);cursor:pointer;touch-action:none}
+  .tray button[aria-pressed="true"]{background:var(--safety);border-color:var(--safety);color:#141414}
+  .tray button.undo{font-family:var(--mono);font-size:11px;letter-spacing:.08em;font-weight:600;color:var(--muted)}
+  body.touch .tray{left:16px;bottom:22px;transform:none;display:grid;grid-template-columns:1fr 1fr;width:150px}
+  body.touch .tray button{min-width:0;height:56px}
+  body.hand #padL,body.hand #tHook,body.hand #tTurn{display:none}
   .overlay{position:absolute;inset:0;display:grid;place-items:center;padding-inline:16px;background:rgba(12,13,14,.6)}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:4px;width:min(600px,100%);overflow:hidden;max-height:calc(100% - 32px);overflow-y:auto;touch-action:pan-y}
   .card::before{content:"";display:block;height:10px;background:repeating-linear-gradient(-45deg,var(--safety) 0 12px,#141414 12px 24px)}
@@ -101,9 +108,9 @@
           <div class="stat"><span>Time</span><b id="sTime">0:00</b></div>
         </div>
         <div class="row">
-          <div class="read"><span>Hook <b id="rHook">0 ft</b></span><span><span id="rLbl">Gantry</span> <b id="rRad">0 ft</b></span><span class="fit" id="rFit">No load</span></div>
+          <div class="read"><span><span id="rL1">Hook</span> <b id="rHook">0 ft</b></span><span id="rRadWrap"><span id="rLbl">Gantry</span> <b id="rRad">0 ft</b></span><span class="fit" id="rFit">No load</span></div>
           <div class="tools">
-            <button class="btn" id="bMode" type="button">Crane: Gantry</button>
+            <button class="btn" id="bMode" type="button">Mode: Gantry</button>
             <button class="btn" id="bSound" type="button">Sound on</button>
             <button class="btn" id="bReset" type="button">Restart</button>
           </div>
@@ -112,6 +119,13 @@
     </section>
     <p class="next" id="next">Swing the hook over to the laydown yard and pick up a column.</p>
     <div class="toast" id="toast" hidden></div>
+  </div>
+
+  <div class="tray" id="tray" hidden aria-label="Pieces">
+    <button type="button" data-type="col" aria-pressed="true">Column</button>
+    <button type="button" data-type="beam" aria-pressed="false">Beam</button>
+    <button type="button" data-type="deck" aria-pressed="false">Deck</button>
+    <button type="button" class="undo" id="bUndo">Undo</button>
   </div>
 
   <div id="touch" hidden>
@@ -136,6 +150,7 @@
         <div><em>2</em><b>Beams</b>Span between two columns at the same height. TURN swings a beam 90&deg;.</div>
         <div><em>3</em><b>Deck</b>Drops into a square framed by four beams. A deck finishes a floor.</div>
       </div>
+      <p>In a hurry? Tap the mode button until it says <b>Mode: Hand</b>, pick Column, Beam or Deck, and drag your finger across the site. A piece drops into every spot you pass over.</p>
       <p>Green ghosts show where the piece on your hook can go. Picked up the wrong piece? Tap HOOK anywhere that is not a ghost and it goes back to the laydown yard.</p>
       <div class="ctl">
         <div><b>Phone</b>Left stick moves the hook around the lot (on the tower crane: swing and trolley). Right stick hoists (up/down) and looks around. HOOK picks up, sets, or sends back. TURN rotates a beam.</div>
@@ -292,20 +307,85 @@
     gTrolley.position.set(gz.x, gz.H - 0.3, 0);
   }
   let mode = 'gantry';
+  const MODES = ['gantry', 'tower', 'hand'], MODE_NAME = { gantry: 'Gantry', tower: 'Tower', hand: 'Hand' };
   function setMode(m) {
     const hx = hook.position.x, hz = hook.position.z, hy = hook.position.y;
+    if (m === 'hand' && cr.load) { scene.remove(cr.loadMesh); const p = cr.load.pad; if (!p.piece) { cr.loadMesh.rotation.y = 0; cr.loadMesh.position.set(p.x, 0.2, p.z); yard.add(cr.loadMesh); p.piece = cr.loadMesh; p.timer = 0; } cr.loadMesh = null; cr.load = null; cr.hot = null; }
+    const was = mode;
     mode = m;
     for (const o of towerParts) o.visible = m === 'tower';
     bridge.visible = gRails.visible = m === 'gantry';
+    for (const o of [hook, cable, sling, plumb, reticle]) o.visible = m !== 'hand';
+    document.body.classList.toggle('hand', m === 'hand');
+    $('tray').hidden = m !== 'hand';
+    $('bMode').textContent = 'Mode: ' + MODE_NAME[m];
+    $('rLbl').textContent = m === 'tower' ? 'Radius' : 'Gantry';
+    $('rL1').textContent = m === 'hand' ? 'View' : 'Hook'; $('rRadWrap').hidden = m === 'hand';
+    if (m === 'hand') { handY = Math.max(4, topOfSteel() - 2); buildGhosts(handType); return; }
+    clearGhosts();
+    if (was === 'hand') { sling.visible = false; }
     if (m === 'gantry') { gz.x = clamp(hx, -GX + 2.5, GX - 2.5); gz.z = clamp(hz, -21, 21); gz.vx = gz.vz = 0; cr.cab = gz.H - 0.3 - 0.5 - hy; }
     else {
       cr.th = Math.atan2(hz - MAST.z, hx - MAST.x); cr.r = clamp(Math.hypot(hx - MAST.x, hz - MAST.z), R_MIN, R_MAX);
       cr.cab = (MAST.h + 1.8) - hy; cr.w = cr.vr = 0; cr.sx = cr.sz = cr.vx = cr.vz = 0; cr.prevT = null; cr.prevV = { x: 0, z: 0 }; cr.aT = { x: 0, z: 0 };
     }
     cr.cab = Math.max(1.5, cr.cab);
-    $('bMode').textContent = m === 'gantry' ? 'Crane: Gantry' : 'Crane: Tower';
-    $('rLbl').textContent = m === 'gantry' ? 'Gantry' : 'Radius';
   }
+
+  // ---------- Hand mode: paint pieces straight onto the frame ----------
+  let handType = 'col', handY = 4, painting = false, hover = null, lastClank = 0;
+  const history = [];
+  const projV = new THREE.Vector3();
+  function pickSlot(clientX, clientY, touch) {
+    const r = canvas.getBoundingClientRect(), px = clientX - r.left, py = clientY - r.top;
+    let best = null, bd = touch ? 64 : 48;
+    for (const g of ghosts.children) {
+      const s = g.userData.slot;
+      projV.set(s.x, s.y + SIZE[s.type][1] / 2, s.z).project(cam);
+      if (projV.z > 1) continue;
+      const d = Math.hypot((projV.x + 1) / 2 * r.width - px, (1 - projV.y) / 2 * r.height - py);
+      if (d < bd) { bd = d; best = g; }
+    }
+    return best;
+  }
+  function setHover(g) {
+    if (hover && hover !== g && hover.parent) hover.material = ghostFaint;
+    hover = g; if (g) g.material = ghostHot;
+  }
+  function handPlace(g) {
+    const s = g.userData.slot, mesh = place(s);
+    history.push({ s, mesh }); picks++; lastPlaced = { x: s.x, y: s.y, z: s.z, h: SIZE[s.type][1] };
+    const now = performance.now(); if (now - lastClank > 70) { sfx.clank(); lastClank = now; }
+    hover = null; buildGhosts(handType);
+    handY = Math.max(handY, topOfSteel() - 4);
+    if (s.type === 'deck') hint('deck' + s.L, `Floor ${s.L + 1} is framed.`, 1.4);
+    updateHud();
+  }
+  function selectType(t) {
+    handType = t;
+    for (const b of document.querySelectorAll('#tray button[data-type]')) b.setAttribute('aria-pressed', b.dataset.type === t);
+    buildGhosts(t);
+    if (!cr.slots.length) toast(t === 'beam' ? 'Beams need two columns at the same height to span.' : t === 'deck' ? 'Decks need a square with beams on all 4 sides.' : 'No open column spots.', 2.4);
+  }
+  for (const b of document.querySelectorAll('#tray button[data-type]')) b.addEventListener('pointerdown', e => { e.preventDefault(); sfx.init(); selectType(b.dataset.type); });
+  $('bUndo').addEventListener('pointerdown', e => {
+    e.preventDefault();
+    const h = history.pop(); if (!h) { toast('Nothing to undo.', 1.4); return; }
+    const s = h.s; structure.remove(h.mesh); picks = Math.max(0, picks - 1);
+    if (s.type === 'col') cols.delete(kC(s.L, s.i, s.j)); else if (s.type === 'beam') beams.delete(kB(s.L, s.i, s.j, s.d)); else decks.delete(kC(s.L, s.i, s.j));
+    sfx.chain(); buildGhosts(handType); updateHud();
+  });
+  canvas.addEventListener('pointerdown', e => {
+    if (mode !== 'hand' || !started || !$('win').hidden) return;
+    e.preventDefault(); canvas.setPointerCapture(e.pointerId); painting = true; sfx.init();
+    const g = pickSlot(e.clientX, e.clientY, e.pointerType === 'touch'); if (g) handPlace(g);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (mode !== 'hand' || !started) return;
+    const g = pickSlot(e.clientX, e.clientY, e.pointerType === 'touch');
+    if (painting && g) handPlace(g); else setHover(g);
+  });
+  for (const ev of ['pointerup', 'pointercancel']) canvas.addEventListener(ev, () => { painting = false; });
 
   const hook = new THREE.Group(); scene.add(hook);
   box(hook, 0.8, 1.0, 0.5, 0xf2b705, 0, 0.3, 0);
@@ -373,6 +453,7 @@
     if (slot.type === 'col') cols.add(kC(slot.L, slot.i, slot.j));
     else if (slot.type === 'beam') beams.add(kB(slot.L, slot.i, slot.j, slot.d));
     else decks.add(kC(slot.L, slot.i, slot.j));
+    return p;
   }
 
   // ---------- Crane state ----------
@@ -394,15 +475,17 @@
     clearGhosts();
     Object.assign(gz, { x: -7, z: 14, vx: 0, vz: 0, H: 26 }); cr.TY = gz.H - 0.8; cr.cab = cr.TY - 12; poseGantry();
     if (mode === 'tower') cr.cab = MAST.h - 18;
-    picks = 0; shiftTime = 0; won = false; lastPlaced = null;
+    picks = 0; shiftTime = 0; won = false; lastPlaced = null; history.length = 0;
+    if (mode === 'hand') { handY = 4; buildGhosts(handType); }
     $('win').hidden = true;
     updateHud(true);
   }
   function clearGhosts() { while (ghosts.children.length) ghosts.remove(ghosts.children[0]); }
-  function buildGhosts() {
+  function buildGhosts(forType) {
     clearGhosts();
-    if (!cr.load) return;
-    cr.slots = validSlots(cr.load.type);
+    const type = forType || (cr.load && cr.load.type);
+    if (!type) return;
+    cr.slots = validSlots(type);
     for (const s of cr.slots) {
       const sz = SIZE[s.type], g = new THREE.Mesh(new THREE.BoxGeometry(sz[0] + 0.1, sz[1] + 0.05, sz[2] + 0.1), ghostFaint);
       g.position.set(s.x, s.y + sz[1] / 2, s.z); g.rotation.y = s.rot ? Math.PI / 2 : 0; g.userData.slot = s; ghosts.add(g);
@@ -547,7 +630,8 @@
     const m = Math.floor(shiftTime / 60), s = Math.floor(shiftTime % 60);
     $('sTime').textContent = `${m}:${String(s).padStart(2, '0')}`;
     let next;
-    if (won) next = 'Topped out. Keep going up, spread out, or tap Restart for a fresh lot.';
+    if (mode === 'hand' && !won) next = handType === 'col' ? 'Drag across the grid to stand columns. Drag higher to stack the next level.' : handType === 'beam' ? 'Drag between column tops to drop in beams.' : 'Drag over framed squares to lay decks.';
+    else if (won) next = 'Topped out. Keep going up, spread out, or tap Restart for a fresh lot.';
     else if (!cr.load) next = cols.size === 0 ? 'Swing the hook over to the laydown yard and pick up a column.' : 'Swing back to the laydown yard and hook the next piece.';
     else if (cr.load.type === 'col') next = 'Set the column on a grid point. Upper columns stack on the one below.';
     else if (cr.load.type === 'beam') next = 'Fly the beam between two columns and lower it onto their tops. TURN swings it 90°.';
@@ -642,6 +726,15 @@
 
   function step(dt, inp) {
     shiftTime += dt;
+    if (mode === 'hand') {
+      handY = clamp(handY + inp.hoist * 8 * dt, 2, 70);
+      $('rHook').textContent = ft(handY);
+      const fit = $('rFit'), txt = cr.slots.length ? `${NAME[handType]}: ${cr.slots.length} open spot${cr.slots.length === 1 ? '' : 's'}, drag across them` : `No open ${NAME[handType].toLowerCase()} spots`;
+      if (fit.textContent !== txt) fit.textContent = txt;
+      fit.className = cr.slots.length ? 'fit ok' : 'fit bad';
+      sfx.update({ motor: 0, height: clamp(handY / 60, 0, 1) });
+      return;
+    }
     const dims = loadDims();
     let hx, hz, hy, TY, topX, topZ, motor;
     const vcT = -inp.hoist * 8;
@@ -763,7 +856,7 @@
   function updateCamera(dt, inp) {
     az += inp.look * 1.4 * dt;
     zoom = clamp(zoom * (1 + inp.zoom * 1.2 * dt), 0.45, 2.6);
-    const t = cr.load ? cr.loadMesh.position.clone().setY(cr.loadMesh.position.y + loadDims().h / 2) : hook.position.clone();
+    const t = mode === 'hand' ? new THREE.Vector3(0, handY, 0) : cr.load ? cr.loadMesh.position.clone().setY(cr.loadMesh.position.y + loadDims().h / 2) : hook.position.clone();
     camT.lerp(t, 1 - Math.exp(-5 * dt));
     const dist = 34 * zoom;
     const cy = Math.max(camT.y + Math.sin(el) * dist, 2.5);
@@ -790,7 +883,7 @@
   $('again').addEventListener('click', () => { resetAll(); toast('Fresh lot. The slab is poured and the steel is on site.'); canvas.focus(); });
   $('bReset').addEventListener('click', () => { resetAll(); toast('Fresh lot. The slab is poured and the steel is on site.'); canvas.focus(); });
   $('bSound').addEventListener('click', () => { toggleSound(); canvas.focus(); });
-  $('bMode').addEventListener('click', () => { setMode(mode === 'gantry' ? 'tower' : 'gantry'); toast(mode === 'gantry' ? 'Gantry crane: no swing, climbs with the building.' : 'Tower crane: loads swing, so ease off the sticks.', 2.4); canvas.focus(); });
+  $('bMode').addEventListener('click', () => { setMode(MODES[(MODES.indexOf(mode) + 1) % MODES.length]); toast({ gantry: 'Gantry crane: no swing, climbs with the building.', tower: 'Tower crane: loads swing, so ease off the sticks.', hand: 'Hand mode: pick a piece and drag across the site.' }[mode], 2.4); canvas.focus(); });
 
   let hudT = 0, last = performance.now();
   const idleIn = { slew: 0, trolley: 0, hoist: 0, look: 0, zoom: 0, hook: false, turn: false };
@@ -810,7 +903,7 @@
   setMode('gantry');
   resetAll();
   resize();
-  window.__crane = { cr, gz, setMode, get mode() { return mode; }, step: (dt, i) => step(dt, Object.assign({}, idleIn, i)), validSlots, place, pads, hook, updateHud, get won() { return won; }, get floors() { return floorsDone(); } };
+  window.__crane = { cr, gz, cam, pickSlot, handPlace, ghosts, selectType, setMode, get mode() { return mode; }, step: (dt, i) => step(dt, Object.assign({}, idleIn, i)), validSlots, place, pads, hook, updateHud, get won() { return won; }, get floors() { return floorsDone(); } };
   requestAnimationFrame(frame);
 })();
 </script>
