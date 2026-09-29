@@ -101,8 +101,9 @@
           <div class="stat"><span>Time</span><b id="sTime">0:00</b></div>
         </div>
         <div class="row">
-          <div class="read"><span>Hook <b id="rHook">0 ft</b></span><span>Radius <b id="rRad">0 ft</b></span><span class="fit" id="rFit">No load</span></div>
+          <div class="read"><span>Hook <b id="rHook">0 ft</b></span><span><span id="rLbl">Gantry</span> <b id="rRad">0 ft</b></span><span class="fit" id="rFit">No load</span></div>
           <div class="tools">
+            <button class="btn" id="bMode" type="button">Crane: Gantry</button>
             <button class="btn" id="bSound" type="button">Sound on</button>
             <button class="btn" id="bReset" type="button">Restart</button>
           </div>
@@ -118,7 +119,7 @@
       <button type="button" id="zOut" aria-label="Zoom out">&minus;</button>
       <button type="button" id="zIn" aria-label="Zoom in">+</button>
     </div>
-    <div class="pad" id="padL" data-label="Swing &#183; Trolley"><div class="knob"></div></div>
+    <div class="pad" id="padL" data-label="Move hook"><div class="knob"></div></div>
     <div class="pad" id="padR" data-label="Hoist &#183; Look around"><div class="knob"></div></div>
     <button class="tb" id="tTurn" type="button">Turn</button>
     <button class="tb" id="tHook" type="button">Hook</button>
@@ -128,17 +129,18 @@
     <div class="card"><div class="card-body">
       <div class="eyebrow">Work order 021 &#183; Steel frame, downtown lot</div>
       <h1>Topping <em>Out</em></h1>
-      <p>The foundation is poured. Now run the tower crane and fly the steel. Pick pieces from the laydown yard, set them on the grid, and build the frame up floor by floor. Four floors tops out the job. After that, the sky is the limit.</p>
+      <p>The foundation is poured. Now fly the steel. Pick pieces from the laydown yard, set them on the grid, and build the frame up floor by floor. Four floors tops out the job. After that, the sky is the limit.</p>
+      <p>You start on the gantry crane: it rides rails over the whole lot, moves in four directions with no swing, and jacks itself higher as your tower grows. Want a challenge? Switch to the tower crane, where loads swing.</p>
       <div class="seq">
         <div><em>1</em><b>Columns</b>Stand on the grid points. Each one stacks on the column below it.</div>
         <div><em>2</em><b>Beams</b>Span between two columns at the same height. TURN swings a beam 90&deg;.</div>
         <div><em>3</em><b>Deck</b>Drops into a square framed by four beams. A deck finishes a floor.</div>
       </div>
-      <p>Green ghosts show where the piece on your hook can go. Loads swing, so ease off the sticks and let them settle before you set them.</p>
+      <p>Green ghosts show where the piece on your hook can go. Picked up the wrong piece? Tap HOOK anywhere that is not a ghost and it goes back to the laydown yard.</p>
       <div class="ctl">
-        <div><b>Phone</b>Left stick swings the crane (left/right) and runs the trolley (up/down). Right stick hoists (up/down) and looks around. HOOK picks up or sets. TURN rotates the load.</div>
-        <div><b>Keyboard</b>A/D swing &#183; W/S trolley &#183; R/F or &uarr;/&darr; hoist &#183; Space hook &#183; T turn &#183; Z/C look around &#183; wheel zoom &#183; M sound</div>
-        <div><b>Controller</b>Left stick swing and trolley &#183; right stick hoist and look &#183; RT/LT hoist &#183; A hook &#183; X turn</div>
+        <div><b>Phone</b>Left stick moves the hook around the lot (on the tower crane: swing and trolley). Right stick hoists (up/down) and looks around. HOOK picks up, sets, or sends back. TURN rotates a beam.</div>
+        <div><b>Keyboard</b>WASD move hook &#183; R/F or &uarr;/&darr; hoist &#183; Space hook &#183; T turn &#183; Z/C look around &#183; wheel zoom &#183; M sound</div>
+        <div><b>Controller</b>Left stick move hook &#183; right stick hoist and look &#183; RT/LT hoist &#183; A hook &#183; X turn</div>
       </div>
       <div class="btns"><button class="big" id="start" type="button">Climb into the cab</button></div>
     </div></div>
@@ -264,6 +266,46 @@
   slew.add(pendant);
   const trolley = box(slew, 1.6, 0.6, 1.8, 0x3a3c3e, 20, 0.9, 0);
   function YELc() { return 0xf2b705; }
+  const towerParts = [craneBase, mastMesh, slew];
+
+  // ---------- Gantry crane (default: no sway, climbs with the building) ----------
+  const GX = 21.5;
+  const gRails = new THREE.Group(); scene.add(gRails);
+  for (const x of [-GX, GX]) { box(gRails, 0.6, 0.3, 48, 0x55595d, x, 0.25, 0); box(gRails, 1.4, 0.1, 48, 0x6e5537, x, 0.12, 0, false); }
+  const bridge = new THREE.Group(); scene.add(bridge);
+  const legMat = lattice(0.9, 1, 0.9, 1, 1);
+  const legs = [];
+  for (const x of [-GX, GX]) for (const dz of [-1.8, 1.8]) {
+    const leg = box(bridge, 0.9, 1, 0.9, 0xf2b705, x, 0.5, dz); leg.userData.x = x; legs.push(leg);
+    box(bridge, 1.4, 0.9, 1.2, 0x3a3c3e, x, 0.75, dz);
+  }
+  const girder = box(bridge, GX * 2 + 1.4, 1.8, 1.8, lattice(GX * 2, 1.8, 1.8, GX * 2 / 1.8, 1), 0, 0, 0, false); girder.castShadow = true;
+  const ties = [box(bridge, 0.9, 0.9, 4.5, 0xf2b705, -GX, 0, 0), box(bridge, 0.9, 0.9, 4.5, 0xf2b705, GX, 0, 0)];
+  const gTrolley = box(bridge, 2.2, 1.0, 2.6, 0x3a3c3e, 0, 0, 0);
+  box(gTrolley, 1.2, 0.8, 1.2, 0xf2b705, 0, 0, 1.6);
+  const gz = { x: -7, z: 14, vx: 0, vz: 0, H: 26 };
+  function poseGantry() {
+    bridge.position.set(0, 0, gz.z);
+    for (const l of legs) { l.scale.y = gz.H; l.position.y = gz.H / 2; }
+    girder.position.y = gz.H + 0.9;
+    for (const t of ties) t.position.y = gz.H - 0.2;
+    gTrolley.position.set(gz.x, gz.H - 0.3, 0);
+  }
+  let mode = 'gantry';
+  function setMode(m) {
+    const hx = hook.position.x, hz = hook.position.z, hy = hook.position.y;
+    mode = m;
+    for (const o of towerParts) o.visible = m === 'tower';
+    bridge.visible = gRails.visible = m === 'gantry';
+    if (m === 'gantry') { gz.x = clamp(hx, -GX + 2.5, GX - 2.5); gz.z = clamp(hz, -21, 21); gz.vx = gz.vz = 0; cr.cab = gz.H - 0.3 - 0.5 - hy; }
+    else {
+      cr.th = Math.atan2(hz - MAST.z, hx - MAST.x); cr.r = clamp(Math.hypot(hx - MAST.x, hz - MAST.z), R_MIN, R_MAX);
+      cr.cab = (MAST.h + 1.8) - hy; cr.w = cr.vr = 0; cr.sx = cr.sz = cr.vx = cr.vz = 0; cr.prevT = null; cr.prevV = { x: 0, z: 0 }; cr.aT = { x: 0, z: 0 };
+    }
+    cr.cab = Math.max(1.5, cr.cab);
+    $('bMode').textContent = m === 'gantry' ? 'Crane: Gantry' : 'Crane: Tower';
+    $('rLbl').textContent = m === 'gantry' ? 'Gantry' : 'Radius';
+  }
 
   const hook = new THREE.Group(); scene.add(hook);
   box(hook, 0.8, 1.0, 0.5, 0xf2b705, 0, 0.3, 0);
@@ -350,6 +392,8 @@
     Object.assign(cr, { th: Math.atan2(18 - MAST.z, -7 - MAST.x), w: 0, r: 30, vr: 0, cab: MAST.h - 18, vc: 0, sx: 0, sz: 0, vx: 0, vz: 0, load: null, slots: [], hot: null, prevT: null });
     if (cr.loadMesh) { scene.remove(cr.loadMesh); cr.loadMesh = null; }
     clearGhosts();
+    Object.assign(gz, { x: -7, z: 14, vx: 0, vz: 0, H: 26 }); cr.TY = gz.H - 0.8; cr.cab = cr.TY - 12; poseGantry();
+    if (mode === 'tower') cr.cab = MAST.h - 18;
     picks = 0; shiftTime = 0; won = false; lastPlaced = null;
     $('win').hidden = true;
     updateHud(true);
@@ -553,7 +597,7 @@
         if (Math.hypot(hx - p.x, hz - p.z) < 1.5 && hb > top - 0.4 && hb < top + 1.8) {
           yard.remove(p.piece); cr.loadMesh = p.piece; scene.add(cr.loadMesh);
           cr.load = { type: p.type, rot: 0, pad: p }; p.piece = null; p.timer = 1.5;
-          cr.cab = (MAST.h + 1.8) - (0.2 + SIZE[p.type][1] + RIG + 0.6); cr.vc = 0; // load stays where it sat
+          cr.cab = cr.TY - (0.2 + SIZE[p.type][1] + RIG + 0.6); cr.vc = 0; // load stays where it sat
           sfx.chain(); buildGhosts();
           toast(`${NAME[p.type]} hooked. Hoist it up and swing it over.`, 1.8);
           updateHud(); return;
@@ -572,14 +616,13 @@
       toast(s.type === 'deck' ? `Deck set. Floor ${s.L + 1} is framed.` : `${NAME[s.type]} set and bolted.`, 1.6);
       updateHud(); return;
     }
-    // put it back on its pad
-    const p = cr.load.pad;
-    const bottom = cr.loadMesh.position.y;
-    if (!p.piece && Math.hypot(cr.loadMesh.position.x - p.x, cr.loadMesh.position.z - p.z) < 2 && bottom < 1.5) {
-      scene.remove(cr.loadMesh); cr.loadMesh.rotation.y = 0; cr.loadMesh.position.set(p.x, 0.2, p.z); yard.add(cr.loadMesh); p.piece = cr.loadMesh; p.timer = 0;
-      cr.loadMesh = null; cr.load = null; clearGhosts(); sfx.chain(); updateHud(); return;
-    }
-    toast(`No spot for this ${NAME[cr.load.type].toLowerCase()} here. Lower it onto a green ghost.`);
+    // not over a ghost: send it back to the laydown yard
+    const p = cr.load.pad, m = cr.loadMesh, nm = NAME[cr.load.type];
+    scene.remove(m);
+    if (!p.piece) { m.rotation.y = 0; m.position.set(p.x, 0.2, p.z); yard.add(m); p.piece = m; p.timer = 0; }
+    cr.loadMesh = null; cr.load = null; cr.hot = null; clearGhosts(); sfx.chain();
+    toast(`${nm} sent back to the laydown yard.`, 1.8);
+    updateHud();
   }
 
   function findHot() {
@@ -599,6 +642,27 @@
 
   function step(dt, inp) {
     shiftTime += dt;
+    const dims = loadDims();
+    let hx, hz, hy, TY, topX, topZ, motor;
+    const vcT = -inp.hoist * 8;
+    cr.vc += clamp(vcT - cr.vc, -7 * dt, 7 * dt); cr.cab += cr.vc * dt;
+    if (cr.cab < 1.5) { cr.cab = 1.5; cr.vc = 0; }
+    if (mode === 'gantry') {
+      // stick moves the hook relative to the camera, no sway
+      const fx = -Math.sin(az), fz = -Math.cos(az), rx = Math.cos(az), rz = -Math.sin(az);
+      const mx = (inp.slew * rx + inp.trolley * fx) * 9, mz = (inp.slew * rz + inp.trolley * fz) * 9;
+      gz.vx += clamp(mx - gz.vx, -16 * dt, 16 * dt); gz.vz += clamp(mz - gz.vz, -16 * dt, 16 * dt);
+      gz.x += gz.vx * dt; gz.z += gz.vz * dt;
+      if (Math.abs(gz.x) > GX - 2.5) { gz.x = clamp(gz.x, -GX + 2.5, GX - 2.5); gz.vx = 0; }
+      if (Math.abs(gz.z) > 21) { gz.z = clamp(gz.z, -21, 21); gz.vz = 0; }
+      const Ht = Math.max(26, topOfSteel() + 16), dH = clamp(Ht - gz.H, -3 * dt, 3 * dt);
+      gz.H += dH; cr.cab += dH;
+      poseGantry();
+      TY = gz.H - 0.8; topX = gz.x; topZ = gz.z;
+      cr.sx = cr.sz = cr.vx = cr.vz = 0;
+      hx = gz.x; hz = gz.z; hy = TY - cr.cab;
+      motor = Math.min(1, Math.hypot(gz.vx, gz.vz) / 9 * 0.8 + Math.abs(cr.vc) / 8 * 0.8 + Math.abs(dH) / dt / 3 * 0.3);
+    } else {
     // camera-relative slew direction, latched when the stick first moves
     if (Math.abs(inp.slew) > 0.05 && Math.abs(cr.lastSlew || 0) <= 0.05) {
       const tx = -Math.sin(cr.th), tz = Math.cos(cr.th), rx = Math.cos(az), rz = -Math.sin(az);
@@ -610,27 +674,26 @@
     const vT = inp.trolley * 3.2;
     cr.vr += clamp(vT - cr.vr, -2.4 * dt, 2.4 * dt); cr.r += cr.vr * dt;
     if (cr.r < R_MIN || cr.r > R_MAX) { cr.r = clamp(cr.r, R_MIN, R_MAX); cr.vr = 0; }
-    const vcT = -inp.hoist * 8;
-    cr.vc += clamp(vcT - cr.vc, -7 * dt, 7 * dt); cr.cab += cr.vc * dt;
-    if (cr.cab < 1.5) { cr.cab = 1.5; cr.vc = 0; }
 
     slew.rotation.y = -cr.th;
     trolley.position.x = cr.r;
-    const TY = MAST.h + 1.2 + 0.6;
+    TY = MAST.h + 1.2 + 0.6;
     const T = { x: MAST.x + Math.cos(cr.th) * cr.r, z: MAST.z + Math.sin(cr.th) * cr.r };
     if (!cr.prevT) cr.prevT = T;
     const v = { x: (T.x - cr.prevT.x) / dt, z: (T.z - cr.prevT.z) / dt };
     cr.aT.x = lerp(cr.aT.x, (v.x - cr.prevV.x) / dt, 0.3); cr.aT.z = lerp(cr.aT.z, (v.z - cr.prevV.z) / dt, 0.3);
     cr.prevT = T; cr.prevV = v;
 
-    const dims = loadDims();
     const Lp = Math.max(2, cr.cab + (cr.load ? RIG + dims.h / 2 : 0));
     const g = 9.8, damp = 0.5;
     cr.vx += (-(g / Lp) * cr.sx - cr.aT.x - damp * cr.vx) * dt; cr.vz += (-(g / Lp) * cr.sz - cr.aT.z - damp * cr.vz) * dt;
     cr.sx += cr.vx * dt; cr.sz += cr.vz * dt;
     const maxS = 0.35 * Lp, sm = Math.hypot(cr.sx, cr.sz); if (sm > maxS) { cr.sx *= maxS / sm; cr.sz *= maxS / sm; }
 
-    let hx = T.x + cr.sx, hz = T.z + cr.sz, hy = TY - cr.cab;
+    hx = T.x + cr.sx; hz = T.z + cr.sz; hy = TY - cr.cab; topX = T.x; topZ = T.z;
+    motor = Math.min(1, Math.abs(cr.w) / 0.2 * 0.6 + Math.abs(cr.vr) / 3.2 * 0.6 + Math.abs(cr.vc) / 8 * 0.8);
+    }
+    cr.TY = TY;
     // keep the hook / load from going through whatever is below it
     const bottom = cr.load ? hy - 0.6 - RIG - dims.h : hy - 0.8;
     let surf = surfaceBelow(hx, cr.load ? hy - 0.6 - RIG : hy - 0.7, hz);
@@ -660,7 +723,7 @@
 
     // lines
     const cp = cableGeo.attributes.position;
-    cp.setXYZ(0, T.x, TY - 0.6, T.z); cp.setXYZ(1, hx, hy + 0.8, hz); cp.needsUpdate = true;
+    cp.setXYZ(0, topX, TY - (mode === 'tower' ? 0.6 : -0.3), topZ); cp.setXYZ(1, hx, hy + 0.8, hz); cp.needsUpdate = true;
     const sp = slingGeo.attributes.position;
     if (cr.load) {
       const s = SIZE[cr.load.type];
@@ -681,20 +744,19 @@
 
     // readouts
     $('rHook').textContent = ft(Math.max(0, (cr.load ? cr.loadMesh.position.y : hy - 0.8)));
-    $('rRad').textContent = ft(cr.r);
+    $('rRad').textContent = ft(mode === 'gantry' ? gz.H : cr.r);
     const fit = $('rFit');
     let txt = 'No load', cls = 'fit';
     if (cr.load) {
       const sway = Math.hypot(cr.vx, cr.vz);
       if (cr.hot) { txt = sway > 0.9 ? `${NAME[cr.load.type]}: swinging` : `${NAME[cr.load.type]}: fits, tap HOOK`; cls = sway > 0.9 ? 'fit warn' : 'fit ok'; }
       else if (cr.turnHint) { txt = 'Beam is crossways, tap TURN'; cls = 'fit warn'; }
-      else { txt = `${NAME[cr.load.type]} on the hook`; }
-      if (!cr.slots.length) { txt = cr.load.type === 'beam' ? 'No two columns to span yet' : 'No framed square yet'; cls = 'fit bad'; }
+      else { txt = `${NAME[cr.load.type]} on the hook \u00b7 HOOK here sends it back`; }
+      if (!cr.slots.length) { txt = (cr.load.type === 'beam' ? 'No two columns to span yet' : 'Needs a square with beams on all 4 sides') + ' \u00b7 HOOK sends it back'; cls = 'fit bad'; }
     }
     if (fit.textContent !== txt) fit.textContent = txt;
     if (fit.className !== cls) fit.className = cls;
 
-    const motor = Math.min(1, Math.abs(cr.w) / 0.2 * 0.6 + Math.abs(cr.vr) / 3.2 * 0.6 + Math.abs(cr.vc) / 8 * 0.8);
     sfx.update({ motor, height: clamp(hy / 60, 0, 1) });
   }
 
@@ -728,6 +790,7 @@
   $('again').addEventListener('click', () => { resetAll(); toast('Fresh lot. The slab is poured and the steel is on site.'); canvas.focus(); });
   $('bReset').addEventListener('click', () => { resetAll(); toast('Fresh lot. The slab is poured and the steel is on site.'); canvas.focus(); });
   $('bSound').addEventListener('click', () => { toggleSound(); canvas.focus(); });
+  $('bMode').addEventListener('click', () => { setMode(mode === 'gantry' ? 'tower' : 'gantry'); toast(mode === 'gantry' ? 'Gantry crane: no swing, climbs with the building.' : 'Tower crane: loads swing, so ease off the sticks.', 2.4); canvas.focus(); });
 
   let hudT = 0, last = performance.now();
   const idleIn = { slew: 0, trolley: 0, hoist: 0, look: 0, zoom: 0, hook: false, turn: false };
@@ -744,9 +807,10 @@
     requestAnimationFrame(frame);
   }
 
+  setMode('gantry');
   resetAll();
   resize();
-  window.__crane = { cr, step: (dt, i) => step(dt, Object.assign({}, idleIn, i)), validSlots, place, pads, hook, updateHud, get won() { return won; }, get floors() { return floorsDone(); } };
+  window.__crane = { cr, gz, setMode, get mode() { return mode; }, step: (dt, i) => step(dt, Object.assign({}, idleIn, i)), validSlots, place, pads, hook, updateHud, get won() { return won; }, get floors() { return floorsDone(); } };
   requestAnimationFrame(frame);
 })();
 </script>
