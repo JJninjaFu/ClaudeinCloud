@@ -25,6 +25,9 @@ Each game is one self-contained HTML file. It runs in any browser, including on 
 - **Keyboard:** WASD move hook · R/F or ↑/↓ hoist · Space hook · T turn · Z/C look around · wheel zoom · M sound
 - **Controller:** left stick move hook · right stick hoist/look · RT/LT hoist · A hook · X turn
 
+## Kerbal Space Program
+- [`ksp/Hard Hat Heavy.craft`](ksp/) is a stock KSP 1.12 crew rocket: Mainsail + 4 Kickbacks, launch escape tower, and a Poodle upper stage for Mun/Minmus. See [`ksp/README.md`](ksp/README.md).
+
 ## Skyscraper Sim plan
 One downtown lot, played start to finish: wrecking-ball demolition → clear rubble → dig a 20 ft basement → pour the foundation → fly the steel with the tower crane. Built one playable phase at a time:
 1. ✅ Steel erection (Topping Out), gantry + tower crane. The tower crane's swing physics get reused for the wrecking ball.
