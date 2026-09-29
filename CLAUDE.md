@@ -8,3 +8,5 @@
 - Show player-facing measurements in feet and inches (US).
 - Testing: headless Chromium via Playwright with `--use-gl=swiftshader`. `window.__pool` (Pool Dig) and `window.__crane` (Topping Out) expose state and a `step(dt, input)` hook for scripted tests. When teleporting the crane in a test, zero `cr.prevV` and `cr.aT` or the load will swing wildly.
 - Skyscraper Sim is the long-term plan (demo → dig → pour → steel on one lot); see README. Build each phase as its own playable game first.
+- Never put one big ground plane under a dig grid: anything dug below it gets hidden. Build the surroundings as a ring of planes outside the grid (fixed in Pool Dig and Dig & Pour).
+- Topping Out has three modes: gantry (default), tower (swinging load), hand (drag-to-place). `window.__dig` exposes Dig & Pour state (`startRebar()` skips to the pour).

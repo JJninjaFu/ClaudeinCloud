@@ -315,9 +315,11 @@
   const terrain = new THREE.Mesh(tGeo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1, metalness: 0 }));
   terrain.receiveShadow = true; terrain.castShadow = true;
   scene.add(terrain);
-  const skirt = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: 0x5d7334, roughness: 1 }));
-  skirt.rotation.x = -Math.PI / 2; skirt.position.y = -0.05; skirt.receiveShadow = true;
-  scene.add(skirt);
+  // grass ring around the yard grid (one big plane would cover the hole)
+  const skirtMat = new THREE.MeshStandardMaterial({ color: 0x5d7334, roughness: 1 });
+  for (const [x, z, w, d] of [[0, -120, 400, 200], [0, 120, 400, 200], [120, 0, 200, 40], [-120, 0, 200, 40]]) {
+    const sk = new THREE.Mesh(new THREE.PlaneGeometry(w, d), skirtMat); sk.rotation.x = -Math.PI / 2; sk.position.set(x, -0.05, z); sk.receiveShadow = true; scene.add(sk);
+  }
 
   const COL = {
     grass: [0.42, 0.55, 0.25], grass2: [0.36, 0.49, 0.21], paint: [0.94, 0.94, 0.9],
