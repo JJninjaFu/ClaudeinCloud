@@ -5,11 +5,17 @@ Experimenting w Claude in the cloud! Woot!
 
 | Game | Folder | What it is |
 |---|---|---|
+| Mineral Fork | [`mineral-fork/`](mineral-fork/index.html) | Dirt bike hillclimb based on the brothers' Big Cottonwood ride: roll off the tailgate, climb the Trail 1154 switchbacks and the red scree pitch (Day 1), then the Red Face hillclimb (Day 2). Feather the throttle and work your body position or you spin out, slide back or loop out. |
 | Pool Dig | [`pool-dig/`](pool-dig/index.html) | Excavator sim: dig a 33 × 16 ft backyard pool to grade (3 ft shallow to 6 ft deep), load the dump truck, and don't cut the sprinkler line. |
 | Dig & Pour | [`foundation/`](foundation/index.html) | Foundation phase on the same downtown lot: dig a 33 × 33 ft basement 20 ft deep with a big laser-guided excavator (two haul trucks take turns), watch the rebar mat go in, then pump a 3 ft concrete mat. |
 | Topping Out | [`topping-out/`](topping-out/index.html) | Steel erection on a downtown lot: fly columns, beams and decks from the laydown yard and build a frame floor by floor. Default gantry crane (no swing, climbs with the building) or a swinging tower crane. Four floors tops out the job. |
 
-Each game is one self-contained HTML file. It runs in any browser, including on a phone with touch sticks, and uses three.js r128 from cdnjs.
+The root `index.html` is a game menu for GitHub Pages. Each game is one self-contained HTML file. It runs in any browser, including on a phone with touch sticks, and uses three.js r128 from cdnjs.
+
+### Mineral Fork controls
+- **Phone:** left stick steers (left/right) and shifts your body forward/back (up/down), slide up the **GAS** strip for more throttle, **BRAKE** button.
+- **Keyboard:** W gas (hold Shift to feather at half) · S/Space brake · A/D or ←/→ steer · ↑/↓ body forward/back · R pick the bike up · C camera (chase, buddy filming, helmet) · P pause · M sound
+- **Controller:** RT gas · LT brake · left stick steer and lean · Y reset · RB camera · Start pause
 
 ### Pool Dig controls
 - **Phone:** left stick drives, right stick swings (left/right) and reaches (up/down), **DIG** scoops or dumps, **TRIM** shaves a thin layer.
