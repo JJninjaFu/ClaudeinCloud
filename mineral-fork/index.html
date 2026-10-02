@@ -275,6 +275,7 @@ const NX = Math.round((X1 - X0) / STEP) + 1, NZ = Math.round((Z1 - Z0) / STEP) +
 const G = 9.81, WB = 1.48, ROAD_Z = 71;
 const TW1 = 2.4, TW2 = 8, TRAIL_HALF = 1.9;
 const TRUCK = { x: 6, tail: 56, bed: 1.05, lane: 6.4, rampEnd: 52.85 };
+const START_IDX = 12; // rider starts on the start line, clear of the truck and buddy
 
 const SURF = {
   road:  { name: 'Pavement',    mu: 1.0,  roll: 0.03, rough: 0,    dust: 0x5a5650 },
@@ -752,6 +753,11 @@ function buildTruckScene() {
   addCollider(TRUCK.x + 2.2, TRUCK.tail - 1.4, 0.35, 99);
   for (const z of [58.8, 60.4, 62, 63.6, 65.2]) addCollider(TRUCK.x, z, 1.1, z < 58.3 ? 0.95 : 99);
   addCollider(TRUCK.x, 56.6, 0.9, 0.95);
+  // painted start line across the trail
+  const si = START_IDX, sx = trail.x[si], sz = trail.z[si], syaw = yawFromTangent(si);
+  const S = new THREE.Group(); S.position.set(sx, ground(sx, sz) + 0.09, sz); S.rotation.y = syaw; world.add(S);
+  for (let k = 0; k < 8; k++) box(S, 0.34, 0.02, 0.34, k % 2 ? 0x1b1b1b : 0xf4f1ea, -1.19 + k * 0.34, 0, 0);
+  for (let k = 0; k < 8; k++) box(S, 0.34, 0.02, 0.34, k % 2 ? 0xf4f1ea : 0x1b1b1b, -1.19 + k * 0.34, 0, 0.34);
 }
 
 /* ---------- vegetation, rocks ---------- */
@@ -1094,7 +1100,7 @@ function crash(msg) {
   emit(bike.x, bike.y + 0.3, bike.z, 0, 1.5, 0, bike.surf.dust, 40);
 }
 function respawnOnTrail() {
-  const i = clamp(prog.idx - 4, 0, trail.n - 2);
+  const i = clamp(prog.idx - 4, START_IDX, trail.n - 2);
   placeBike(trail.x[i], trail.z[i], yawFromTangent(i));
   camSnap = true;
 }
@@ -1365,8 +1371,8 @@ $('swRed').onclick = () => setScheme('red'); $('swBlue').onclick = () => setSche
 function spawnRider() {
   if (rig) scene.remove(rig.root);
   rig = makeBike(bikeScheme, true); scene.add(rig.root);
-  placeBike(TRUCK.lane, 57.7, 0, TRUCK.bed);
-  prog.idx = 0; prog.nextCp = 0; prog.warned = false;
+  placeBike(trail.x[START_IDX], trail.z[START_IDX], yawFromTangent(START_IDX));
+  prog.idx = START_IDX; prog.nextCp = 0; prog.warned = false;
   syncBikeVisual(0);
 }
 function startRide() {
