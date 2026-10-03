@@ -122,6 +122,31 @@ details.controls summary{cursor:pointer;font-family:var(--f-data);font-weight:60
   .hud-top{top:auto;bottom:calc(210px + env(safe-area-inset-bottom,0px));left:16px;transform:none}
   body:not(.touch) .hud-top{bottom:calc(96px + env(safe-area-inset-bottom,0px))}
 }
+/* ---------- multiplayer ---------- */
+.fld{display:grid;gap:6px;margin:4px 0 14px;color:rgba(241,229,198,.8)}
+.fld input,#mpCode{font:600 20px var(--f-data);background:rgba(0,0,0,.28);color:var(--sign-ink);border:2px solid rgba(241,229,198,.35);border-radius:6px;padding:9px 12px;min-width:0;-webkit-user-select:text;user-select:text}
+.fld input:focus,#mpCode:focus{outline:none;border-color:var(--gold)}
+#mpCode{text-transform:uppercase;letter-spacing:.3em;width:6.2em}
+.joinrow{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.or{font-family:var(--f-data);font-size:12px;letter-spacing:.18em;text-transform:uppercase;opacity:.7;margin:16px 0 0}
+.btn:disabled{opacity:.5}
+.code{font-family:var(--f-data);font-size:12px;letter-spacing:.2em;text-transform:uppercase;opacity:.9}
+.code b{display:block;font-family:var(--f-display);font-size:68px;letter-spacing:.14em;line-height:1;color:var(--gold);margin-top:4px}
+.roster{list-style:none;padding:0;margin:10px 0 14px;display:grid;gap:6px}
+.roster li{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.2);border-radius:6px;padding:7px 10px;font-size:16px;min-width:0}
+.roster li b{font-family:var(--f-data);width:1.2em}
+.roster i{flex:none;width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(255,255,255,.8)}
+.roster span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.roster em{margin-left:auto;font-style:normal;font-family:var(--f-data);font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.8;white-space:nowrap;padding-left:8px}
+.roster li.me{box-shadow:inset 0 0 0 2px rgba(232,180,42,.6)}
+.days.mini{margin-bottom:12px}.days.mini .day{padding:8px 10px}.days.mini .dt{font-size:20px}
+.mpmsg{min-height:1.2em;margin:12px 0 8px;color:var(--gold);font-size:14px}
+.board{background:var(--panel);border-radius:6px;padding:4px 8px;display:grid;gap:2px;width:max-content;min-width:150px;max-width:200px}
+.board div{display:flex;align-items:center;gap:6px;font-family:var(--f-data);font-size:13px;font-weight:600;min-width:0}
+.board i{flex:none;width:9px;height:9px;border-radius:50%}
+.board span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board em{margin-left:auto;font-style:normal;opacity:.85;padding-left:10px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.board .me{color:var(--gold)}
 @media (prefers-reduced-motion:reduce){.toast,.big{transition:none}}
 </style>
 
@@ -131,6 +156,7 @@ details.controls summary{cursor:pointer;font-family:var(--f-data);font-weight:60
   <div class="hud-tl">
     <div class="clock" id="clock">0:00.0</div>
     <div class="hud-row"><span class="lbl">Gates</span><b id="cpText">0/5</b><span class="lbl">Crashes</span><b id="crashText">0</b></div>
+    <div class="board" id="board" hidden></div>
   </div>
   <div class="hud-tr">
     <div class="mapcard">
@@ -179,7 +205,7 @@ details.controls summary{cursor:pointer;font-family:var(--f-data);font-weight:60
       <button class="swatch" type="button" data-bike="red" id="swRed"><i style="background:#d8262b"></i>Red</button>
       <button class="swatch" type="button" data-bike="blue" id="swBlue"><i style="background:#2b5fd8"></i>Blue &amp; white</button>
     </div>
-    <div class="actions"><button class="btn" id="bRide" type="button">Ride</button></div>
+    <div class="actions"><button class="btn" id="bRide" type="button">Ride</button><button class="btn ghost" id="bMP" type="button">Ride with friends</button></div>
     <details class="controls">
       <summary>Controls &amp; riding tips</summary>
       <div class="ctl">
@@ -228,11 +254,35 @@ details.controls summary{cursor:pointer;font-family:var(--f-data);font-weight:60
       <div><span class="lbl">Summit</span><b id="finElev">0 ft</b></div>
       <div><span class="lbl">Best</span><b id="finPB">—</b></div>
     </div>
+    <ol class="roster" id="finResults" hidden></ol>
     <div class="actions">
       <button class="btn" id="bNext" type="button">Day 2</button>
       <button class="btn ghost" id="bAgain" type="button">Ride again</button>
       <button class="btn ghost" id="bMenu2" type="button">Trailhead</button>
+      <button class="btn" id="bLobby" type="button" hidden>Back to lobby</button>
     </div>
+  </div>
+</div>
+
+<div id="mp" class="overlay center" hidden>
+  <div class="sign" style="margin-left:0" role="dialog" aria-labelledby="mpTitle">
+    <div class="kicker"><span class="shield">MP</span>Up to 4 riders</div>
+    <h1 id="mpTitle" style="font-size:52px">Ride with friends</h1>
+    <div id="mpStart">
+      <label class="lbl fld">Your name<input id="mpName" maxlength="12" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Name"></label>
+      <div class="actions"><button class="btn" id="bHost" type="button">Host a race</button></div>
+      <p class="or">or join with a code</p>
+      <div class="joinrow"><input id="mpCode" maxlength="4" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="CODE" aria-label="Room code"><button class="btn ghost" id="bJoin" type="button">Join</button></div>
+    </div>
+    <div id="mpLobby" hidden>
+      <div class="code">Room code<b id="mpCodeShow">----</b></div>
+      <p class="tag" id="mpHint" style="margin:6px 0 0"></p>
+      <ul class="roster" id="mpRoster"></ul>
+      <div id="mpHostCtl"><div class="days mini" id="mpDays"></div><div class="actions"><button class="btn" id="bStartRace" type="button">Start race</button></div></div>
+      <p class="blurb" id="mpWait" hidden></p>
+    </div>
+    <p class="mpmsg" id="mpMsg" aria-live="polite"></p>
+    <div class="actions"><button class="btn ghost" id="bMPBack" type="button">Leave</button></div>
   </div>
 </div>
 
@@ -649,6 +699,8 @@ function addCollider(x, z, r, top) {
 const SCHEMES = {
   red:  { plastic: 0xd8262b, plastic2: 0xf2f2f2, jersey: 0x1d1d20, jersey2: 0xf0f0f0, pants: 0x1d1d20, helmet: 0x26272b, helmet2: 0xe8e8e8, boots: 0xefefef },
   blue: { plastic: 0x2b5fd8, plastic2: 0xf3f3f3, jersey: 0xc8232b, jersey2: 0xf4f4f4, pants: 0x26262a, helmet: 0xf1f1f1, helmet2: 0xc8232b, boots: 0x2a2a2e },
+  green: { plastic: 0x2f9e44, plastic2: 0xf2f2f2, jersey: 0x1f3d2a, jersey2: 0x8fdc6f, pants: 0x1d1d20, helmet: 0x2f9e44, helmet2: 0xf2f2f2, boots: 0x1d1d20 },
+  orange: { plastic: 0xf07a1a, plastic2: 0xf2f2f2, jersey: 0x1d1d20, jersey2: 0xf07a1a, pants: 0x2a2a2e, helmet: 0xf3f3f3, helmet2: 0xf07a1a, boots: 0xf07a1a },
 };
 let bikeScheme = 'red';
 function makeWheel(r, parent, x, y, z) {
@@ -914,6 +966,12 @@ function drawMinimap() {
   if (!mapBg) return;
   const W = mapXf.W, Hh = mapXf.H;
   mctx.drawImage(mapBg, 0, 0);
+  if (mp.on) for (const [id, r] of mp.remotes) {
+    if (!r.rig.root.visible) continue;
+    const qx = W / 2 + (r.x - mapXf.cx) * mapXf.sc, qy = Hh / 2 + (r.z - mapXf.cz) * mapXf.sc;
+    mctx.fillStyle = SLOT_HEX[r.slot]; mctx.strokeStyle = '#fff'; mctx.lineWidth = 2.5;
+    mctx.beginPath(); mctx.arc(qx, qy, 7, 0, 7); mctx.fill(); mctx.stroke();
+  }
   const px = W / 2 + (bike.x - mapXf.cx) * mapXf.sc, py = Hh / 2 + (bike.z - mapXf.cz) * mapXf.sc;
   mctx.save(); mctx.translate(px, py); mctx.rotate(-bike.yaw);
   mctx.fillStyle = '#ef3b2c'; mctx.strokeStyle = '#fff'; mctx.lineWidth = 3;
@@ -1016,7 +1074,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR' && state === 'ride') requestReset();
   if (e.code === 'KeyC') cycleCam();
   if (e.code === 'KeyM') { Sound.muted = !Sound.muted; toast(Sound.muted ? 'Engine muted' : 'Engine sound on'); }
-  if (e.code === 'Enter' && state === 'menu') startRide();
+  if (e.code === 'Enter' && state === 'menu' && !mp.on && $('mp').hidden) startRide();
 });
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => { keys.clear(); if (state === 'ride') togglePause(true); });
@@ -1041,7 +1099,7 @@ function readInput(dt) {
     if (edge(9)) togglePause();
     if (edge(3) && state === 'ride') requestReset();
     if (edge(5)) cycleCam();
-    if (state === 'menu') { if (edge(0)) startRide(); if (edge(4) || edge(14)) selectDay(0); if (edge(5) || edge(15)) selectDay(1); if (edge(2)) setScheme(bikeScheme === 'red' ? 'blue' : 'red'); }
+    if (state === 'menu' && !mp.on && $('mp').hidden) { if (edge(0)) startRide(); if (edge(4) || edge(14)) selectDay(0); if (edge(5) || edge(15)) selectDay(1); if (edge(2)) setScheme(bikeScheme === 'red' ? 'blue' : 'red'); }
     if (state === 'finished') { if (edge(0)) $('bNext').click(); if (edge(2)) restart(); }
     if (state === 'paused' && edge(0)) togglePause();
     gpPrev = p.buttons.map(x => x.pressed);
@@ -1382,10 +1440,12 @@ function startRide() {
   $('crashText').textContent = '0'; $('cpText').textContent = '0/' + trail.cpIdx.length;
   $('menu').hidden = true; $('finish').hidden = true; $('pause').hidden = true; $('hud').hidden = false; $('touch').hidden = !isTouch;
   state = 'countdown'; countdown = 3.2; camMode = 0; camSnap = false; buddy.set = false;
+  mp.finTime = 0; $('bRestart').hidden = mp.on; $('board').hidden = !mp.on;
   Sound.tone([220], 0.08, 'square', 0.15);
 }
 function restart() { startRide(); }
 function toMenu() {
+  if (mp.on) return mpBackToLobby();
   state = 'menu'; $('hud').hidden = true; $('touch').hidden = true; $('pause').hidden = true; $('finish').hidden = true; $('menu').hidden = false;
   spawnRider(); renderDayCards(); camSnap = true;
 }
@@ -1399,6 +1459,7 @@ function togglePause(force) {
 let pausedFrom = 'ride';
 function finish() {
   state = 'finished';
+  if (mp.on && mp.inRace) mp.finTime = stats.time;
   Sound.tone([523, 659, 784, 1046], 0.16, 'triangle', 0.3);
   const k = day.key, pb = best(k), isBest = !pb || stats.time < pb;
   if (isBest) setBest(k, stats.time);
@@ -1408,7 +1469,8 @@ function finish() {
   $('finElev').textContent = Math.round(day.startElev + (maxTrailH - trail.h[0]) * 3.281).toLocaleString() + ' ft';
   $('finPB').textContent = fmt(isBest ? stats.time : pb); $('finBest').hidden = !isBest;
   $('bNext').textContent = day.n === 1 ? 'Day 2' : 'Day 1';
-  setTimeout(() => { if (state === 'finished') { $('finish').hidden = false; $('bNext').focus(); } }, 1400);
+  mpFinishUi();
+  setTimeout(() => { if (state === 'finished') { $('finish').hidden = false; (mp.on && mp.inRace ? $('bLobby') : $('bNext')).focus(); } }, 1400);
   camMode = 1; buddy.set = false;
 }
 $('bRide').onclick = startRide;
@@ -1477,10 +1539,382 @@ function frame(now) {
   syncBikeVisual(dt);
   updateCamera(dt);
   updateHud(dt);
+  if (mp.on) mpTick(dt);
   renderer.render(scene, camera);
 }
 
-window.__game = { bike, inp, prog, stats, get trail() { return trail; }, get state() { return state; }, startRide, selectDay, DAYS, buildWorld, spawnRider, auto: false, autoFeather: true, ground, surfaceAt,
+/* =========================================================
+   Multiplayer: room codes over PeerJS. The host's browser relays
+   everyone's rider; riders pass through each other (no collisions).
+   ========================================================= */
+const MAXP = 4, SLOT_SCHEMES = ['red', 'blue', 'green', 'orange'], SLOT_HEX = ['#d8262b', '#2b5fd8', '#2f9e44', '#f07a1a'];
+const ID_PREFIX = 'mineralfork-v1-', CODE_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const mp = { on: false, host: false, peer: null, conns: new Map(), hostConn: null, myId: null, code: '', players: new Map(), remotes: new Map(),
+  dayIdx: 0, loading: false, racing: false, inRace: false, readyForGo: false, readyWait: null, joinTimer: null, sendT: 0, uiT: 0, finTime: 0, soloScheme: null };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const cleanName = n => String(n || '').replace(/[<>]/g, '').trim().slice(0, 12) || 'Rider';
+
+function loadPeer() {
+  if (window.Peer) return Promise.resolve();
+  const srcs = ['https://unpkg.com/peerjs@1.5/dist/peerjs.min.js', 'https://cdn.jsdelivr.net/npm/peerjs@1.5/dist/peerjs.min.js'];
+  return new Promise((res, rej) => {
+    const tryOne = i => {
+      if (i >= srcs.length) return rej(new Error('load'));
+      const s = document.createElement('script'); s.src = srcs[i];
+      s.onload = () => (window.Peer ? res() : tryOne(i + 1));
+      s.onerror = () => { s.remove(); tryOne(i + 1); };
+      document.head.appendChild(s);
+    };
+    tryOne(0);
+  });
+}
+function netErr(err) {
+  const t = err && err.type;
+  if (t === 'network' || t === 'server-error' || t === 'socket-error' || t === 'socket-closed') return "Couldn't reach the matchmaking server. Try again in a moment.";
+  if (t === 'browser-incompatible') return "This browser can't do multiplayer. Try Safari or Chrome.";
+  return 'Connection problem' + (t ? ' (' + t + ')' : '') + '. Try again.';
+}
+function getName() { try { return localStorage.getItem('mf-name') || ''; } catch (e) { return ''; } }
+function takeName() {
+  const raw = $('mpName').value.trim();
+  if (!raw) { mpMsg('Type your name first.'); $('mpName').focus(); return null; }
+  const n = cleanName(raw); try { localStorage.setItem('mf-name', n); } catch (e) {}
+  return n;
+}
+function mpMsg(t) { $('mpMsg').textContent = t || ''; }
+function mpView(v) { $('mpStart').hidden = v !== 'start'; $('mpLobby').hidden = v !== 'lobby'; }
+function setBusy(b) { $('bHost').disabled = b; $('bJoin').disabled = b; }
+function mySlot() { const p = mp.players.get(mp.myId); return p ? p.slot : 0; }
+
+function openMP() {
+  $('menu').hidden = true; $('mp').hidden = false;
+  if (!mp.on) { mpView('start'); mpMsg(''); $('mpName').value = getName(); setBusy(false); }
+  else { mpView('lobby'); renderLobby(); }
+}
+function closeMP() {
+  if (mp.on) mpLeave();
+  $('mp').hidden = true; $('menu').hidden = false;
+  spawnRider(); renderDayCards();
+}
+function showMenuAfterLeave(msg) {
+  state = 'menu';
+  for (const id of ['hud', 'touch', 'pause', 'finish', 'mp']) $(id).hidden = true;
+  $('menu').hidden = false; $('loading').hidden = true;
+  spawnRider(); renderDayCards(); camSnap = true;
+  if (msg) toast(msg, 3);
+}
+
+/* ---------- host ---------- */
+async function mpHost() {
+  const name = takeName(); if (!name) return;
+  mpMsg('Opening a room…'); setBusy(true);
+  try { await loadPeer(); } catch (e) { setBusy(false); return mpMsg("Couldn't load the multiplayer engine. Check your connection."); }
+  const tryCode = n => {
+    const code = Array.from({ length: 4 }, () => CODE_ABC[Math.floor(Math.random() * CODE_ABC.length)]).join('');
+    const peer = new Peer(ID_PREFIX + code, { debug: 0 });
+    let opened = false;
+    peer.on('open', () => {
+      opened = true;
+      Object.assign(mp, { on: true, host: true, peer, code, myId: 'host', dayIdx: DAYS.indexOf(day), racing: false, inRace: false });
+      mp.players.clear(); mp.conns.clear();
+      mp.players.set('host', { id: 'host', name, slot: 0, st: null, ready: true, t: 0 });
+      setBusy(false); mpMsg(''); mpView('lobby'); renderLobby();
+    });
+    peer.on('connection', conn => hostAccept(conn));
+    peer.on('error', err => {
+      if (!opened) {
+        try { peer.destroy(); } catch (e) {}
+        if (err.type === 'unavailable-id' && n < 4) return tryCode(n + 1);
+        setBusy(false); return mpMsg(netErr(err));
+      }
+      if (err.type !== 'peer-unavailable') toast(netErr(err));
+    });
+    peer.on('disconnected', () => { if (mp.on && mp.host && mp.peer === peer && !peer.destroyed) try { peer.reconnect(); } catch (e) {} });
+  };
+  tryCode(0);
+}
+function hostAccept(conn) {
+  conn.on('data', d => hostOnData(conn, d));
+  conn.on('close', () => hostDrop(conn.peer));
+  conn.on('error', () => hostDrop(conn.peer));
+}
+function freeSlot() {
+  const used = new Set([...mp.players.values()].map(p => p.slot));
+  for (let i = 0; i < MAXP; i++) if (!used.has(i)) return i;
+  return -1;
+}
+function hostOnData(conn, d) {
+  if (!mp.on || !mp.host || !d || typeof d !== 'object') return;
+  const id = conn.peer;
+  if (d.t === 'hi') {
+    if (mp.players.has(id)) return;
+    const slot = freeSlot();
+    if (slot < 0) { try { conn.send({ t: 'full' }); } catch (e) {} setTimeout(() => conn.close(), 400); return; }
+    const name = cleanName(d.name);
+    mp.conns.set(id, conn);
+    mp.players.set(id, { id, name, slot, st: null, ready: false, t: 0 });
+    toast(name + ' joined'); Sound.tone([660], 0.08);
+    broadcastLobby(); return;
+  }
+  const p = mp.players.get(id); if (!p) return;
+  if (d.t === 'st' && d.s) { p.st = d.s; p.t = performance.now(); }
+  else if (d.t === 'ready') { p.ready = true; checkAllReady(); }
+}
+function hostDrop(id) {
+  const p = mp.players.get(id); if (!p || id === 'host') return;
+  mp.players.delete(id); mp.conns.delete(id); removeRemote(id);
+  toast(p.name + ' left'); broadcastLobby(); checkAllReady();
+}
+function sendAll(msg) { for (const c of mp.conns.values()) if (c.open) try { c.send(msg); } catch (e) {} }
+function lobbyMsg() { return { t: 'lobby', code: mp.code, day: mp.dayIdx, racing: mp.racing, players: [...mp.players.values()].map(p => ({ id: p.id, name: p.name, slot: p.slot })) }; }
+function broadcastLobby() { sendAll(lobbyMsg()); renderLobby(); }
+function hostStartRace() {
+  if (!mp.host || mp.loading) return;
+  mp.loading = true; mp.racing = false;
+  for (const p of mp.players.values()) { p.ready = false; p.st = null; }
+  sendAll({ t: 'load', day: mp.dayIdx });
+  mpLoadDay(mp.dayIdx, () => { const me = mp.players.get('host'); if (me) me.ready = true; checkAllReady(); });
+  clearTimeout(mp.readyWait); mp.readyWait = setTimeout(goRace, 12000);
+}
+function checkAllReady() {
+  if (!mp.host || !mp.loading) return;
+  for (const p of mp.players.values()) if (!p.ready) return;
+  goRace();
+}
+function goRace() {
+  if (!mp.loading) return;
+  clearTimeout(mp.readyWait); mp.loading = false; mp.racing = true;
+  sendAll({ t: 'go' }); sendAll(lobbyMsg()); mpGo();
+}
+
+/* ---------- joiner ---------- */
+async function mpJoin() {
+  const name = takeName(); if (!name) return;
+  const code = $('mpCode').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (code.length !== 4) return mpMsg('Room codes are 4 letters and numbers.');
+  mpMsg('Joining ' + code + '…'); setBusy(true);
+  try { await loadPeer(); } catch (e) { setBusy(false); return mpMsg("Couldn't load the multiplayer engine. Check your connection."); }
+  const peer = new Peer({ debug: 0 });
+  let joined = false, done = false;
+  const fail = m => { if (joined || done) return; done = true; clearTimeout(mp.joinTimer); setBusy(false); try { peer.destroy(); } catch (e) {} mpMsg(m); };
+  clearTimeout(mp.joinTimer);
+  mp.joinTimer = setTimeout(() => fail("Couldn't connect. Check the code, or try on Wi-Fi."), 15000);
+  peer.on('error', err => {
+    if (!joined) return fail(err.type === 'peer-unavailable' ? 'No room with that code. Double-check it with the host.' : netErr(err));
+    if (err.type !== 'peer-unavailable') toast(netErr(err));
+  });
+  peer.on('open', id => {
+    if (done) return;
+    const conn = peer.connect(ID_PREFIX + code, { reliable: true, serialization: 'json' });
+    conn.on('open', () => {
+      if (done) return;
+      joined = true; clearTimeout(mp.joinTimer); setBusy(false);
+      Object.assign(mp, { on: true, host: false, peer, hostConn: conn, myId: id, code, racing: false, inRace: false, readyForGo: false });
+      mp.players.clear();
+      const hi = () => { try { conn.send({ t: 'hi', name }); } catch (e) {} };
+      hi(); let tries = 0;
+      mp.hiTimer = setInterval(() => { if (!mp.on || mp.hostConn !== conn || mp.players.has(id) || ++tries > 8) return clearInterval(mp.hiTimer); hi(); }, 1000);
+      mpMsg(''); mpView('lobby'); renderLobby();
+    });
+    conn.on('data', d => clientOnData(d));
+    conn.on('close', () => { if (mp.on && !mp.host && mp.hostConn === conn) { mpLeave(); showMenuAfterLeave('Lost the connection to the host'); } });
+  });
+}
+function clientOnData(d) {
+  if (!mp.on || mp.host || !d || typeof d !== 'object') return;
+  if (d.t === 'full') { mpLeave(); mpView('start'); setBusy(false); return mpMsg('That room is full (4 riders max).'); }
+  if (d.t === 'lobby') {
+    const seen = new Set();
+    for (const q of d.players || []) {
+      seen.add(q.id);
+      const p = mp.players.get(q.id);
+      if (p) { p.name = cleanName(q.name); p.slot = q.slot; } else mp.players.set(q.id, { id: q.id, name: cleanName(q.name), slot: q.slot, st: null, t: 0 });
+    }
+    for (const id of [...mp.players.keys()]) if (!seen.has(id)) { mp.players.delete(id); removeRemote(id); }
+    mp.dayIdx = d.day | 0; mp.racing = !!d.racing; renderLobby(); return;
+  }
+  if (d.t === 'load') { mp.dayIdx = d.day | 0; mp.readyForGo = false; mpLoadDay(mp.dayIdx, () => { mp.readyForGo = true; try { mp.hostConn.send({ t: 'ready' }); } catch (e) {} }); return; }
+  if (d.t === 'go') { if (mp.readyForGo) { mp.readyForGo = false; mpGo(); } return; }
+  if (d.t === 'snap' && d.s) {
+    const now = performance.now();
+    for (const id in d.s) { if (id === mp.myId) continue; const p = mp.players.get(id); if (p) { p.st = d.s[id]; p.t = now; } }
+  }
+}
+
+/* ---------- shared flow ---------- */
+function mpLoadDay(i, cb) {
+  if (mp.soloScheme === null) mp.soloScheme = bikeScheme;
+  bikeScheme = SLOT_SCHEMES[mySlot()] || 'red';
+  state = 'menu';
+  for (const id of ['mp', 'menu', 'finish', 'pause', 'hud', 'touch']) $(id).hidden = true;
+  $('loading').hidden = false; $('loading').textContent = 'Loading the canyon…';
+  setTimeout(() => {
+    buildWorld(DAYS[i]); spawnRider(); renderDayCards(); camSnap = true;
+    $('loading').textContent = 'Waiting for everyone…';
+    cb();
+  }, 30);
+}
+function mpGo() {
+  $('loading').hidden = true; $('mp').hidden = true;
+  mp.inRace = true; startRide();
+}
+function mpBackToLobby() {
+  state = 'menu'; mp.inRace = false;
+  for (const id of ['hud', 'touch', 'pause', 'finish', 'menu', 'board']) $(id).hidden = true;
+  $('mp').hidden = false; mpView('lobby');
+  spawnRider(); camSnap = true;
+  if (mp.host) { mp.racing = false; broadcastLobby(); } else renderLobby();
+}
+function mpLeave() {
+  clearTimeout(mp.readyWait); clearTimeout(mp.joinTimer); clearInterval(mp.hiTimer);
+  const peer = mp.peer;
+  Object.assign(mp, { on: false, host: false, loading: false, racing: false, inRace: false, readyForGo: false, peer: null, hostConn: null, myId: null, code: '' });
+  mp.conns.clear(); mp.players.clear();
+  for (const id of [...mp.remotes.keys()]) removeRemote(id);
+  try { peer && peer.destroy(); } catch (e) {}
+  $('board').hidden = true;
+  if (mp.soloScheme !== null) { bikeScheme = mp.soloScheme; mp.soloScheme = null; }
+}
+function mpRacingSelf() { return mp.inRace && (state === 'countdown' || state === 'ride' || state === 'finished' || state === 'paused'); }
+function myState() {
+  const b = bike, r = b.crashed ? (b.crashSide || 1) * b.crashRoll : b.roll;
+  return { x: +b.x.toFixed(2), y: +b.y.toFixed(2), z: +b.z.toFixed(2), yw: +b.yaw.toFixed(3), p: +b.pitch.toFixed(3), r: +r.toFixed(3),
+    sr: +inp.steer.toFixed(2), l: +inp.lean.toFixed(2), f: +b.f.toFixed(1), i: prog.idx, cp: prog.nextCp, c: stats.crashes, fin: mp.finTime ? +mp.finTime.toFixed(2) : 0, d: mp.dayIdx };
+}
+
+/* ---------- other riders ---------- */
+function ensureRemote(p) {
+  let r = mp.remotes.get(p.id);
+  if (r && (r.slot !== p.slot || r.name !== p.name)) { removeRemote(p.id); r = null; }
+  if (!r) {
+    const rig = makeBike(SLOT_SCHEMES[p.slot] || 'red', true); scene.add(rig.root);
+    const { tex, aspect } = textSprite(p.name, { fs: 44 });
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true, fog: false, sizeAttenuation: false }));
+    sp.scale.set(0.032 * aspect, 0.032, 1); sp.position.set(0, 2.4, -0.5); sp.renderOrder = 5; rig.root.add(sp);
+    const s = p.st;
+    r = { rig, slot: p.slot, name: p.name, sp, x: s.x, y: s.y, z: s.z, yaw: s.yw, pitch: s.p, roll: s.r, wheel: 0 };
+    mp.remotes.set(p.id, r);
+  }
+  return r;
+}
+function removeRemote(id) {
+  const r = mp.remotes.get(id); if (!r) return;
+  scene.remove(r.rig.root); r.sp.material.map.dispose(); r.sp.material.dispose();
+  mp.remotes.delete(id);
+}
+function updateRemotes(dt) {
+  const now = performance.now(), racing = mpRacingSelf();
+  for (const p of mp.players.values()) {
+    if (p.id === mp.myId) continue;
+    const s = p.st, show = racing && s && s.d === mp.dayIdx && now - (p.t || 0) < 4000;
+    if (!show) { const r = mp.remotes.get(p.id); if (r) r.rig.root.visible = false; continue; }
+    const r = ensureRemote(p); r.rig.root.visible = true;
+    const age = Math.min(0.25, (now - p.t) / 1000);
+    const tx = s.x - Math.sin(s.yw) * s.f * age, tz = s.z - Math.cos(s.yw) * s.f * age;
+    const k = 1 - Math.exp(-dt * 14);
+    if (Math.hypot(tx - r.x, tz - r.z) > 12) { r.x = tx; r.z = tz; r.y = s.y; r.yaw = s.yw; }
+    else {
+      r.x += (tx - r.x) * k; r.z += (tz - r.z) * k; r.y += (s.y - r.y) * k;
+      let dy = s.yw - r.yaw; while (dy > Math.PI) dy -= 2 * Math.PI; while (dy < -Math.PI) dy += 2 * Math.PI; r.yaw += dy * k;
+    }
+    r.pitch += (s.p - r.pitch) * k; r.roll += (s.r - r.roll) * k; r.wheel += s.f / 0.35 * dt;
+    const g = r.rig;
+    g.root.position.set(r.x, r.y, r.z); g.root.rotation.y = r.yaw; g.pitch.rotation.x = r.pitch; g.roll.rotation.z = r.roll;
+    g.steer.rotation.y = -s.sr * 0.5 / (1 + Math.abs(s.f) * 0.12); g.wR.rotation.x = -r.wheel; g.wF.rotation.x = -r.wheel * 0.95;
+    if (g.upper) { g.upper.position.z = -0.45 - s.l * 0.2; g.upper.rotation.x = -0.55 - s.l * 0.35; }
+  }
+  for (const id of [...mp.remotes.keys()]) if (!mp.players.has(id)) removeRemote(id);
+}
+
+/* ---------- standings, lobby, results ---------- */
+function standings() {
+  const now = performance.now(), rows = [];
+  for (const p of mp.players.values()) {
+    const me = p.id === mp.myId;
+    let s = me ? (mpRacingSelf() ? myState() : null) : p.st;
+    if (s && (s.d !== mp.dayIdx || (!me && now - (p.t || 0) > 4000 && !s.fin))) s = null;
+    rows.push({ p, s, me });
+  }
+  rows.sort((a, b) => {
+    const fa = a.s && a.s.fin, fb = b.s && b.s.fin;
+    if (fa && fb) return fa - fb; if (fa) return -1; if (fb) return 1;
+    return (b.s ? b.s.i : -1) - (a.s ? a.s.i : -1);
+  });
+  return rows;
+}
+function rowStatus(s) {
+  if (!s) return 'In lobby';
+  if (s.fin) return fmt(s.fin);
+  return 'Gate ' + s.cp + '/' + trail.cpIdx.length;
+}
+function renderBoard() {
+  const show = mp.on && mpRacingSelf();
+  $('board').hidden = !show; if (!show) return;
+  $('board').innerHTML = standings().map((r, i) =>
+    `<div class="${r.me ? 'me' : ''}"><b>${i + 1}</b><i style="background:${SLOT_HEX[r.p.slot]}"></i><span>${esc(r.p.name)}</span><em>${rowStatus(r.s)}</em></div>`).join('');
+}
+function renderResults() {
+  $('finResults').innerHTML = standings().map((r, i) =>
+    `<li class="${r.me ? 'me' : ''}"><b>${i + 1}</b><i style="background:${SLOT_HEX[r.p.slot]}"></i><span>${esc(r.p.name)}</span><em>${r.s && r.s.fin ? fmt(r.s.fin) + ' · ' + r.s.c + ' crash' + (r.s.c === 1 ? '' : 'es') : r.s ? 'Riding · ' + rowStatus(r.s) : 'In lobby'}</em></li>`).join('');
+}
+function mpFinishUi() {
+  const on = mp.on && mp.inRace;
+  $('bNext').hidden = on; $('bAgain').hidden = on; $('bMenu2').hidden = on; $('bLobby').hidden = !on; $('finResults').hidden = !on;
+  if (on) renderResults();
+}
+function renderLobby() {
+  if (!mp.on) return;
+  $('mpCodeShow').textContent = mp.code;
+  const now = performance.now();
+  $('mpRoster').innerHTML = [...mp.players.values()].sort((a, b) => a.slot - b.slot).map(p => {
+    const riding = p.id !== mp.myId && p.st && now - (p.t || 0) < 4000 && !p.st.fin;
+    const tags = [p.id === 'host' ? 'Host' : '', p.id === mp.myId ? 'You' : '', riding ? 'Riding' : ''].filter(Boolean).join(' · ');
+    return `<li><i style="background:${SLOT_HEX[p.slot]}"></i><span>${esc(p.name)}</span><em>${tags}</em></li>`;
+  }).join('');
+  $('mpHint').textContent = mp.players.size >= MAXP ? `Room is full (${MAXP}/${MAXP}).` : `Send this code to the group chat. ${mp.players.size}/${MAXP} riders.`;
+  $('mpHostCtl').hidden = !mp.host; $('mpWait').hidden = mp.host;
+  $('mpWait').textContent = mp.racing && !mp.inRace ? 'A race is on. You\'re in the next one.' : 'Waiting for the host to start the race…';
+  if (mp.host) {
+    const w = $('mpDays'); w.innerHTML = '';
+    DAYS.forEach((d, i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'day'; b.setAttribute('aria-pressed', String(i === mp.dayIdx));
+      b.innerHTML = `<span class="dn">Day ${d.n}</span><span class="dt">${d.name}</span>`;
+      b.onclick = () => { mp.dayIdx = i; broadcastLobby(); };
+      w.appendChild(b);
+    });
+    $('bStartRace').textContent = mp.loading ? 'Loading…' : mp.players.size > 1 ? 'Start race' : 'Start (just you so far)';
+    $('bStartRace').disabled = mp.loading;
+  } else {
+    const d = DAYS[mp.dayIdx]; $('mpWait').textContent += d ? ` Next up: Day ${d.n}, ${d.name}.` : '';
+  }
+}
+function mpTick(dt) {
+  updateRemotes(dt);
+  if ((mp.sendT += dt) >= 1 / 15) {
+    mp.sendT = 0;
+    const racingSelf = mpRacingSelf();
+    if (mp.host) {
+      const me = mp.players.get('host'); if (me) { me.st = racingSelf ? myState() : null; me.t = performance.now(); }
+      const s = {}, now = performance.now();
+      for (const p of mp.players.values()) if (p.st && now - (p.t || 0) < 4000) s[p.id] = p.st;
+      if (mp.conns.size) sendAll({ t: 'snap', s });
+    } else if (racingSelf && mp.hostConn && mp.hostConn.open) { try { mp.hostConn.send({ t: 'st', s: myState() }); } catch (e) {} }
+  }
+  if ((mp.uiT += dt) >= 0.25) {
+    mp.uiT = 0; renderBoard();
+    if (!$('mp').hidden) renderLobby();
+    if (!$('finish').hidden && mp.inRace) renderResults();
+  }
+}
+$('bMP').onclick = openMP;
+$('bMPBack').onclick = closeMP;
+$('bHost').onclick = mpHost;
+$('bJoin').onclick = mpJoin;
+$('mpCode').addEventListener('keydown', e => { if (e.key === 'Enter') mpJoin(); });
+$('bStartRace').onclick = hostStartRace;
+$('bLobby').onclick = mpBackToLobby;
+
+window.__game = { bike, inp, prog, stats, mp, get trail() { return trail; }, get state() { return state; }, startRide, selectDay, DAYS, buildWorld, spawnRider, auto: false, autoFeather: true, ground, surfaceAt,
   sim(sec) { // headless test run with the autopilot
     const log = [];
     state = 'ride';

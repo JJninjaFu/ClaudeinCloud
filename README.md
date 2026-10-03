@@ -16,6 +16,7 @@ The root `index.html` is a game menu for GitHub Pages. Each game is one self-con
 - **Phone:** left stick steers (left/right) and shifts your body forward/back (up/down), slide up the **GAS** strip for more throttle, **BRAKE** button.
 - **Keyboard:** W gas (hold Shift to feather at half) · S/Space brake · A/D or ←/→ steer · ↑/↓ body forward/back · R pick the bike up · C camera (chase, buddy filming, helmet) · P pause · M sound
 - **Controller:** RT gas · LT brake · left stick steer and lean · Y reset · RB camera · Start pause
+- **Ride with friends (up to 4):** tap *Ride with friends*, enter your name, and either *Host a race* (you get a 4-letter room code to send the group) or type a code and *Join*. The host picks the day and starts the race; everyone gets the same countdown, sees each other's bikes live (no collisions), and gets a standings board and finish results. Uses PeerJS (loaded only when you open multiplayer); the host's browser relays everyone. Some cell networks block direct connections, so Wi-Fi helps if someone can't join.
 
 ### Pool Dig controls
 - **Phone:** left stick drives, right stick swings (left/right) and reaches (up/down), **DIG** scoops or dumps, **TRIM** shaves a thin layer.
