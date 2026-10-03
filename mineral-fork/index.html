@@ -1077,8 +1077,11 @@ addEventListener('keydown', e => {
   if (e.code === 'Enter' && state === 'menu' && !mp.on && $('mp').hidden) startRide();
 });
 addEventListener('keyup', e => keys.delete(e.code));
-addEventListener('blur', () => { keys.clear(); if (state === 'ride') togglePause(true); });
-document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'ride') togglePause(true); });
+// Phones fire blur for notification banners and other passing things, so only a
+// desktop solo rider auto-pauses on blur. Leaving the page pauses solo rides only:
+// in a race the others keep riding, so pausing would just cost you time.
+addEventListener('blur', () => { keys.clear(); touch.thr = 0; touch.brk = 0; if (state === 'ride' && !isTouch && !mp.on) togglePause(true); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'ride' && !mp.on) togglePause(true); });
 
 function readInput(dt) {
   const kThr = keys.has('KeyW'), feather = keys.has('ShiftLeft') || keys.has('ShiftRight');
