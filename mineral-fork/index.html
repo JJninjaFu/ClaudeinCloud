@@ -147,6 +147,8 @@ details.controls summary{cursor:pointer;font-family:var(--f-data);font-weight:60
 .board span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .board em{margin-left:auto;font-style:normal;opacity:.85;padding-left:10px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .board .me{color:var(--gold)}
+/* phones: Pause/Camera/Reset sit up under the speed panel, away from the thumbs */
+body.touch .hud-top{top:calc(184px + env(safe-area-inset-top,0px));bottom:auto;left:16px;transform:none}
 @media (prefers-reduced-motion:reduce){.toast,.big{transition:none}}
 </style>
 
@@ -156,7 +158,6 @@ details.controls summary{cursor:pointer;font-family:var(--f-data);font-weight:60
   <div class="hud-tl">
     <div class="clock" id="clock">0:00.0</div>
     <div class="hud-row"><span class="lbl">Gates</span><b id="cpText">0/5</b><span class="lbl">Crashes</span><b id="crashText">0</b></div>
-    <div class="board" id="board" hidden></div>
   </div>
   <div class="hud-tr">
     <div class="mapcard">
@@ -164,6 +165,7 @@ details.controls summary{cursor:pointer;font-family:var(--f-data);font-weight:60
       <canvas id="map" width="264" height="420"></canvas>
       <canvas id="profile" width="264" height="80"></canvas>
     </div>
+    <div class="board" id="board" hidden></div>
   </div>
   <div class="hud-bl">
     <div class="speed"><span id="spd">0</span><small>MPH</small></div>
@@ -230,7 +232,7 @@ details.controls summary{cursor:pointer;font-family:var(--f-data);font-weight:60
 
 <div id="pause" class="overlay center" hidden>
   <div class="sign" style="margin-left:0">
-    <div class="kicker"><span class="shield">1154</span>Paused</div>
+    <div class="kicker"><span class="shield" id="pauseShield">1154</span>Paused</div>
     <h1 style="font-size:56px">Catch your breath</h1>
     <p class="tag" id="pauseInfo"></p>
     <div class="actions">
@@ -1454,7 +1456,7 @@ function toMenu() {
 }
 function togglePause(force) {
   if (state === 'ride' || state === 'countdown') {
-    pausedFrom = state; state = 'paused'; $('pause').hidden = false;
+    pausedFrom = state; state = 'paused'; $('pause').hidden = false; $('pauseShield').textContent = day.shield;
     $('pauseInfo').textContent = `${day.name} · ${fmt(stats.time)} · ${stats.crashes} crash${stats.crashes === 1 ? '' : 'es'}`;
     setTimeout(() => $('bResume').focus(), 0);
   } else if (state === 'paused' && force !== true) { state = pausedFrom; $('pause').hidden = true; Sound.init(); }
