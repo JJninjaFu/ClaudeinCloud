@@ -57,6 +57,9 @@ b,.num{font-family:var(--f-data);font-variant-numeric:tabular-nums;font-weight:7
 .hud-top{position:absolute;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top,0px));display:flex;gap:6px;pointer-events:auto}
 .hud-top button{background:var(--panel);border:1px solid var(--panel-line);border-radius:6px;padding:5px 10px;font-family:var(--f-data);font-weight:600;font-size:12px;letter-spacing:.1em;text-transform:uppercase}
 .hud-top button:hover{border-color:var(--gold)}
+.hud-top button[aria-pressed="true"]{color:var(--warn);border-color:rgba(240,177,58,.6)}
+body.touch .hud-top{flex-wrap:wrap;max-width:calc(100vw - 32px)}
+body.touch .toast{top:calc(232px + env(safe-area-inset-top,0px))}
 
 /* ---------- touch ---------- */
 #touch{position:fixed;inset:0;pointer-events:none}
@@ -184,6 +187,7 @@ body.touch .hud-top{top:calc(184px + env(safe-area-inset-top,0px));bottom:auto;l
     <button id="bPause" type="button">Pause</button>
     <button id="bCam" type="button">Camera</button>
     <button id="bReset" type="button">Reset</button>
+    <button id="bSound" type="button" aria-pressed="false">Sound on</button>
   </div>
   <div id="toast" class="toast"></div>
   <div id="big" class="big"></div>
@@ -218,7 +222,7 @@ body.touch .hud-top{top:calc(184px + env(safe-area-inset-top,0px));bottom:auto;l
         <kbd>R</kbd><span>Pick the bike up at the trail</span>
         <kbd>C</kbd><span>Camera: chase, buddy filming, helmet</span>
         <kbd>P / Esc</kbd><span>Pause</span>
-        <kbd>M</kbd><span>Mute engine</span>
+        <kbd>M</kbd><span>Sound on / off (or the Sound button)</span>
         <kbd>Controller</kbd><span>RT gas, LT brake, left stick steer and lean, Y reset, RB camera, Start pause</span>
       </div>
       <ul class="tips">
@@ -1024,7 +1028,8 @@ function updateParticles(dt) {
 const Sound = {
   ctx: null, muted: false, running: false,
   init() {
-    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    // iPhone marks the audio 'interrupted' after you switch apps; any state other than running needs a resume
+    if (this.ctx) { if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {}); return; }
     try {
       const C = window.AudioContext || window.webkitAudioContext; const c = this.ctx = new C();
       this.master = c.createGain(); this.master.gain.value = 0; this.master.connect(c.destination);
@@ -1075,7 +1080,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
   if (e.code === 'KeyR' && state === 'ride') requestReset();
   if (e.code === 'KeyC') cycleCam();
-  if (e.code === 'KeyM') { Sound.muted = !Sound.muted; toast(Sound.muted ? 'Engine muted' : 'Engine sound on'); }
+  if (e.code === 'KeyM') toggleSound();
   if (e.code === 'Enter' && state === 'menu' && !mp.on && $('mp').hidden) startRide();
 });
 addEventListener('keyup', e => keys.delete(e.code));
@@ -1486,6 +1491,18 @@ $('bAgain').onclick = restart;
 $('bNext').onclick = () => { const i = day.n === 1 ? 1 : 0; $('finish').hidden = true; withLoading(() => { buildWorld(DAYS[i]); renderDayCards(); startRide(); }); };
 $('bPause').onclick = () => togglePause();
 $('bCam').onclick = () => cycleCam();
+function syncSoundBtn() { const b = $('bSound'); b.textContent = Sound.muted ? 'Sound off' : 'Sound on'; b.setAttribute('aria-pressed', String(Sound.muted)); }
+function toggleSound() {
+  Sound.muted = !Sound.muted; Sound.init();
+  try { localStorage.setItem('mf-muted', Sound.muted ? '1' : '0'); } catch (e) {}
+  syncSoundBtn(); toast(Sound.muted ? 'Sound off' : 'Sound on');
+}
+try { Sound.muted = localStorage.getItem('mf-muted') === '1'; } catch (e) {}
+syncSoundBtn();
+$('bSound').onclick = toggleSound;
+// wake the sound back up on the first touch or key after coming back from another app
+for (const ev of ['pointerdown', 'touchend', 'keydown']) addEventListener(ev, () => { if (Sound.ctx && Sound.ctx.state !== 'running') Sound.init(); }, { capture: true, passive: true });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && Sound.ctx && Sound.ctx.state !== 'running') Sound.ctx.resume().catch(() => {}); });
 $('bReset').onclick = () => { if (state === 'ride') requestReset(); };
 
 /* =========================================================
