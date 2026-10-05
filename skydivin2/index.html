@@ -1,0 +1,1250 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Skydivin' 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{--bg:#1d1c1a;--panel:rgba(26,25,23,.78);--panel-solid:#2a2825;--line:rgba(243,239,230,.16);--ink:#f3efe6;--muted:#b9b2a5;--yellow:#f5b800;--orange:#ff6b1a;--red:#e8402f;--green:#5cc96b;
+  --f-display:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;--f-body:'IBM Plex Sans Condensed',system-ui,sans-serif;--f-mono:'IBM Plex Mono',ui-monospace,monospace;color-scheme:dark}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;overflow:hidden;background:#87a9c9;color:var(--ink);font-family:var(--f-body);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
+input{font:inherit}
+.overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(18,17,15,.55);overflow:auto}
+.card{background:var(--panel-solid);border-radius:10px;padding:22px 20px 18px;max-width:560px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.45);border-top:6px solid var(--yellow);margin:auto}
+.kicker{font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--yellow)}
+h1{font-family:var(--f-display);font-weight:900;font-size:clamp(46px,11vw,72px);line-height:.88;margin:8px 0 8px;text-transform:uppercase}
+h1 span{color:var(--orange)}
+h2{font-family:var(--f-display);font-weight:800;font-size:34px;line-height:1;margin:4px 0 10px;text-transform:uppercase}
+p.tag{color:var(--muted);margin:0 0 16px;font-size:16px;line-height:1.4}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.btn{background:var(--yellow);color:#1d1c1a;border:0;border-radius:6px;padding:12px 20px;font-family:var(--f-display);font-weight:800;font-size:22px;letter-spacing:.04em;text-transform:uppercase}
+.btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 2px var(--line)}
+.btn:disabled{opacity:.5}
+.seg{display:inline-flex;border-radius:6px;overflow:hidden;box-shadow:inset 0 0 0 2px var(--line);margin:4px 0 12px}
+.seg button{background:transparent;border:0;padding:8px 14px;font-family:var(--f-mono);font-size:13px}
+.seg button.on{background:var(--yellow);color:#1d1c1a}
+.lbl{display:block;font-family:var(--f-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:10px 0 4px}
+.fld input,#mpCode{width:100%;box-sizing:border-box;background:#1d1c1a;color:var(--ink);border:2px solid var(--line);border-radius:6px;padding:10px 12px;font-size:18px}
+.joinrow{display:flex;gap:8px}.joinrow input{flex:1;text-transform:uppercase;letter-spacing:.2em;font-family:var(--f-mono)}
+.or{color:var(--muted);font-size:14px;margin:12px 0 6px}
+.code{font-family:var(--f-mono);font-size:13px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+.code b{display:block;font-family:var(--f-display);font-size:56px;color:var(--yellow);letter-spacing:.12em;line-height:1}
+.roster{list-style:none;padding:0;margin:12px 0;display:grid;gap:6px}
+.roster li{display:flex;align-items:center;gap:10px;background:#34322e;border-radius:6px;padding:8px 10px;font-size:17px}
+.roster i{width:14px;height:14px;border-radius:50%;display:inline-block}
+.roster small{margin-left:auto;color:var(--muted);font-family:var(--f-mono);font-size:12px}
+.mpmsg{color:#ffb39f;min-height:1.2em;margin:8px 0 0}
+details{margin-top:14px;color:var(--muted);font-size:14px;line-height:1.45}
+summary{cursor:pointer;color:var(--ink);font-weight:600}
+details ul{padding-left:18px;margin:8px 0}
+/* HUD */
+#hud{position:fixed;inset:0;pointer-events:none}
+#alti{position:absolute;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:var(--panel);border-radius:10px;padding:6px 12px 6px 6px}
+#altiDial{width:70px;height:70px;display:block}
+#altNum{font-family:var(--f-display);font-weight:900;font-size:36px;line-height:.9;font-variant-numeric:tabular-nums;min-width:4.2ch}
+#altNum small{font-size:16px;color:var(--muted);margin-left:2px}
+#altSub{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin-top:4px;white-space:nowrap}
+#form{position:absolute;top:max(10px,env(safe-area-inset-top));left:10px;width:132px;height:132px;border-radius:12px;background:rgba(26,25,23,.7)}
+#formName{position:absolute;left:10px;top:calc(max(10px,env(safe-area-inset-top)) + 138px);font-family:var(--f-display);font-weight:900;font-size:26px;text-transform:uppercase;text-shadow:0 2px 8px rgba(0,0,0,.6);line-height:1}
+#formName small{display:block;font-family:var(--f-mono);font-weight:600;font-size:12px;color:var(--yellow);margin-top:3px}
+#level{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:28px;height:180px;border-radius:14px;background:rgba(26,25,23,.6)}
+#level i{position:absolute;left:4px;right:4px;height:6px;border-radius:3px;background:var(--yellow);top:50%;margin-top:-3px}
+#level b{position:absolute;left:0;right:0;top:50%;height:2px;background:rgba(243,239,230,.7)}
+#level span{position:absolute;left:-2px;right:-2px;text-align:center;font-family:var(--f-mono);font-size:10px;color:var(--muted)}
+#topbtns{position:absolute;top:max(10px,env(safe-area-inset-top));right:10px;display:flex;flex-direction:column;gap:6px;pointer-events:auto}
+#topbtns button{background:var(--panel);border:0;border-radius:6px;padding:7px 9px;font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;min-width:64px}
+#msg{position:absolute;left:0;right:0;top:30%;text-align:center;font-family:var(--f-display);font-weight:900;font-size:clamp(34px,8vw,72px);line-height:.95;text-transform:uppercase;text-shadow:0 3px 18px rgba(0,0,0,.6);padding:0 14px;transition:opacity .25s;opacity:0}
+#msg small{display:block;font-family:var(--f-body);font-weight:600;font-size:clamp(15px,3.4vw,20px);text-transform:none;margin-top:8px;text-shadow:0 2px 8px rgba(0,0,0,.8)}
+#tip{position:absolute;left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom));background:var(--panel);border-radius:6px;padding:6px 12px;font-size:15px;max-width:min(92vw,620px);text-align:center;transition:opacity .3s}
+body.touch #tip{bottom:auto;top:calc(max(10px,env(safe-area-inset-top)) + 90px);font-size:14px;max-width:60vw}
+#team{position:absolute;right:10px;top:calc(max(10px,env(safe-area-inset-top)) + 100px);font-family:var(--f-mono);font-size:12px;text-align:right;background:var(--panel);border-radius:6px;padding:5px 8px;line-height:1.5}
+#team i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-left:5px;vertical-align:-1px}
+/* touch */
+#touch{position:fixed;inset:0;pointer-events:none}
+.stk{position:absolute;bottom:calc(24px + env(safe-area-inset-bottom));width:132px;height:132px;border-radius:50%;background:rgba(26,25,23,.38);box-shadow:inset 0 0 0 2px rgba(243,239,230,.25);pointer-events:auto;touch-action:none}
+.stk i{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px;border-radius:50%;background:rgba(245,184,0,.85);pointer-events:none}
+.stk span{position:absolute;left:0;right:0;text-align:center;font-family:var(--f-mono);font-size:10px;color:rgba(243,239,230,.75);pointer-events:none}
+#stL{left:calc(16px + env(safe-area-inset-left))}
+#stR{right:calc(16px + env(safe-area-inset-right))}
+#stR i{background:rgba(154,208,255,.85)}
+#bMain{position:absolute;pointer-events:auto;touch-action:none;border:0;border-radius:50%;right:calc(40px + env(safe-area-inset-right));bottom:calc(172px + env(safe-area-inset-bottom));width:96px;height:96px;background:var(--yellow);color:#1d1c1a;font-family:var(--f-display);font-weight:900;font-size:22px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+#bMain.on{filter:brightness(1.25)}
+/* results */
+.rows{list-style:none;padding:0;margin:0 0 14px;font-size:16px}
+.rows li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line)}
+.rows li b{font-family:var(--f-mono);font-weight:600}
+.rows li.tot{font-family:var(--f-display);font-size:26px;font-weight:800;text-transform:uppercase;border-bottom:0}
+.rows li i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+#toast{position:fixed;left:50%;top:40%;transform:translateX(-50%);background:var(--panel);padding:8px 14px;border-radius:6px;font-size:15px;pointer-events:none;transition:opacity .3s;opacity:0}
+#loading{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--panel);padding:12px 18px;border-radius:8px;font-family:var(--f-mono)}
+@media (max-width:520px){#form{width:96px;height:96px}#formName{top:calc(max(10px,env(safe-area-inset-top)) + 100px);font-size:20px}#alti{padding:4px 8px 4px 4px;gap:6px;left:auto;right:76px;transform:none}#altiDial{width:52px;height:52px}#altNum{font-size:28px}#altNum small{font-size:13px}#altSub{font-size:10px}#topbtns button{min-width:0;padding:6px 7px;font-size:10px}#team{font-size:10px}#level{height:140px}}
+</style>
+
+<canvas id="c"></canvas>
+
+<div id="hud" hidden>
+  <canvas id="form" width="264" height="264" aria-label="Formation"></canvas>
+  <div id="formName"></div>
+  <div id="alti">
+    <canvas id="altiDial" width="140" height="140"></canvas>
+    <div><div id="altNum">13,500<small>FT</small></div><div id="altSub"></div></div>
+  </div>
+  <div id="topbtns">
+    <button id="bPause" type="button">MENU</button>
+    <button id="bCam" type="button">CAM</button>
+    <button id="bSound" type="button">SOUND</button>
+  </div>
+  <div id="team"></div>
+  <div id="level"><span style="top:4px">HIGH</span><b></b><i></i><span style="bottom:4px">LOW</span></div>
+  <div id="msg"></div>
+  <div id="tip"></div>
+</div>
+
+<div id="touch" hidden>
+  <div class="stk" id="stL"><span style="top:6px">LEAN FWD</span><span style="bottom:6px">LEAN BACK</span><i></i></div>
+  <div class="stk" id="stR"><span style="top:6px">FLOAT</span><span style="bottom:6px">SINK</span><i></i></div>
+  <button id="bMain" type="button" hidden>PULL</button>
+</div>
+
+<div id="menu" class="overlay">
+  <div class="card" role="dialog" aria-labelledby="ttl">
+    <div class="kicker">4-way formation skydiving</div>
+    <h1 id="ttl">Skydivin'<span> 2</span></h1>
+    <p class="tag">Four jumpers off the skids of a helicopter at 13,500 ft. Lean forward and back to fly your slot, build the shape, hold it 3 seconds, then the next one. Break off at 4,500 ft and land on the X.</p>
+    <span class="lbl">Docking</span>
+    <div class="seg" id="assistSeg"><button type="button" data-a="1" class="on">Easy docks</button><button type="button" data-a="0">Pro</button></div>
+    <div class="actions"><button class="btn" id="bSolo" type="button">Jump with bots</button><button class="btn ghost" id="bMP" type="button">Jump with friends</button></div>
+    <details>
+      <summary>Controls &amp; tips</summary>
+      <ul>
+        <li><b>Phone:</b> left stick leans you forward/back (drive to and from your slot) and turns you. Right stick slides you sideways and controls fall rate (up = float, down = sink). Big button pulls and flares.</li>
+        <li><b>Keyboard:</b> W/S lean · A/D turn · Q/E slide · R float · F sink · Space pull / flare · C camera · M sound</li>
+        <li><b>Controller:</b> left stick lean &amp; turn · right stick slide &amp; fall rate · A pull / flare · B camera</li>
+        <li>Your ghost shows your slot. Get in it, face the right way, and match level (the bar on the right). When all four are docked, hold for 3 seconds.</li>
+        <li>You carry momentum, just like leaning on the bike: start braking (lean back) before you get there or you'll bump into your buddy.</li>
+        <li>At 4,500 ft: break off, push forward to track away, pull by 3,500 ft, then fly your canopy to the X.</li>
+      </ul>
+    </details>
+  </div>
+</div>
+
+<div id="mp" class="overlay" hidden>
+  <div class="card" role="dialog" aria-labelledby="mpTitle">
+    <div class="kicker">Up to 4 jumpers · bots fill the rest</div>
+    <h2 id="mpTitle">Jump with friends</h2>
+    <div id="mpStart">
+      <label class="lbl fld">Your name<input id="mpName" maxlength="12" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Name"></label>
+      <div class="actions"><button class="btn" id="bHost" type="button">Host a jump</button></div>
+      <p class="or">or join with a code</p>
+      <div class="joinrow"><input id="mpCode" maxlength="4" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="CODE" aria-label="Room code"><button class="btn ghost" id="bJoin" type="button">Join</button></div>
+    </div>
+    <div id="mpLobby" hidden>
+      <div class="code">Room code<b id="mpCodeShow">----</b></div>
+      <ul class="roster" id="mpRoster"></ul>
+      <div id="mpHostCtl"><div class="actions"><button class="btn" id="bStartJump" type="button">Load the helicopter</button></div></div>
+      <p class="tag" id="mpWait" hidden>Waiting for the host to load the helicopter…</p>
+    </div>
+    <p class="mpmsg" id="mpMsg" aria-live="polite"></p>
+    <div class="actions"><button class="btn ghost" id="bMPBack" type="button">Leave</button></div>
+  </div>
+</div>
+
+<div id="results" class="overlay" hidden>
+  <div class="card">
+    <div class="kicker" id="resKicker">Team jump log</div>
+    <h2 id="resTitle">7 points</h2>
+    <ul class="rows" id="resRows"></ul>
+    <div class="actions"><button class="btn" id="bAgain" type="button">Jump again</button><button class="btn ghost" id="bMenu" type="button">Menu</button></div>
+    <p class="tag" id="resWait" hidden style="margin-top:10px">Waiting for the host to load the next jump…</p>
+  </div>
+</div>
+<div id="toast"></div>
+<div id="loading" hidden>Waiting for everyone…</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const FT = 3.28084, MPH = 2.23694, G = 9.81;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const approach = (v, t, r, dt) => v + (t - v) * (1 - Math.exp(-r * dt));
+const fmt = n => Math.round(n).toLocaleString('en-US');
+const wrapA = a => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
+const approachAngle = (a, b, r, dt) => a + wrapA(b - a) * (1 - Math.exp(-r * dt));
+function rng(seed) { let a = seed >>> 0; return () => { a += 0x6D2B79F5; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+let R = rng(Date.now());
+const rr = (a, b) => a + (b - a) * R();
+const PI = Math.PI;
+
+/* =========================================================
+   Formations: [x (right), z (forward), facing] in the formation frame
+   ========================================================= */
+const FORMS = [
+  { name: 'Star', s: [[0, 1.45, PI], [1.45, 0, -PI / 2], [0, -1.45, 0], [-1.45, 0, PI / 2]], links: [[0, 1], [1, 2], [2, 3], [3, 0]] },
+  { name: 'Line', s: [[-2.4, 0, 0], [-0.8, 0, 0], [0.8, 0, 0], [2.4, 0, 0]], links: [[0, 1], [1, 2], [2, 3]] },
+  { name: 'Caterpillar', s: [[0, 2.7, 0], [0, 0.9, 0], [0, -0.9, 0], [0, -2.7, 0]], links: [[0, 1], [1, 2], [2, 3]] },
+  { name: 'Diamond', s: [[0, 1.9, 0], [1.3, 0.35, 0], [0, -1.3, 0], [-1.3, 0.35, 0]], links: [[0, 1], [1, 2], [2, 3], [3, 0]] },
+  { name: 'Box', s: [[1.05, 1.05, -3 * PI / 4], [1.05, -1.05, -PI / 4], [-1.05, -1.05, PI / 4], [-1.05, 1.05, 3 * PI / 4]], links: [[0, 1], [1, 2], [2, 3], [3, 0]] },
+  { name: 'Accordion', s: [[-0.8, 0.85, PI], [0.8, 0.85, PI], [0.8, -0.85, 0], [-0.8, -0.85, 0]], links: [[0, 1], [1, 2], [2, 3], [3, 0]] },
+];
+const DOCK = { easy: { pos: 1.15, lvl: 1.6, yaw: 0.6, assist: 1 }, pro: { pos: 0.7, lvl: 1.0, yaw: 0.35, assist: 0 } };
+const SLOT_HEX = ['#f5b800', '#3b7bea', '#3fb85a', '#e8402f'];
+const SLOT_COL = [[0xf5b800, 0x1d1c1a, 0xf5b800, 0xff6b1a], [0x3b7bea, 0xeeeeee, 0x2b5fd8, 0x9ad0ff], [0x3fb85a, 0xf2f2f2, 0x2f9e44, 0xd9f26b], [0xe8402f, 0xffffff, 0xd8262b, 0x1b1b1b]];
+const EXIT = 4115, BREAK = 1372, PULL = 1067, AUTOPULL = 640;
+const TARGET = new THREE.Vector3(0, 0, 0);
+const MAIN = { V: 11, S: 4.6, Vb: 4, Sb: 2.9 };
+
+/* =========================================================
+   Renderer & scene
+   ========================================================= */
+const canvas = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(62, 1, 0.3, 30000);
+scene.fog = new THREE.Fog(0xc2d6ea, 1500, 16000);
+const hemi = new THREE.HemisphereLight(0xdfeeff, 0x5a6b3a, 0.75); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffffff, 1.0); sun.position.set(-0.5, 1, 0.35); scene.add(sun);
+function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w < h ? 76 : 60; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+const skyMat = new THREE.ShaderMaterial({
+  uniforms: { top: { value: new THREE.Color(0x3f7fd0) }, hor: { value: new THREE.Color(0xc9ddef) } }, side: THREE.BackSide, depthWrite: false, fog: false,
+  vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+  fragmentShader: 'uniform vec3 top; uniform vec3 hor; varying vec3 vP; void main(){ float t = clamp(vP.y*1.6+0.05,0.0,1.0); gl_FragColor = vec4(mix(hor, top, pow(t,0.7)),1.0); }',
+});
+const sky = new THREE.Mesh(new THREE.SphereGeometry(20000, 24, 12), skyMat); sky.renderOrder = -1; scene.add(sky);
+const mat = (c, o = {}) => new THREE.MeshLambertMaterial(Object.assign({ color: c }, o));
+function box(w, h, d, c, x = 0, y = 0, z = 0, parent) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), typeof c === 'number' ? mat(c) : c); m.position.set(x, y, z); if (parent) parent.add(m); return m; }
+/* ---------- world (shared with Survivin' Skydivin') ---------- */
+const W2P = (x, z, half, n) => [(x + half) / (half * 2) * n, (z + half) / (half * 2) * n];
+const OBJ = { // world layout (m). North is -z, east is +x.
+  runway: { x0: -520, x1: 520, z0: 196, z1: 222 },
+  hangar: { x0: -200, x1: -150, z0: 100, z1: 132, h: 10 },
+  pond: { x: 230, z: -160, r: 48 },
+  hwy: { z0: 410, z1: 428 },
+  power: { z: 398, x0: -1400, x1: 1400, h: 11 },
+};
+function farTexture() {
+  const n = 1024, c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d'), r = rng(7);
+  g.fillStyle = '#6e8848'; g.fillRect(0, 0, n, n);
+  const cols = ['#7d9450', '#8fa25c', '#a8a466', '#6b8545', '#93884f', '#b5a873', '#5f7a40', '#8a9a58', '#9c8d5a', '#738e4a'];
+  let y = 0;
+  while (y < n) {
+    const h = 10 + r() * 26; let x = 0;
+    while (x < n) { const w = 10 + r() * 40; g.fillStyle = cols[(r() * cols.length) | 0]; g.fillRect(x, y, w - 0.6, h - 0.6); x += w; }
+    y += h;
+  }
+  g.fillStyle = 'rgba(80,95,55,.6)';
+  for (let i = 0; i < 260; i++) { g.beginPath(); g.ellipse(r() * n, r() * n, 3 + r() * 10, 2 + r() * 8, r() * 3, 0, 7); g.fill(); }
+  g.strokeStyle = '#8b8577'; g.lineWidth = 1.4;
+  for (let i = 0; i < n; i += 118) { g.beginPath(); g.moveTo(i + 30, 0); g.lineTo(i + 30, n); g.stroke(); g.beginPath(); g.moveTo(0, i + 50); g.lineTo(n, i + 50); g.stroke(); }
+  g.strokeStyle = '#4c4b48'; g.lineWidth = 2.2; g.beginPath(); g.moveTo(0, n / 2 + 418 / 14000 * n); g.lineTo(n, n / 2 + 418 / 14000 * n); g.stroke();
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
+}
+function dzTexture() {
+  const n = 2048, half = 700, c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d'), r = rng(11);
+  const P = (x, z) => W2P(x, z, half, n), S = m => m / (half * 2) * n;
+  g.fillStyle = '#6f9645'; g.fillRect(0, 0, n, n);
+  for (let i = 0; i < 900; i++) { g.fillStyle = r() < 0.5 ? 'rgba(90,130,55,.35)' : 'rgba(140,160,80,.25)'; g.beginPath(); g.ellipse(r() * n, r() * n, 6 + r() * 40, 4 + r() * 28, r() * 3, 0, 7); g.fill(); }
+  // mowed landing area stripes
+  g.save(); const [lx, lz] = P(-150, -150); g.beginPath(); g.rect(lx, lz, S(330), S(300)); g.clip();
+  for (let i = 0; i < 30; i++) { g.fillStyle = i % 2 ? 'rgba(130,175,80,.35)' : 'rgba(95,140,60,.25)'; g.fillRect(lx + i * S(11), lz, S(11), S(300)); }
+  g.restore();
+  // farm fields at the edges
+  for (let i = 0; i < 40; i++) { const x = rr(-700, 700), z = rr(-700, 700); if (Math.hypot(x, z) < 420) continue; const [px, pz] = P(x, z); g.fillStyle = ['#9c9a5c', '#7f9a4c', '#a8a065', '#86753f'][i % 4]; g.fillRect(px, pz, S(rr(80, 200)), S(rr(60, 160))); }
+  // runway, taxiway, apron
+  const rw = OBJ.runway; let [a, b] = P(rw.x0, rw.z0); g.fillStyle = '#55585c'; g.fillRect(a, b, S(rw.x1 - rw.x0), S(rw.z1 - rw.z0));
+  g.fillStyle = '#e8e8e0'; for (let x = rw.x0 + 30; x < rw.x1 - 30; x += 30) { const [p, q] = P(x, (rw.z0 + rw.z1) / 2 - 0.4); g.fillRect(p, q, S(14), S(0.9)); }
+  [a, b] = P(-215, 132); g.fillStyle = '#6a6c6e'; g.fillRect(a, b, S(90), S(64));
+  // highway
+  [a, b] = P(-half, OBJ.hwy.z0); g.fillStyle = '#3e3f42'; g.fillRect(0, b, n, S(OBJ.hwy.z1 - OBJ.hwy.z0));
+  g.fillStyle = '#e1b52c'; for (let x = -half; x < half; x += 12) { const [p, q] = P(x, (OBJ.hwy.z0 + OBJ.hwy.z1) / 2 - 0.15); g.fillRect(p, q, S(6), S(0.3)); }
+  // gravel road
+  g.strokeStyle = '#b8a888'; g.lineWidth = S(5); g.beginPath(); g.moveTo(...P(-175, 196)); g.lineTo(...P(-175, 410)); g.stroke();
+  // pond
+  const pd = OBJ.pond; g.fillStyle = '#7a6a48'; g.beginPath(); g.arc(...P(pd.x, pd.z), S(pd.r + 4), 0, 7); g.fill();
+  g.fillStyle = '#2f5d78'; g.beginPath(); g.arc(...P(pd.x, pd.z), S(pd.r), 0, 7); g.fill();
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 8; return t;
+}
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(28000, 28000), mat(0xffffff, { map: farTexture() }));
+ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const dz = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), mat(0xffffff, { map: dzTexture() }));
+dz.rotation.x = -Math.PI / 2; dz.position.y = 0.05; scene.add(dz);
+{ // ground texture: far plane covers 28 km with a 14 km tile
+  ground.material.map.wrapS = ground.material.map.wrapT = THREE.RepeatWrapping; ground.material.map.repeat.set(2, 2);
+}
+// target
+const tgt = new THREE.Group(); scene.add(tgt);
+{
+  const disc = (r, c, y) => { const m = new THREE.Mesh(new THREE.CircleGeometry(r, 48), mat(c)); m.rotation.x = -Math.PI / 2; m.position.y = y; tgt.add(m); };
+  const ring = (r0, r1, c, y) => { const m = new THREE.Mesh(new THREE.RingGeometry(r0, r1, 48), mat(c)); m.rotation.x = -Math.PI / 2; m.position.y = y; tgt.add(m); };
+  disc(15, 0xcdb994, 0.1); ring(4.6, 5.1, 0xffffff, 0.12); ring(9.6, 10.1, 0xffffff, 0.12); ring(14.4, 15, 0xff6b1a, 0.12); disc(1.2, 0xff6b1a, 0.14);
+  const bar = (w, d, rot) => { const m = box(w, 0.05, d, 0xff6b1a, 0, 0.13, 0, tgt); m.rotation.y = rot; };
+  bar(12, 1.4, Math.PI / 4); bar(12, 1.4, -Math.PI / 4);
+}
+// windsock
+const sock = new THREE.Group(); sock.position.set(26, 0, -20); scene.add(sock);
+box(0.18, 7, 0.18, 0xdddddd, 0, 3.5, 0, sock);
+const sockPivot = new THREE.Group(); sockPivot.position.y = 6.8; sock.add(sockPivot);
+const sockCone = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.25, 3.2, 12, 1, true), mat(0xff6b1a, { side: THREE.DoubleSide }));
+sockCone.rotation.x = Math.PI / 2; sockCone.position.z = 1.6; sockPivot.add(sockCone);
+// hangar
+{
+  const h = OBJ.hangar, cx = (h.x0 + h.x1) / 2, cz = (h.z0 + h.z1) / 2;
+  box(h.x1 - h.x0, h.h, h.z1 - h.z0, 0xa6acb0, cx, h.h / 2, cz, scene);
+  const roof = new THREE.Mesh(new THREE.CylinderGeometry((h.z1 - h.z0) / 2, (h.z1 - h.z0) / 2, h.x1 - h.x0, 16, 1, false, 0, Math.PI), mat(0x8e959a));
+  roof.rotation.z = Math.PI / 2; roof.rotation.y = 0; roof.scale.set(1, 1, 0.22); roof.position.set(cx, h.h, cz); scene.add(roof);
+  box(30, 8, 0.3, 0x5d6266, cx, 4, h.z1 + 0.05, scene);
+  box(26, 1.6, 0.2, 0xf5b800, cx, h.h - 1.4, h.z1 + 0.25, scene);
+}
+// power line
+const POLES = [];
+{
+  const p = OBJ.power, poleM = mat(0x6b5236), wire = [];
+  for (let x = p.x0; x <= p.x1; x += 70) { POLES.push(x); box(0.35, p.h, 0.35, poleM, x, p.h / 2, p.z, scene); box(0.25, 0.25, 3, poleM, x, p.h - 0.4, p.z, scene); }
+  for (const dzo of [-1.3, 0, 1.3]) for (let i = 0; i < POLES.length - 1; i++) {
+    for (let k = 0; k < 8; k++) {
+      const t0 = k / 8, t1 = (k + 1) / 8, s = t => -1.1 * 4 * t * (1 - t);
+      wire.push(lerp(POLES[i], POLES[i + 1], t0), p.h - 0.3 + s(t0), p.z + dzo, lerp(POLES[i], POLES[i + 1], t1), p.h - 0.3 + s(t1), p.z + dzo);
+    }
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(wire, 3));
+  scene.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x222222 })));
+}
+// trees
+const TREES = [];
+{
+  const r = rng(23), ok = (x, z) => {
+    if (Math.hypot(x, z) < 150) return false;
+    const rw = OBJ.runway; if (z > rw.z0 - 14 && z < rw.z1 + 14 && x > rw.x0 - 30 && x < rw.x1 + 30) return false;
+    if (z > OBJ.hwy.z0 - 20 && z < OBJ.hwy.z1 + 6) return false;
+    if (Math.hypot(x - OBJ.pond.x, z - OBJ.pond.z) < OBJ.pond.r + 6) return false;
+    const h = OBJ.hangar; if (x > h.x0 - 30 && x < h.x1 + 30 && z > h.z0 - 20 && z < h.z1 + 80) return false;
+    return true;
+  };
+  const add = (x, z) => { if (ok(x, z)) TREES.push({ x, z, r: 3 + r() * 2, h: 10 + r() * 7 }); };
+  for (let i = 0; i < 260; i++) add(-650 + r() * 1300, -330 - r() * 110);      // tree line north
+  for (let i = 0; i < 60; i++) { const a = r() * 6.28, d = OBJ.pond.r + 8 + r() * 30; add(OBJ.pond.x + Math.cos(a) * d, OBJ.pond.z + Math.sin(a) * d); }
+  for (let k = 0; k < 14; k++) { const cx = rr(-650, 650), cz = rr(-300, 650); for (let i = 0; i < 18; i++) add(cx + rr(-35, 35), cz + rr(-35, 35)); }
+  for (let i = 0; i < 90; i++) add(330 + r() * 120, -300 + r() * 650);           // creek line east
+  const n = TREES.length, cone = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 7), mat(0x35582c), n), trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.25, 0.32, 1, 5), mat(0x5a4330), n);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
+  TREES.forEach((t, i) => {
+    p.set(t.x, t.h * 0.6, t.z); s.set(t.r, t.h * 0.85, t.r); m.compose(p, q, s); cone.setMatrixAt(i, m);
+    p.set(t.x, t.h * 0.12, t.z); s.set(1, t.h * 0.25, 1); m.compose(p, q, s); trunk.setMatrixAt(i, m);
+  });
+  scene.add(cone, trunk);
+}
+// far tree clumps for scale from altitude
+{
+  const r = rng(5), n = 700, im = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 6, 4), mat(0x3e5a32), n), m = new THREE.Matrix4(), q = new THREE.Quaternion();
+  for (let i = 0; i < n; i++) {
+    let x, z; do { x = (r() - 0.5) * 12000; z = (r() - 0.5) * 12000; } while (Math.abs(x) < 760 && Math.abs(z) < 760);
+    const s = 12 + r() * 30; m.compose(new THREE.Vector3(x, s * 0.3, z), q, new THREE.Vector3(s, s * 0.5, s)); im.setMatrixAt(i, m);
+  }
+  scene.add(im);
+}
+// cars
+const CARS = [];
+for (let i = 0; i < 9; i++) {
+  const dir = i % 2 ? 1 : -1, c = box(4.4, 1.5, 1.9, [0xc2342b, 0xeeeeee, 0x2d4d8a, 0x333333, 0xd8b23a][i % 5]);
+  c.position.set(rr(-1400, 1400), 0.8, dir > 0 ? 423 : 415); scene.add(c); CARS.push({ m: c, v: dir * rr(22, 30) });
+}
+
+/* ---------- shadows (blob) ---------- */
+const blobTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 2, 32, 32, 30); gr.addColorStop(0, 'rgba(0,0,0,.65)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+function makeBlob(sz) { const m = new THREE.Mesh(new THREE.PlaneGeometry(sz, sz), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false })); m.rotation.x = -Math.PI / 2; scene.add(m); return m; }
+
+/* ---------- people & canopies ---------- */
+function makeJumper(suit, accent) {
+  const g = new THREE.Group(), pose = new THREE.Group(); g.add(pose);
+  const sm = mat(suit), am = mat(accent);
+  box(0.42, 0.62, 0.27, sm, 0, 0.3, 0, pose);
+  box(0.4, 0.06, 0.28, am, 0, 0.12, 0, pose);
+  box(0.38, 0.24, 0.25, sm, 0, -0.06, 0, pose);
+  box(0.36, 0.5, 0.15, 0x2c2c2c, 0, 0.32, -0.2, pose); // container
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 8), am); head.position.y = 0.78; pose.add(head);
+  box(0.2, 0.06, 0.04, 0x111111, 0, 0.8, 0.13, pose); // goggles
+  const limb = (x, y, len, w, m) => { const piv = new THREE.Group(); piv.position.set(x, y, 0); const l = box(w, len, w, m, 0, -len / 2, 0, piv); pose.add(piv); return piv; };
+  const aL = limb(0.27, 0.55, 0.62, 0.11, sm), aR = limb(-0.27, 0.55, 0.62, 0.11, sm);
+  const lL = limb(0.11, -0.16, 0.88, 0.14, sm), lR = limb(-0.11, -0.16, 0.88, 0.14, sm);
+  box(0.13, 0.1, 0.26, 0x222222, 0, -0.9, 0.06, lL); box(0.13, 0.1, 0.26, 0x222222, 0, -0.9, 0.06, lR);
+  return { g, pose, aL, aR, lL, lR };
+}
+// pose: 0 = upright (canopy), 1 = belly box, 2 = head down, 3 = track
+function posePerson(j, k, t, roll = 0) {
+  const P = [
+    { pitch: 0.05, aL: [0, 0, 2.7], aR: [0, 0, -2.7], lL: [0.1, 0, 0.05], lR: [0.1, 0, -0.05] },
+    { pitch: Math.PI / 2, aL: [-0.6, 0, 1.25], aR: [-0.6, 0, -1.25], lL: [-0.55, 0, 0.32], lR: [-0.55, 0, -0.32] },
+    { pitch: Math.PI * 0.94, aL: [0.2, 0, 0.35], aR: [0.2, 0, -0.35], lL: [0.15, 0, 0.12], lR: [0.15, 0, -0.12] },
+    { pitch: Math.PI / 2 - 0.12, aL: [0.25, 0, 0.22], aR: [0.25, 0, -0.22], lL: [-0.08, 0, 0.12], lR: [-0.08, 0, -0.12] },
+    { pitch: Math.PI / 2 + 0.05, aL: [-1.2, 0, 1.4], aR: [-1.2, 0, -1.4], lL: [-1.4, 0, 0.4], lR: [-1.4, 0, -0.4] }, // backslide-ish / lying
+  ];
+  const a = j.cur || (j.cur = JSON.parse(JSON.stringify(P[1]))), b = P[k];
+  const s = Math.min(1, t);
+  a.pitch = lerp(a.pitch, b.pitch, s);
+  for (const n of ['aL', 'aR', 'lL', 'lR']) for (let i = 0; i < 3; i++) a[n][i] = lerp(a[n][i], b[n][i], s);
+  j.pose.rotation.set(a.pitch, 0, roll, 'YXZ');
+  for (const n of ['aL', 'aR', 'lL', 'lR']) j[n].rotation.set(a[n][0], a[n][1], a[n][2]);
+}
+function makeCanopy(colA, colB, cells = 9, span = 8.4) {
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  const R0 = span * 0.75, cw = span / cells, mA = mat(colA, { side: THREE.DoubleSide }), mB = mat(colB, { side: THREE.DoubleSide }), lines = [];
+  for (let i = 0; i < cells; i++) {
+    const a = (i - (cells - 1) / 2) * (cw / R0), x = Math.sin(a) * R0, y = 7.2 - (1 - Math.cos(a)) * R0;
+    const c = new THREE.Mesh(new THREE.BoxGeometry(cw * 0.98, 0.5, 2.9), i % 2 ? mA : mB); c.position.set(x, y, 0.1); c.rotation.z = -a; body.add(c);
+    const bx = x + Math.sin(a) * 0.25, by = y - Math.cos(a) * 0.25;
+    for (const zz of [1.1, -1.1]) lines.push(bx, by, zz, Math.sign(x || 1) * 0.22, 0.95, 0);
+  }
+  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3));
+  const ln = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x333333 })); g.add(ln);
+  return { g, body, ln };
+}
+function makePilotChute() {
+  const g = new THREE.Group();
+  const c = new THREE.Mesh(new THREE.ConeGeometry(0.6, 0.5, 10, 1, true), mat(0xf5b800, { side: THREE.DoubleSide })); c.rotation.x = Math.PI; c.position.y = 4.2; g.add(c);
+  const bag = box(0.34, 0.22, 0.18, 0x2c2c2c, 0, 2.2, 0, g); g.userData.bag = bag;
+  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute([0, 0.5, -0.15, 0, 4.0, 0], 3));
+  g.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0xeeeeee })));
+  return g;
+}
+
+/* ---------- helicopter ---------- */
+const heli = new THREE.Group(); scene.add(heli);
+const rotor = new THREE.Group(), tailRotor = new THREE.Group();
+{
+  const body = 0x4b5a3c, dark = 0x2a2f26;
+  box(2.6, 2.3, 5.2, body, 0, 0, 0, heli);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(1.3, 12, 8, 0, PI * 2, 0, PI / 2), mat(0x9cc4d8, { transparent: true, opacity: 0.75 })); nose.rotation.x = PI / 2; nose.position.set(0, 0.1, 2.6); nose.scale.set(1, 1.3, 0.9); heli.add(nose);
+  box(1.0, 0.9, 7.5, body, 0, 0.55, -5.8, heli); box(0.2, 1.8, 1.0, body, 0, 1.4, -9.3, heli);
+  box(2.4, 0.15, 0.6, body, 0, 0.6, -8.8, heli);
+  box(0.06, 1.6, 2.4, 0x14140f, 1.31, -0.1, 0.2, heli); box(0.06, 1.6, 2.4, 0x14140f, -1.31, -0.1, 0.2, heli); // open doors
+  box(1.4, 0.6, 1.8, dark, 0, 1.45, -0.4, heli);
+  for (const x of [1.45, -1.45]) { box(0.14, 0.14, 4.8, dark, x, -1.75, 0.2, heli); box(0.1, 0.65, 0.1, dark, x * 0.85, -1.4, 1.4, heli); box(0.1, 0.65, 0.1, dark, x * 0.85, -1.4, -1.0, heli); }
+  rotor.position.set(0, 2.0, -0.4); heli.add(rotor);
+  box(15, 0.06, 0.45, 0x1b1b1b, 0, 0, 0, rotor); box(0.45, 0.06, 15, 0x1b1b1b, 0, 0, 0, rotor);
+  tailRotor.position.set(0.15, 1.4, -9.3); heli.add(tailRotor); box(0.05, 2.4, 0.25, 0x1b1b1b, 0, 0, 0, tailRotor);
+  box(0.3, 0.08, 1.1, 0xf5b800, 1.32, 0.95, -1.2, heli); box(0.3, 0.08, 1.1, 0xf5b800, -1.32, 0.95, -1.2, heli);
+}
+// seats on the skids: slots 0,1 left (+x), 2,3 right (-x)
+const SKID = [[1.55, -1.25, 0.9], [1.55, -1.25, -0.5], [-1.55, -1.25, -0.5], [-1.55, -1.25, 0.9]];
+
+/* ---------- jumpers ---------- */
+const J = [];
+for (let i = 0; i < 4; i++) {
+  const c = SLOT_COL[i], m = makeJumper(c[0], c[1]); scene.add(m.g);
+  const can = makeCanopy(c[2], c[3]); can.g.visible = false; m.g.add(can.g);
+  J.push({ i, m, can, blob: makeBlob(3.2), pos: new THREE.Vector3(), vel: new THREE.Vector3(), yaw: 0, yawRate: 0, ph: 'heli', ctl: { lean: 0, turn: 0, slide: 0, fall: 0, main: false, mainP: false },
+    human: false, local: false, name: 'Bot', bump: 0, canT: 0, cV: 0, cSink: 0, cb: 0, stallT: 0, landed: null, disp: new THREE.Vector3(), dispYaw: 0, lean: 0, slide: 0, docked: false, net: null, botSkill: 1, noise: 0 });
+}
+// ghost of my slot
+const ghost = makeJumper(0xffffff, 0xffffff);
+ghost.g.traverse(o => { if (o.material) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.32; o.material.depthWrite = false; } });
+scene.add(ghost.g); ghost.g.visible = false;
+// grip lines between docked jumpers
+const gripGeo = new THREE.BufferGeometry(); gripGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(8 * 6), 3));
+const grips = new THREE.LineSegments(gripGeo, new THREE.LineBasicMaterial({ color: 0x5cc96b })); scene.add(grips);
+
+/* =========================================================
+   Jump state
+   ========================================================= */
+let state = 'menu', mySlot = 0, assist = 1, camMode = 0, paused = false;
+const CAMS = ['Chase', 'Top', 'Helmet'];
+const wind = { from: new THREE.Vector3(), to: new THREE.Vector3(), gw: 4, aw: 9, dir: 220, gustT: 0 };
+const H = { pos: new THREE.Vector3(), yaw: 0 }; // helicopter
+const F = { seq: [], idx: 0, hold: 0, pts: 0, done: [], c: new THREE.Vector3(), cv: new THREE.Vector3(), yaw: 0, level: 0, over: false, docked: [false, false, false, false], t: 0 };
+let T0 = 0, jumpT = 0, results = null, seed = 1;
+const W = new THREE.Vector3();
+function windAt(h, out = W) {
+  const k = clamp(h / 2500, 0, 1), sp = lerp(wind.gw, wind.aw, k) + (h < 600 ? Math.sin(wind.gustT * 0.7) * 0.6 : 0), d = wind.dir * PI / 180 + k * 0.3;
+  return out.set(-Math.sin(d) * sp, 0, Math.cos(d) * sp);
+}
+const fwdOf = (yaw, out = new THREE.Vector3()) => out.set(Math.sin(yaw), 0, Math.cos(yaw));
+const rightOf = (yaw, out = new THREE.Vector3()) => out.set(-Math.cos(yaw), 0, Math.sin(yaw));
+function slotWorld(i, out = new THREE.Vector3()) {
+  const s = F.seq[F.idx] !== undefined ? FORMS[F.seq[F.idx]].s[i] : [0, 0, 0];
+  const f = fwdOf(F.yaw), r = rightOf(F.yaw);
+  out.copy(F.c).addScaledVector(r, s[0]).addScaledVector(f, s[1]); out.y = F.level; return out;
+}
+const slotYaw = i => F.yaw + (F.seq[F.idx] !== undefined ? FORMS[F.seq[F.idx]].s[i][2] : 0);
+
+function setupJump(sd, as) {
+  seed = sd; assist = as; R = rng(sd);
+  wind.dir = rr(0, 360); wind.gw = rr(2, 5.5); wind.aw = rr(7, 12); wind.gustT = rr(0, 50);
+  const d = wind.dir * PI / 180; wind.from.set(Math.sin(d), 0, -Math.cos(d)); wind.to.copy(wind.from).negate();
+  // hover upwind so the group drifts back over the DZ
+  const D = clamp(wind.aw * 0.7 * 60 + wind.gw * 70 - 50, 200, 1400);
+  H.pos.copy(wind.from).multiplyScalar(D).setY(EXIT); H.yaw = Math.atan2(wind.to.x, wind.to.z) + rr(-0.6, 0.6);
+  // formation draw: shuffle, no back-to-back repeats
+  const order = []; for (let k = 0; k < 4; k++) { const a = [0, 1, 2, 3, 4, 5]; for (let i = 5; i > 0; i--) { const j = (R() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } if (order.length && a[0] === order[order.length - 1]) a.push(a.shift()); order.push(...a); }
+  F.rel = null; Object.assign(F, { seq: order, idx: 0, hold: 0, pts: 0, done: [], yaw: H.yaw, over: false, docked: [false, false, false, false], t: 0 });
+  F.c.copy(H.pos); F.cv.set(0, 0, 0); F.level = EXIT;
+  for (const j of J) {
+    const s = SKID[j.i], q = new THREE.Vector3(s[0], s[1], s[2]).applyAxisAngle(new THREE.Vector3(0, 1, 0), H.yaw);
+    j.pos.copy(H.pos).add(q); j.vel.set(0, 0, 0); j.yaw = H.yaw + (j.i < 2 ? PI / 2 : -PI / 2); j.yawRate = 0; j.ph = 'heli';
+    j.bump = 0; j.cV = 0; j.cSink = 0; j.cb = 0; j.stallT = 0; j.canT = 0; j.landed = null; j.m.cur = null; j.can.g.visible = false; j.can.g.scale.set(1, 1, 1); j.can.g.position.set(0, 0, 0);
+    j.disp.copy(j.pos); j.dispYaw = j.yaw; j.lean = j.slide = 0; j.docked = false; j.net = null;
+    j.botSkill = rr(0.85, 1.1); j.pulledBeep = 0; j.autoPulled = false; j.noise = rr(0, 10); j.pullAlt = rr(PULL - 60, PULL + 40); j.trackDir = 0; j.landOff = new THREE.Vector2(rr(-25, 25), rr(-25, 25));
+  }
+  results = null; heli.visible = true;
+  buildRef();
+}
+// Shared drift frame: a reference body that exits at t=0 and falls straight down with the wind.
+// Freefall positions go over the network relative to it, so latency and clock offsets
+// between phones don't smear the 120 mph fall into the formation (levels stay within inches).
+const REF = { dt: 1 / 30, x: [], y: [], z: [] };
+function buildRef() {
+  const p = H.pos.clone(), v = new THREE.Vector3(), w = new THREE.Vector3(); REF.x = [p.x]; REF.y = [p.y]; REF.z = [p.z];
+  const h = REF.dt / 4;
+  for (let i = 0; i < 30 * 240; i++) {
+    for (let k = 0; k < 4; k++) {
+      windAt(p.y, w); const kk = 1 - Math.exp(-h / 0.9); v.x += (w.x - v.x) * kk; v.z += (w.z - v.z) * kk;
+      const vd = -v.y; v.y -= G * (1 - (vd / 54) * Math.abs(vd / 54)) * h; p.addScaledVector(v, h);
+    }
+    REF.x.push(p.x); REF.y.push(p.y); REF.z.push(p.z);
+  }
+}
+function refAt(t, out = new THREE.Vector3(), vel) {
+  const f = clamp(t, 0, (REF.x.length - 2) * REF.dt) / REF.dt, i = Math.floor(f), u = f - i;
+  out.set(lerp(REF.x[i], REF.x[i + 1], u), lerp(REF.y[i], REF.y[i + 1], u), lerp(REF.z[i], REF.z[i + 1], u));
+  if (vel) { if (t <= 0) vel.set(0, 0, 0); else vel.set((REF.x[i + 1] - REF.x[i]) / REF.dt, (REF.y[i + 1] - REF.y[i]) / REF.dt, (REF.z[i + 1] - REF.z[i]) / REF.dt); }
+  return out;
+}
+function startJump(sd, as) {
+  setupJump(sd, as);
+  state = 'heli'; jumpT = -4; paused = false; camSnap = true;
+  for (const id of ['menu', 'mp', 'results', 'loading']) $(id).hidden = true;
+  $('hud').hidden = false; $('touch').hidden = !isTouch;
+  setMsg('', 0); tip(isTouch ? 'Left stick: lean & turn · Right stick: slide & fall rate' : 'W/S lean · A/D turn · Q/E slide · R float · F sink', 6);
+  Sound.init();
+  window.__sky2.landedSent = false;
+}
+
+/* =========================================================
+   Input
+   ========================================================= */
+const keys = new Set(), touch = { lx: 0, ly: 0, rx: 0, ry: 0, main: false };
+let prevMain = false, gpPrev = [];
+const inp = { lean: 0, turn: 0, slide: 0, fall: 0, main: false, mainP: false };
+const dead = v => Math.abs(v) < 0.14 ? 0 : (v - Math.sign(v) * 0.14) / 0.86;
+addEventListener('keydown', e => {
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code) && e.target.tagName !== 'INPUT') e.preventDefault();
+  if (e.repeat || e.target.tagName === 'INPUT') return; keys.add(e.code);
+  if (e.code === 'KeyC') cycleCam();
+  if (e.code === 'KeyM') toggleSound();
+  if (e.code === 'Escape' && inJump()) askMenu();
+});
+addEventListener('keyup', e => keys.delete(e.code));
+addEventListener('blur', () => { keys.clear(); Object.assign(touch, { lx: 0, ly: 0, rx: 0, ry: 0, main: false }); });
+const inJump = () => state === 'heli' || state === 'jump';
+function readInput() {
+  const k = c => keys.has(c) ? 1 : 0;
+  let lean = k('KeyW') + k('ArrowUp') - k('KeyS') - k('ArrowDown'), turn = k('KeyD') + k('ArrowRight') - k('KeyA') - k('ArrowLeft'), slide = k('KeyE') - k('KeyQ'), fall = k('KeyR') - k('KeyF'), main = keys.has('Space');
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (const p of pads) {
+    if (!p) continue;
+    const pr = i => !!(p.buttons[i] && p.buttons[i].pressed), b = i => p.buttons[i] ? p.buttons[i].value : 0, edge = i => pr(i) && !gpPrev[i];
+    lean += -dead(p.axes[1] || 0); turn += dead(p.axes[0] || 0); slide += dead(p.axes[2] || 0); fall += -dead(p.axes[3] || 0) + b(6) - 0;
+    fall -= b(7) > 0.5 && state === 'jump' && myJ().ph === 'ff' ? b(7) : 0;
+    main = main || pr(0) || (b(7) > 0.5 && myJ().ph !== 'ff');
+    if (edge(1)) cycleCam();
+    if (state === 'menu' && !$('menu').hidden && edge(0)) $('bSolo').click();
+    if (!$('results').hidden && edge(0) && !$('bAgain').hidden) $('bAgain').click();
+    gpPrev = p.buttons.map(q => q.pressed); break;
+  }
+  lean += touch.ly; turn += touch.lx; slide += touch.rx; fall += touch.ry; main = main || touch.main;
+  inp.lean = clamp(lean, -1, 1); inp.turn = clamp(turn, -1, 1); inp.slide = clamp(slide, -1, 1); inp.fall = clamp(fall, -1, 1);
+  inp.mainP = main && !prevMain; inp.main = main; prevMain = main;
+}
+const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+if (isTouch) document.body.classList.add('touch');
+(function setupTouch() {
+  const stick = (el, fx, fy) => {
+    const knob = el.querySelector('i'); let id = null;
+    const mv = e => { const r = el.getBoundingClientRect(), dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2), dy = (e.clientY - (r.top + r.height / 2)) / (r.height / 2), l = Math.hypot(dx, dy), s = l > 1 ? 1 / l : 1; touch[fx] = dead(dx * s); touch[fy] = -dead(dy * s); knob.style.transform = `translate(${dx * s * 40}px,${dy * s * 40}px)`; };
+    el.addEventListener('pointerdown', e => { id = e.pointerId; el.setPointerCapture(id); mv(e); Sound.init(); });
+    el.addEventListener('pointermove', e => { if (e.pointerId === id) mv(e); });
+    const up = e => { if (e.pointerId !== id) return; id = null; touch[fx] = touch[fy] = 0; knob.style.transform = ''; };
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  };
+  stick($('stL'), 'lx', 'ly'); stick($('stR'), 'rx', 'ry');
+  const b = $('bMain');
+  b.addEventListener('pointerdown', e => { b.setPointerCapture(e.pointerId); b.classList.add('on'); touch.main = true; });
+  const u = () => { b.classList.remove('on'); touch.main = false; };
+  b.addEventListener('pointerup', u); b.addEventListener('pointercancel', u);
+})();
+
+/* =========================================================
+   Sound
+   ========================================================= */
+const Sound = {
+  ctx: null, muted: false,
+  init() {
+    if (this.ctx) { if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {}); return; }
+    try {
+      const c = this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const len = c.sampleRate * 2, buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+      let l = 0; for (let i = 0; i < len; i++) { l = l * 0.97 + (Math.random() * 2 - 1) * 0.03; d[i] = l * 6 + (Math.random() * 2 - 1) * 0.15; }
+      const src = c.createBufferSource(); src.buffer = buf; src.loop = true;
+      this.wf = c.createBiquadFilter(); this.wf.type = 'lowpass'; this.wf.frequency.value = 400;
+      this.wg = c.createGain(); this.wg.gain.value = 0; src.connect(this.wf).connect(this.wg).connect(c.destination); src.start();
+      // rotor thump
+      this.ro = c.createOscillator(); this.ro.type = 'square'; this.ro.frequency.value = 5.5; this.rg = c.createGain(); this.rg.gain.value = 0;
+      const rf = c.createBiquadFilter(); rf.type = 'lowpass'; rf.frequency.value = 120; this.ro.connect(rf).connect(this.rg).connect(c.destination); this.ro.start();
+      this.fx = c.createGain(); this.fx.gain.value = 0.4; this.fx.connect(c.destination);
+    } catch (e) { this.ctx = null; }
+  },
+  update(sp, flap, rotorV) {
+    if (!this.ctx) return; const t = this.ctx.currentTime, on = !this.muted && inJump();
+    this.wg.gain.setTargetAtTime(on ? clamp(sp / 80, 0, 1) * 0.45 + flap * 0.1 : 0, t, 0.15);
+    this.wf.frequency.setTargetAtTime(250 + sp * 18 + flap * 300, t, 0.2);
+    this.rg.gain.setTargetAtTime(on ? rotorV * 0.25 : 0, t, 0.2);
+  },
+  tone(freqs, dur = 0.12, type = 'square', vol = 0.16) {
+    if (!this.ctx || this.muted) return; const c = this.ctx; let t = c.currentTime;
+    for (const f of freqs) { const o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.001, t + dur); o.connect(g).connect(this.fx); o.start(t); o.stop(t + dur + 0.05); t += dur * 1.1; }
+  },
+};
+try { Sound.muted = localStorage.getItem('sd2-muted') === '1'; } catch (e) {}
+function toggleSound() { Sound.muted = !Sound.muted; try { localStorage.setItem('sd2-muted', Sound.muted ? '1' : '0'); } catch (e) {} $('bSound').textContent = Sound.muted ? 'SOUND OFF' : 'SOUND ON'; Sound.init(); }
+$('bSound').textContent = Sound.muted ? 'SOUND OFF' : 'SOUND ON';
+for (const ev of ['pointerdown', 'touchend', 'keydown']) addEventListener(ev, () => { if (Sound.ctx && Sound.ctx.state !== 'running') Sound.init(); }, { capture: true, passive: true });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && Sound.ctx && Sound.ctx.state !== 'running') Sound.ctx.resume().catch(() => {}); });
+
+/* ---------- HUD helpers ---------- */
+let msgT = 0, tipT = 0, toastT = 0;
+function setMsg(t, dur = 2.2, color = '#f3efe6', small = '') { const m = $('msg'); m.innerHTML = t ? t + (small ? '<small>' + small + '</small>' : '') : ''; m.style.color = color; m.style.opacity = t ? 1 : 0; msgT = dur; }
+function tip(t, dur = 5) { const e = $('tip'); e.textContent = t; e.style.opacity = t ? 1 : 0; tipT = dur; }
+function toast(t, d = 2) { const e = $('toast'); e.textContent = t; e.style.opacity = 1; toastT = d; }
+
+/* =========================================================
+   Jumper physics (shared by humans and bots)
+   ========================================================= */
+const tA = new THREE.Vector3(), tB = new THREE.Vector3(), tC = new THREE.Vector3();
+const myJ = () => J[mySlot];
+function stepFreefall(j, c, dt) {
+  const h = j.pos.y, w = windAt(h);
+  j.yawRate = approach(j.yawRate, -c.turn * 1.6, 4, dt); j.yaw += j.yawRate * dt;
+  if (j.bump > 0) { j.bump -= dt; j.yaw += j.bumpSpin * dt; }
+  const f = fwdOf(j.yaw, tA), r = rightOf(j.yaw, tB);
+  let tx, tz, vt;
+  if (j.ph === 'track') {
+    const tr = Math.max(0, c.lean);
+    tx = f.x * 22 * tr + w.x; tz = f.z * 22 * tr + w.z; vt = 54 - 10 * tr;
+  } else {
+    tx = f.x * c.lean * 3.6 + r.x * c.slide * 2.6 + w.x; tz = f.z * c.lean * 3.6 + r.z * c.slide * 2.6 + w.z;
+    vt = 54 - c.fall * 4;
+    // dock assist: a gentle pull when you're close and slow
+    if (assist && !F.over && F.seq.length) {
+      const sw = slotWorld(j.i, tC), dx = sw.x - j.pos.x, dz = sw.z - j.pos.z, d = Math.hypot(dx, dz);
+      const ey = wrapA(slotYaw(j.i) - j.yaw);
+      if (d < 1.4 && Math.abs(ey) < 0.9) { const k = 0.6 * (1 - d / 1.4) + 0.2; tx += clamp(dx * k, -0.45, 0.45); tz += clamp(dz * k, -0.45, 0.45); vt += clamp((j.pos.y - F.level) * 0.3, -1, 1); j.yaw += ey * (1 - Math.exp(-dt * 1.2 * (1 - d / 1.4))); }
+    }
+  }
+  const k = 1 - Math.exp(-dt / 0.9);
+  j.vel.x += (tx - j.vel.x) * k; j.vel.z += (tz - j.vel.z) * k;
+  const vd = -j.vel.y; j.vel.y -= G * (1 - (vd / vt) * Math.abs(vd / vt)) * dt;
+  j.lean = approach(j.lean, j.ph === 'track' ? 1.4 : c.lean, 5, dt); j.slide = approach(j.slide, c.slide, 5, dt);
+}
+function stepCanopy(j, c, dt) {
+  const w = windAt(j.pos.y);
+  if (j.ph === 'open') {
+    j.canT += dt; const kk = 1 - Math.exp(-dt * (j.canT > 1.0 ? 2.6 : 0.3));
+    j.vel.y += (-MAIN.S - j.vel.y) * kk; j.vel.x += (w.x - j.vel.x) * kk; j.vel.z += (w.z - j.vel.z) * kk;
+    if (j.canT > 2.4) { j.ph = 'canopy'; j.cV = MAIN.V * 0.7; j.cSink = MAIN.S; j.cb = 0; if (j.local) { setMsg('Good canopy', 1.4, '#5cc96b', 'Fly to the X, land into the wind'); tip(isTouch ? 'Left stick steers, pull it back for brakes. Hold the big button to FLARE at 10 ft.' : 'A/D steer · S brakes · hold Space to FLARE at about 10 ft', 7); } }
+    return;
+  }
+  const turn = Math.abs(c.turn) < 0.08 ? 0 : c.turn, bT = Math.max(Math.max(0, -c.lean), c.main ? 1 : 0);
+  j.cb += clamp(bT - j.cb, -dt * 2.5, dt * (c.main ? 4.5 : 2.5));
+  const Vs = MAIN.V * (1 - j.cb) + MAIN.Vb * j.cb;
+  j.cV += (Vs - j.cV) * (1 - Math.exp(-dt / 1.15));
+  const ex = Math.max(0, j.cV - Vs);
+  if (j.cb > 0.85 && ex < 0.6) j.stallT += dt; else j.stallT = Math.max(0, j.stallT - dt * 2);
+  const stall = j.stallT > 1.5 ? Math.min(4.5, (j.stallT - 1.5) * 3) : 0;
+  let sinkT = MAIN.S * (1 - j.cb) + MAIN.Sb * j.cb + stall + 5.5 * Math.abs(turn) * (j.cV / MAIN.V) * (1 - 0.5 * j.cb) - 1.2 * ex * j.cb;
+  j.cSink = approach(j.cSink, Math.max(-0.8, sinkT), 3, dt);
+  j.yaw += -turn * 1.15 * (0.45 + 0.55 * j.cV / MAIN.V) * (1 - 0.35 * j.cb) * dt;
+  const f = fwdOf(j.yaw, tA);
+  j.vel.set(f.x * j.cV + w.x, -j.cSink, f.z * j.cV + w.z);
+  j.slide = approach(j.slide, turn, 4, dt);
+}
+function pull(j) {
+  if (j.ph !== 'ff' && j.ph !== 'track') return;
+  j.ph = 'open'; j.canT = 0; j.can.g.visible = true; j.can.g.scale.set(0.05, 0.05, 0.05);
+  if (j.local) { setMsg('Pull!', 1, '#f5b800'); Sound.tone([340], 0.05); }
+}
+const tsOf = j => (j.ph !== 'canopy') ? 1 : j.pos.y > 160 ? 2.4 : j.pos.y < 50 ? 1 : lerp(1, 2.4, (j.pos.y - 50) / 110);
+function stepJumper(j, c, dt) {
+  if (j.ph === 'heli' || j.landed) return;
+  if (j.ph === 'ff' || j.ph === 'track') stepFreefall(j, c, dt); else stepCanopy(j, c, dt);
+  j.pos.addScaledVector(j.vel, dt);
+  const ft = j.pos.y * FT;
+  if (j.ph === 'ff' && j.pos.y < BREAK) { j.ph = 'track'; if (j.local) { setMsg('Break off!', 1.8, '#f5b800', 'Turn away from the group and push forward to track'); Sound.tone([800, 800, 800], 0.07); } }
+  if (j.local) {
+    if ((j.ph === 'ff' || j.ph === 'track') && c.mainP && j.pos.y < BREAK + 200) pull(j);
+    if (j.ph === 'track' && j.pos.y < PULL && !j.pulledBeep) { j.pulledBeep = 1; setMsg('Pull!', 1.2, '#ff6b1a'); Sound.tone([900, 900, 900, 900], 0.06); }
+  } else if ((j.ph === 'track') && j.pos.y < j.pullAlt) pull(j);
+  if ((j.ph === 'ff' || j.ph === 'track') && j.pos.y < AUTOPULL) { pull(j); j.autoPulled = true; if (j.local) setMsg('Auto pull', 1.4, '#e8402f', 'You were too low'); }
+  if (j.local || (!j.human && isHost())) landCheck(j);
+}
+function groundAt(x, z) { const hg = OBJ.hangar; return (x > hg.x0 && x < hg.x1 && z > hg.z0 && z < hg.z1) ? hg.h : 0; }
+function landCheck(j) {
+  const h = j.pos.y; let surface = null;
+  const pw = OBJ.power;
+  if (h < pw.h + 0.4 && h > pw.h - 4.5 && Math.abs(j.pos.z - pw.z) < 2.2 && j.pos.x > pw.x0 && j.pos.x < pw.x1) surface = 'power';
+  if (!surface && h < 18) for (const t of TREES) if (h < t.h && Math.hypot(j.pos.x - t.x, j.pos.z - t.z) < t.r * (1 - h / t.h * 0.7)) { surface = 'tree'; break; }
+  const g = groundAt(j.pos.x, j.pos.z);
+  if (!surface && h <= g) { j.pos.y = g; surface = g > 0 ? 'roof' : null; if (!surface) surface = Math.hypot(j.pos.x - OBJ.pond.x, j.pos.z - OBJ.pond.z) < OBJ.pond.r ? 'water' : (j.pos.z > OBJ.hwy.z0 && j.pos.z < OBJ.hwy.z1 ? 'highway' : 'ground'); }
+  if (!surface) return;
+  const vs = Math.max(0, -j.vel.y), hs = Math.hypot(j.vel.x, j.vel.z), e = vs + 0.22 * Math.max(0, hs - 5), flying = j.ph === 'canopy';
+  let kind, ok = true;
+  if (surface === 'power') { kind = 'Power line strike'; ok = false; }
+  else if (surface === 'tree') { kind = 'Tree landing'; }
+  else if (!flying && vs > 12) { kind = 'No canopy'; ok = false; }
+  else if (surface === 'water') kind = 'Water landing';
+  else if (vs > 12) { kind = 'Bounced'; ok = false; }
+  else if (vs > 8 || e > 10) kind = 'Hard landing';
+  else if (vs > 4.2 || e > 6) kind = 'PLF';
+  else if (vs > 3 || hs > 6.5) kind = 'Slide-in';
+  else kind = 'Stand-up';
+  j.landed = { kind, ok, surface, dist: Math.hypot(j.pos.x - TARGET.x, j.pos.z - TARGET.z), auto: !!j.autoPulled, t: 0 };
+  j.vel.set(0, 0, 0); j.ph = 'landed';
+  if (j.local) {
+    setMsg(ok ? kind : "Didn't make it", 2.4, ok ? '#5cc96b' : '#e8402f', ok ? Math.round(j.landed.dist * FT) + ' ft from the X' : kind);
+    Sound.tone(ok ? [660, 880] : [220, 160], 0.12, 'sine', 0.2);
+    if (mp.on && !mp.host) netSend({ t: 'land', l: j.landed });
+  }
+}
+
+/* ---------- bots ---------- */
+function botCtl(j, dt) {
+  const c = j.ctl; c.mainP = false; c.main = false;
+  if (j.ph === 'ff') {
+    const sw = slotWorld(j.i, tC), f = fwdOf(j.yaw, tA), r = rightOf(j.yaw, tB);
+    j.noise += dt;
+    const ex = sw.x - j.pos.x + Math.sin(j.noise * 0.7) * 0.25 * (2 - j.botSkill), ez = sw.z - j.pos.z + Math.cos(j.noise * 0.9) * 0.25 * (2 - j.botSkill);
+    const rvx = j.vel.x - F.cv.x, rvz = j.vel.z - F.cv.z;
+    let dx = ex * 0.8 * j.botSkill, dz = ez * 0.8 * j.botSkill; const m = Math.hypot(dx, dz); if (m > 3.2) { dx *= 3.2 / m; dz *= 3.2 / m; }
+    dx += F.cv.x - windAt(j.pos.y).x; dz += F.cv.z - windAt(j.pos.y).z;
+    c.lean = clamp((dx * f.x + dz * f.z) / 3.6, -1, 1); c.slide = clamp((dx * r.x + dz * r.z) / 2.6, -1, 1);
+    const far = Math.hypot(ex, ez) > 4;
+    const want = far ? Math.atan2(ex, ez) : slotYaw(j.i), ey = wrapA(want - j.yaw);
+    c.turn = clamp(-ey * 1.4, -1, 1);
+    if (far) { c.slide *= 0.3; }
+    const dy = j.pos.y - F.level; c.fall = clamp(-dy * 0.7 + j.vel.y * 0 - (j.vel.y - F.cv.y) * 0.4, -1, 1);
+  } else if (j.ph === 'track') {
+    if (!j.trackDir) { const d = tA.copy(j.pos).sub(F.c); j.trackDir = Math.atan2(d.x, d.z) + rr(-0.3, 0.3); }
+    c.turn = clamp(-wrapA(j.trackDir - j.yaw) * 1.5, -1, 1); c.lean = 1; c.slide = 0; c.fall = 0;
+  } else if (j.ph === 'canopy') {
+    const h = j.pos.y, L = tC.set(TARGET.x + j.landOff.x, 0, TARGET.z + j.landOff.y);
+    const dw = tB.copy(j.pos).sub(L).dot(wind.to);
+    const aim = h > 90 && dw < h * 0.8 ? tA.copy(L).addScaledVector(wind.to, Math.min(h * 0.8, 300)) : tA.copy(L);
+    let des = Math.atan2(aim.x - j.pos.x, aim.z - j.pos.z); if (h < 70) des = Math.atan2(wind.from.x, wind.from.z);
+    c.turn = h < 12 ? 0 : clamp(-wrapA(des - j.yaw) * 1.4, -1, 1); c.lean = 0; c.main = h < 4.3;
+  }
+}
+
+/* ---------- formation (host runs it) ---------- */
+function stepFormation(dt) {
+  F.t += dt;
+  const act = J.filter(j => j.ph === 'ff');
+  if (act.length) {
+    const avg = tA.set(0, 0, 0), av = tB.set(0, 0, 0); let ay = 0;
+    for (const j of act) { avg.add(j.pos); av.add(j.vel); ay += j.pos.y; }
+    avg.multiplyScalar(1 / act.length); av.multiplyScalar(1 / act.length); ay /= act.length;
+    F.c.x = approach(F.c.x + F.cv.x * dt, avg.x, 1.2, dt); F.c.z = approach(F.c.z + F.cv.z * dt, avg.z, 1.2, dt);
+    F.cv.copy(av); F.level = ay; F.c.y = ay;
+  }
+  if (F.over) return;
+  if (J.some(j => j.ph === 'track' || j.ph === 'open' || j.ph === 'canopy')) { F.over = true; F.hold = 0; F.docked = [false, false, false, false]; return; }
+  if (!act.length || jumpT < 1.5) return;
+  const D = assist ? DOCK.easy : DOCK.pro;
+  let all = true;
+  for (const j of J) {
+    const sw = slotWorld(j.i, tC);
+    const ok = j.ph === 'ff' && Math.hypot(j.pos.x - sw.x, j.pos.z - sw.z) < D.pos && Math.abs(j.pos.y - F.level) < D.lvl && Math.abs(wrapA(j.yaw - slotYaw(j.i))) < D.yaw;
+    F.docked[j.i] = ok; if (!ok) all = false;
+  }
+  if (all) {
+    F.hold += dt;
+    if (F.hold >= 3) { F.done.push(F.seq[F.idx]); F.pts++; F.idx++; F.hold = 0; F.docked = [false, false, false, false]; onPoint(); }
+  } else F.hold = Math.max(0, F.hold - dt * 2);
+}
+let lastPts = 0;
+function onPoint() {
+  if (F.pts === lastPts) return; lastPts = F.pts;
+  setMsg('Point ' + F.pts + '!', 1.4, '#5cc96b', 'Next: ' + FORMS[F.seq[F.idx]].name);
+  Sound.tone([660, 880, 1100], 0.08, 'sine', 0.2);
+}
+
+/* =========================================================
+   Collisions between jumpers in freefall
+   ========================================================= */
+function collide(j, dt) {
+  if (j.ph !== 'ff' && j.ph !== 'track') return;
+  for (const o of J) {
+    if (o === j || (o.ph !== 'ff' && o.ph !== 'track')) continue;
+    const op = o.local || !mp.on ? o.pos : o.disp;
+    const dx = j.pos.x - op.x, dz = j.pos.z - op.z, dy = j.pos.y - op.y, d = Math.hypot(dx, dz);
+    if (d < 0.95 && Math.abs(dy) < 1.1 && d > 0.001) {
+      const close = -((j.vel.x - o.vel.x) * dx + (j.vel.z - o.vel.z) * dz) / d;
+      const push = (0.95 - d) * 4; j.pos.x += dx / d * push * dt * 2; j.pos.z += dz / d * push * dt * 2;
+      if (close > 1.6 && j.bump <= 0) {
+        j.bump = 0.9; j.bumpSpin = (R() < 0.5 ? -1 : 1) * 2.4; j.vel.x += dx / d * close * 0.8; j.vel.z += dz / d * close * 0.8;
+        if (j.local) { setMsg('Bump!', 0.9, '#ff6b1a', 'Lean back sooner to brake'); Sound.tone([140, 110], 0.08, 'sawtooth'); }
+      }
+    }
+  }
+}
+
+/* =========================================================
+   Main loop
+   ========================================================= */
+let camSnap = true, last = performance.now(), acc = 0, sendT = 0;
+const DT = 1 / 120;
+function tick(dt) {
+  wind.gustT += dt;
+  if (state === 'heli') {
+    jumpT += dt;
+    const n = Math.ceil(-jumpT);
+    if (n !== tick.lastN) { tick.lastN = n; if (n === 3) setMsg('Ready', 0.9, '#f3efe6'); else if (n === 2) setMsg('Set', 0.9, '#f5b800'); else if (n === 1) setMsg('Go!', 1, '#5cc96b'); if (n >= 1 && n <= 3) Sound.tone([n === 1 ? 880 : 520], 0.1, 'sine'); }
+    if (jumpT >= -1) exitAll();
+  } else if (state === 'jump') jumpT += dt;
+  // own jumper
+  const me = myJ();
+  if (state === 'jump' && me.ph !== 'heli') {
+    Object.assign(me.ctl, { lean: inp.lean, turn: inp.turn, slide: inp.slide, fall: inp.fall, main: inp.main, mainP: inp.mainP });
+    const ts = tsOf(me); stepJumper(me, me.ctl, dt * ts); collide(me, dt);
+  }
+  // bots (host only, or solo)
+  if (state === 'jump' && isHost()) for (const j of J) if (!j.human && !j.local) { botCtl(j, dt); stepJumper(j, j.ctl, dt * tsOf(j)); collide(j, dt); }
+  if (state === 'jump' && isHost()) stepFormation(dt);
+  // remotes: extrapolate
+  for (const j of J) {
+    if (j.local || (!mp.on) || (isHost() && !j.human)) continue;
+    if (!j.net) continue;
+    const age = Math.min(0.35, (performance.now() - j.net.t) / 1000);
+    tA.set(j.net.p[0] + j.net.v[0] * age, j.net.p[1] + j.net.v[1] * age, j.net.p[2] + j.net.v[2] * age);
+    j.vel.set(j.net.v[0], j.net.v[1], j.net.v[2]);
+    if (j.net.r) { const o = refAt(jumpT, tB, tC); tA.add(o); j.vel.add(tC); }
+    j.pos.copy(tA); j.yaw = j.net.y; j.lean = j.net.l; j.slide = j.net.s; j.ph = j.net.ph;
+    if (j.net.ld && !j.landed) j.landed = j.net.ld;
+  }
+  if (mp.on && !mp.host && F.rel) { const o = refAt(jumpT, tB, tC), f = F.rel; F.c.set(o.x + f.c[0], o.y + f.c[1], o.z + f.c[2]); F.level = F.c.y; F.cv.set(tC.x + f.v[0], tC.y + f.v[1], tC.z + f.v[2]); }
+  if (state === 'jump') checkDone();
+}
+function exitAll() {
+  state = 'jump'; jumpT = 0;
+  for (const j of J) {
+    j.ph = 'ff'; const out = j.i < 2 ? 1 : -1, r = new THREE.Vector3(out, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), H.yaw);
+    j.vel.copy(r).multiplyScalar(1.6); j.vel.y = -0.5; j.m.cur = null;
+  }
+  tip('Fly to your ghost. Face the way it faces. Match level with the bar on the right.', 7);
+}
+let doneT = 0;
+function checkDone() {
+  if (!isHost() || results) return;
+  const allDown = J.every(j => j.landed);
+  if (allDown) doneT += DT; else doneT = 0;
+  if (allDown && doneT > 2.5 || (jumpT > 420)) finishJump();
+}
+function finishJump() {
+  results = { pts: F.pts, done: F.done.slice(), land: J.map(j => j.landed ? { kind: j.landed.kind, ok: j.landed.ok, dist: j.landed.dist, surface: j.landed.surface, auto: j.landed.auto } : null), names: J.map(j => j.name) };
+  if (mp.on) netSendAll({ t: 'res', r: results });
+  showResults();
+}
+function showResults() {
+  state = 'done';
+  const r = results;
+  let best = 0; try { best = +(localStorage.getItem('sd2-best') || 0); } catch (e) {}
+  if (r.pts > best) { try { localStorage.setItem('sd2-best', String(r.pts)); } catch (e) {} }
+  $('resTitle').textContent = r.pts + (r.pts === 1 ? ' point' : ' points');
+  $('resKicker').textContent = (r.pts > best ? 'New team best · ' : best ? 'Team best ' + best + ' · ' : '') + 'Team jump log';
+  const formCounts = {}; r.done.forEach(i => formCounts[FORMS[i].name] = (formCounts[FORMS[i].name] || 0) + 1);
+  let rows = Object.keys(formCounts).map(n => `<li><span>${n}</span><b>${formCounts[n] > 1 ? 'x' + formCounts[n] : '✓'}</b></li>`).join('');
+  if (!rows) rows = '<li><span>No formations held this time</span><b>0</b></li>';
+  rows += r.land.map((l, i) => `<li><span><i style="background:${SLOT_HEX[i]}"></i>${esc(r.names[i])}: ${l ? (l.ok ? l.kind : "didn't make it") : 'still in the air'}${l && l.auto ? ' (auto pull)' : ''}</span><b>${l && l.ok ? fmt(l.dist * FT) + ' ft' : '-'}</b></li>`).join('');
+  const closest = r.land.map((l, i) => [l, i]).filter(x => x[0] && x[0].ok).sort((a, b) => a[0].dist - b[0].dist)[0];
+  if (closest) rows += `<li class="tot"><span>Closest to the X</span><b>${esc(r.names[closest[1]])}</b></li>`;
+  $('resRows').innerHTML = rows;
+  const canAgain = !mp.on || mp.host;
+  $('bAgain').hidden = !canAgain; $('resWait').hidden = canAgain;
+  $('results').hidden = false; $('touch').hidden = true;
+  window.__sky2.last = r;
+}
+
+/* =========================================================
+   Visuals
+   ========================================================= */
+// poses: 0 upright, 1 box (belly), 3 track, 4 lying
+function poseFF(j, dt) {
+  posePerson(j.m, j.ph === 'track' ? 3 : 1, dt * 5, -j.slide * 0.35);
+  if (j.ph === 'ff') {
+    // lean like Mineral Fork's rider: forward = head dips and arms sweep back; back = arms forward
+    j.m.pose.rotation.x += j.lean * 0.32;
+    j.m.aL.rotation.x += -j.lean * 0.5; j.m.aR.rotation.x += -j.lean * 0.5;
+    j.m.lL.rotation.x += j.lean * 0.35; j.m.lR.rotation.x += j.lean * 0.35;
+    if (F.docked[j.i]) { j.m.aL.rotation.z = 1.0; j.m.aR.rotation.z = -1.0; j.m.aL.rotation.x = -1.3; j.m.aR.rotation.x = -1.3; }
+  }
+}
+const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(); let camYaw = 0;
+function updateVisuals(dt) {
+  // helicopter
+  if (heli.visible) {
+    if (state === 'jump' && jumpT > 4) { H.pos.addScaledVector(fwdOf(H.yaw, tA), dt * Math.min(30, (jumpT - 4) * 6)); H.pos.y += dt * 2; }
+    heli.position.copy(H.pos); heli.rotation.y = H.yaw; rotor.rotation.y += dt * 28; tailRotor.rotation.x += dt * 50;
+    heli.rotation.z = Math.sin(performance.now() / 900) * 0.01;
+    if (jumpT > 60) heli.visible = false;
+  }
+  for (const j of J) {
+    if (j.ph === 'heli') {
+      const s = SKID[j.i], q = tA.set(s[0], s[1], s[2]).applyAxisAngle(new THREE.Vector3(0, 1, 0), H.yaw);
+      j.pos.copy(H.pos).add(q); j.disp.copy(j.pos); j.dispYaw = j.yaw = H.yaw + (j.i < 2 ? PI / 2 : -PI / 2);
+      posePerson(j.m, 0, 1); j.m.pose.position.y = 0;
+    } else {
+      // smooth remote display, local is exact
+      if (j.local || !mp.on || (isHost() && !j.human)) { j.disp.copy(j.pos); j.dispYaw = j.yaw; }
+      else { j.disp.x = approach(j.disp.x, j.pos.x, 12, dt); j.disp.z = approach(j.disp.z, j.pos.z, 12, dt); j.disp.y = approach(j.disp.y, j.pos.y, 12, dt); if (Math.abs(j.disp.y - j.pos.y) > 30) j.disp.copy(j.pos); j.dispYaw = approachAngle(j.dispYaw, j.yaw, 12, dt); }
+      if (j.ph === 'ff' || j.ph === 'track') poseFF(j, dt);
+      else if (j.ph === 'landed' || j.landed) posePerson(j.m, j.landed && (j.landed.kind === 'Stand-up') ? 0 : 4, dt * 4);
+      else posePerson(j.m, 0, dt * 4, -j.slide * 0.4);
+    }
+    j.m.g.position.copy(j.disp); j.m.g.rotation.y = j.dispYaw;
+    // canopy
+    if (j.ph === 'open') { j.can.g.visible = true; const s = clamp((j.canT - 0.6) / 1.8, 0.05, 1); j.can.g.scale.set(s, s, s); }
+    else if (j.ph === 'canopy') { j.can.g.visible = true; j.can.g.scale.set(1, 1, 1); j.can.g.position.set(0, 0, 0); j.can.g.rotation.z = j.slide * 0.18; }
+    else if (j.ph === 'landed' && j.landed) { j.landed.t = (j.landed.t || 0) + dt; const k = clamp(j.landed.t / 2, 0, 1); j.can.g.visible = j.landed.surface !== 'power'; j.can.g.scale.set(1, lerp(1, 0.08, k), 1); j.can.g.position.set(0, -k * 0.4, k * 6); }
+    else j.can.g.visible = false;
+    j.blob.position.set(j.disp.x, groundAt(j.disp.x, j.disp.z) + 0.08, j.disp.z); j.blob.material.opacity = clamp(1 - j.disp.y / 80, 0, 1) * 0.9;
+  }
+  // ghost + grips
+  const me = myJ();
+  const showGhost = state === 'jump' && me.ph === 'ff' && !F.over && F.seq.length;
+  ghost.g.visible = !!showGhost;
+  if (showGhost) {
+    const sw = slotWorld(mySlot, tA); ghost.g.position.copy(sw); ghost.g.rotation.y = slotYaw(mySlot); posePerson(ghost, 1, 1);
+    const ok = F.docked[mySlot]; ghost.g.traverse(o => { if (o.material) o.material.color.setHex(ok ? 0x5cc96b : 0xffffff); });
+  }
+  const gp = gripGeo.attributes.position.array; let n = 0;
+  if (state === 'jump' && !F.over && F.seq.length) {
+    const fm = FORMS[F.seq[F.idx]];
+    for (const [a, b] of fm.links) { if (!(F.docked[a] && F.docked[b])) continue; const A = J[a].disp, B = J[b].disp; gp.set([A.x, A.y + 0.1, A.z, B.x, B.y + 0.1, B.z], n * 6); n++; }
+  }
+  for (let i = n; i < 8; i++) gp.fill(0, i * 6, i * 6 + 6);
+  gripGeo.attributes.position.needsUpdate = true; gripGeo.setDrawRange(0, n * 2);
+  // windsock
+  const gw = windAt(5, new THREE.Vector3()), sp = gw.length();
+  sockPivot.rotation.y = Math.atan2(gw.x, gw.z); sockPivot.rotation.x = clamp(0.9 - sp * 0.12, 0, 0.9);
+  for (const c of CARS) { c.m.position.x += c.v * dt; if (c.m.position.x > 1600) c.m.position.x = -1600; if (c.m.position.x < -1600) c.m.position.x = 1600; }
+}
+function updateCamera(dt) {
+  const me = myJ(), p = me.disp;
+  let pos = tA, look = tB, rate = 8;
+  if (state === 'heli' || me.ph === 'heli') {
+    const side = mySlot < 2 ? 1 : -1, q = new THREE.Vector3(side * 7.5, 0.6, -9).applyAxisAngle(new THREE.Vector3(0, 1, 0), H.yaw);
+    pos.copy(H.pos).add(q); look.copy(H.pos).add(new THREE.Vector3(0, -1.6, 0)); camYaw = H.yaw; rate = 30;
+  } else {
+    const flying = me.ph === 'canopy' || me.ph === 'open' || me.ph === 'landed';
+    camYaw = approachAngle(camYaw, me.ph === 'ff' && camMode !== 2 ? F.yaw * 0 + me.yaw : me.yaw, flying ? 2.2 : 2.6, dt);
+    const fw = fwdOf(camYaw, tC);
+    if (me.ph === 'landed') { const a = camYaw + 2.4 + jumpT * 0.12; pos.set(p.x + Math.sin(a) * 9, p.y + 3, p.z + Math.cos(a) * 9); look.copy(p).setY(p.y + 0.6); rate = 3; }
+    else if (camMode === 1 && (me.ph === 'ff' || me.ph === 'track')) { pos.copy(F.c).setY(p.y + 14).addScaledVector(fwdOf(F.yaw), -3); look.copy(F.c).setY(p.y - 2); rate = 10; }
+    else if (camMode === 2) { pos.copy(p).add(new THREE.Vector3(0, flying ? 0.9 : 0.4, 0)).addScaledVector(fw, 0.5); look.copy(pos).addScaledVector(fw, 10).add(new THREE.Vector3(0, flying ? -4 : -7, 0)); rate = 40; }
+    else if (flying) { const low = clamp(1 - p.y / 45, 0, 1); pos.copy(p).addScaledVector(fw, lerp(-13, -10, low)).add(new THREE.Vector3(0, lerp(8.5, 2.2, low), 0)); look.copy(p).addScaledVector(fw, 12).add(new THREE.Vector3(0, lerp(-3, 0.5, low), 0)); }
+    else { pos.copy(p).addScaledVector(fw, -5.5).add(new THREE.Vector3(0, 6.5, 0)); look.copy(p).addScaledVector(fw, 3.5).add(new THREE.Vector3(0, -3, 0)); rate = 20; }
+  }
+  if (camSnap) { camPos.copy(pos); camLook.copy(look); camSnap = false; }
+  camPos.x = approach(camPos.x, pos.x, rate, dt); camPos.z = approach(camPos.z, pos.z, rate, dt); camPos.y = pos.y;
+  camLook.x = approach(camLook.x, look.x, rate, dt); camLook.z = approach(camLook.z, look.z, rate, dt); camLook.y = look.y;
+  camera.position.copy(camPos); camera.position.y = Math.max(camera.position.y, groundAt(camPos.x, camPos.z) + 1.2);
+  camera.lookAt(camLook); sky.position.copy(camera.position);
+}
+function cycleCam() { camMode = (camMode + 1) % CAMS.length; toast(CAMS[camMode] + ' cam', 1.2); camSnap = true; }
+
+/* ---------- HUD ---------- */
+const fc = $('form').getContext('2d'), ac = $('altiDial').getContext('2d');
+let hudT = 0;
+function updateHUD(dt) {
+  if (msgT > 0) { msgT -= dt; if (msgT <= 0) $('msg').style.opacity = 0; }
+  if (tipT > 0) { tipT -= dt; if (tipT <= 0) $('tip').style.opacity = 0; }
+  if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').style.opacity = 0; }
+  const me = myJ();
+  let lab = '';
+  if (me.ph === 'track' || (me.ph === 'ff' && me.pos.y < BREAK + 200)) lab = 'PULL';
+  else if (me.ph === 'canopy') lab = 'FLARE';
+  const bm = $('bMain'); if (bm.textContent !== lab) bm.textContent = lab; bm.hidden = !lab;
+  hudT -= dt; if (hudT > 0) return; hudT = 1 / 20;
+  const ft = Math.max(0, me.disp.y) * FT, disp = ft > 1000 ? Math.round(ft / 10) * 10 : Math.round(ft);
+  $('altNum').innerHTML = fmt(disp) + '<small>FT</small>';
+  $('altNum').style.color = me.ph === 'canopy' ? '#f3efe6' : ft > 4500 ? '#f3efe6' : ft > 3500 ? '#f5b800' : '#ff6b1a';
+  $('altSub').textContent = state === 'heli' ? 'HOVER · ' + fmt(EXIT * FT) + ' FT' : `${fmt(Math.max(0, -me.vel.y) * MPH)} MPH ↓`;
+  drawAlti(ft);
+  // formation panel
+  const formOn = (state === 'heli' || me.ph === 'ff') && !F.over && F.seq.length;
+  $('form').hidden = !formOn; $('level').hidden = !(me.ph === 'ff' && !F.over);
+  if (formOn) {
+    const fm = FORMS[F.seq[F.idx]];
+    $('formName').innerHTML = fm.name + `<small>${F.hold > 0.05 ? 'HOLD ' + F.hold.toFixed(1) + ' / 3.0' : 'POINT ' + (F.pts + 1)}</small>`;
+    drawForm(fm);
+    const dy = me.pos.y - F.level; $('level').querySelector('i').style.top = clamp(50 - dy * 14, 4, 96) + '%';
+    $('level').querySelector('i').style.background = Math.abs(dy) < (assist ? DOCK.easy : DOCK.pro).lvl ? '#5cc96b' : '#f5b800';
+  } else $('formName').innerHTML = F.over && (me.ph === 'track' || me.ph === 'open') ? `${F.pts} PTS<small>BREAK OFF · TRACK · PULL</small>` : me.ph === 'canopy' ? `${fmt(Math.hypot(me.pos.x, me.pos.z) * FT)} FT<small>TO THE X · WIND ${fmt(windAt(me.pos.y).length() * MPH)} MPH</small>` : '';
+  $('team').innerHTML = `POINTS ${F.pts}` + J.map(j => `<br>${esc(j.name)}<i style="background:${SLOT_HEX[j.i]};${F.docked[j.i] ? 'box-shadow:0 0 0 2px #5cc96b' : 'opacity:.55'}"></i>`).join('');
+}
+function drawAlti(ft) {
+  const c = ac, s = 140, r = 62; c.clearRect(0, 0, s, s); c.save(); c.translate(s / 2, s / 2);
+  c.fillStyle = '#141412'; c.beginPath(); c.arc(0, 0, r + 6, 0, 7); c.fill();
+  const A = f => f / 15000 * PI * 2, arc = (a0, a1, col) => { c.strokeStyle = col; c.lineWidth = 7; c.beginPath(); c.arc(0, 0, r - 4, a0 - PI / 2, a1 - PI / 2); c.stroke(); };
+  arc(A(0), A(3500), '#e8402f'); arc(A(3500), A(4500), '#ff6b1a'); arc(A(4500), A(5500), '#f5b800');
+  c.fillStyle = '#f3efe6'; c.font = '600 13px IBM Plex Mono, monospace'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  for (let i = 0; i < 15; i += 1) { if (i % 3) continue; const a = i / 15 * PI * 2 - PI / 2; c.fillText(String(i), Math.cos(a) * (r - 18), Math.sin(a) * (r - 18)); }
+  const a = A(clamp(ft, 0, 15000)) - PI / 2; c.strokeStyle = '#f5b800'; c.lineWidth = 5; c.lineCap = 'round'; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * (r - 8), Math.sin(a) * (r - 8)); c.stroke();
+  c.restore();
+}
+function drawForm(fm) {
+  const c = fc, s = 264; c.clearRect(0, 0, s, s);
+  const k = 30, cx = s / 2, cy = s / 2 + 6;
+  // hold ring
+  c.strokeStyle = 'rgba(243,239,230,.12)'; c.lineWidth = 8; c.beginPath(); c.arc(cx, s / 2, 120, 0, 7); c.stroke();
+  if (F.hold > 0) { c.strokeStyle = '#5cc96b'; c.beginPath(); c.arc(cx, s / 2, 120, -PI / 2, -PI / 2 + F.hold / 3 * PI * 2); c.stroke(); }
+  c.strokeStyle = 'rgba(243,239,230,.35)'; c.lineWidth = 4;
+  for (const [a, b] of fm.links) { const A = fm.s[a], B = fm.s[b]; c.beginPath(); c.moveTo(cx + A[0] * k, cy - A[1] * k); c.lineTo(cx + B[0] * k, cy - B[1] * k); c.stroke(); }
+  fm.s.forEach((p, i) => {
+    const x = cx + p[0] * k, y = cy - p[1] * k, f = p[2];
+    c.save(); c.translate(x, y); c.rotate(f);
+    c.fillStyle = SLOT_HEX[i]; c.globalAlpha = F.docked[i] ? 1 : 0.6;
+    c.beginPath(); c.ellipse(0, 0, 9, 22, 0, 0, 7); c.fill();           // body, head toward facing
+    c.beginPath(); c.arc(0, -26, 7, 0, 7); c.fill();
+    c.fillRect(-22, -14, 44, 6);                                            // arms
+    c.restore(); c.globalAlpha = 1;
+    if (i === mySlot) { c.strokeStyle = '#ffffff'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, 30, 0, 7); c.stroke(); }
+    if (F.docked[i]) { c.fillStyle = '#5cc96b'; c.beginPath(); c.arc(x + 20, y - 20, 7, 0, 7); c.fill(); }
+  });
+}
+
+/* =========================================================
+   Frame loop
+   ========================================================= */
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  readInput();
+  if (state === 'heli' || state === 'jump') {
+    acc += dt; let n = 0;
+    while (acc >= DT && n < 12) { tick(DT); acc -= DT; n++; inp.mainP = false; }
+    if (n >= 12) acc = 0;
+    if (mp.on) netTick(dt);
+  }
+  if (state === 'menu') menuCam(dt);
+  else { updateVisuals(dt); updateCamera(dt); if (state !== 'done') updateHUD(dt); }
+  const me = myJ();
+  Sound.update(state === 'jump' ? me.vel.length() : 0, me.ph === 'canopy' ? 1 : 0, heli.visible ? clamp(1 - camera.position.distanceTo(H.pos) / 300, 0, 1) : 0);
+  renderer.render(scene, camera);
+}
+let menuT = 0;
+function menuCam(dt) {
+  menuT += dt;
+  camera.position.set(Math.sin(menuT * 0.05) * 600 + 200, 900, Math.cos(menuT * 0.05) * 600 + 300);
+  camera.lookAt(0, 0, 0); sky.position.copy(camera.position);
+  for (const c of CARS) { c.m.position.x += c.v * dt; if (Math.abs(c.m.position.x) > 1600) c.m.position.x *= -0.99; }
+}
+
+/* =========================================================
+   Menu
+   ========================================================= */
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const cleanName = n => String(n || '').replace(/[<>]/g, '').trim().slice(0, 12) || 'Jumper';
+function setAssistUI() { $('assistSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.a === assist)); }
+$('assistSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; assist = +b.dataset.a; setAssistUI(); });
+const BOT_NAMES = ['Bot Ace', 'Bot Dusty', 'Bot Goose', 'Bot Pinky'];
+function soloRoster() { mySlot = 0; J.forEach((j, i) => { j.human = i === 0; j.local = i === 0; j.name = i === 0 ? (getName() || 'You') : BOT_NAMES[i]; }); }
+$('bSolo').onclick = () => { soloRoster(); startJump(Date.now() & 0xffffff, assist); };
+$('bMP').onclick = openMP;
+$('bCam').onclick = cycleCam; $('bSound').onclick = toggleSound;
+$('bPause').onclick = askMenu;
+function askMenu() { if (confirm(mp.on ? 'Leave this jump and the room?' : 'Quit to the menu?')) { if (mp.on) mpLeave(); toMenu(); } }
+$('bAgain').onclick = () => { if (mp.on) { if (mp.host) hostStart(); } else { startJump(Date.now() & 0xffffff, assist); } };
+$('bMenu').onclick = () => { if (mp.on) mpLeave(); toMenu(); };
+function toMenu() {
+  state = 'menu'; for (const id of ['hud', 'touch', 'results', 'mp', 'loading']) $(id).hidden = true; $('menu').hidden = false; setAssistUI();
+  heli.visible = false; for (const j of J) { j.m.g.visible = false; j.blob.visible = false; } ghost.g.visible = false;
+}
+function showJumpers() { for (const j of J) { j.m.g.visible = true; j.blob.visible = true; } }
+
+/* =========================================================
+   Multiplayer: PeerJS rooms, host runs bots and the formation
+   ========================================================= */
+const ID_PREFIX = 'skydivin2-v1-', CODE_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const mp = { on: false, host: false, peer: null, conns: new Map(), hostConn: null, myId: null, code: '', players: new Map() };
+const isHost = () => !mp.on || mp.host;
+function loadPeer() {
+  if (window.Peer) return Promise.resolve();
+  const srcs = ['https://unpkg.com/peerjs@1.5/dist/peerjs.min.js', 'https://cdn.jsdelivr.net/npm/peerjs@1.5/dist/peerjs.min.js'];
+  return new Promise((res, rej) => { const tryOne = i => { if (i >= srcs.length) return rej(new Error('load')); const s = document.createElement('script'); s.src = srcs[i]; s.onload = () => (window.Peer ? res() : tryOne(i + 1)); s.onerror = () => { s.remove(); tryOne(i + 1); }; document.head.appendChild(s); }; tryOne(0); });
+}
+function netErr(err) {
+  const t = err && err.type;
+  if (t === 'network' || t === 'server-error' || t === 'socket-error' || t === 'socket-closed') return "Couldn't reach the matchmaking server. Try again in a moment.";
+  if (t === 'browser-incompatible') return "This browser can't do multiplayer. Try Safari or Chrome.";
+  return 'Connection problem' + (t ? ' (' + t + ')' : '') + '. Try again.';
+}
+function getName() { try { return localStorage.getItem('sd2-name') || ''; } catch (e) { return ''; } }
+function takeName() { const raw = $('mpName').value.trim(); if (!raw) { mpMsg('Type your name first.'); $('mpName').focus(); return null; } const n = cleanName(raw); try { localStorage.setItem('sd2-name', n); } catch (e) {} return n; }
+function mpMsg(t) { $('mpMsg').textContent = t || ''; }
+function mpView(v) { $('mpStart').hidden = v !== 'start'; $('mpLobby').hidden = v !== 'lobby'; }
+function setBusy(b) { $('bHost').disabled = b; $('bJoin').disabled = b; }
+function openMP() { $('menu').hidden = true; $('mp').hidden = false; if (!mp.on) { mpView('start'); mpMsg(''); $('mpName').value = getName(); setBusy(false); } else { mpView('lobby'); renderLobby(); } }
+$('bHost').onclick = mpHost; $('bJoin').onclick = mpJoin; $('bStartJump').onclick = hostStart;
+$('bMPBack').onclick = () => { if (mp.on) mpLeave(); $('mp').hidden = true; $('menu').hidden = false; };
+function freeSlot() { const used = new Set([...mp.players.values()].map(p => p.slot)); for (let i = 0; i < 4; i++) if (!used.has(i)) return i; return -1; }
+function renderLobby() {
+  $('mpCodeShow').textContent = mp.code;
+  const bySlot = []; for (const p of mp.players.values()) bySlot[p.slot] = p;
+  $('mpRoster').innerHTML = [0, 1, 2, 3].map(i => `<li><i style="background:${SLOT_HEX[i]}"></i>${bySlot[i] ? esc(bySlot[i].name) + (bySlot[i].id === mp.myId ? ' (you)' : '') : '<span style="color:var(--muted)">' + BOT_NAMES[i] + '</span>'}<small>${i < 2 ? 'LEFT SKID' : 'RIGHT SKID'}</small></li>`).join('');
+  $('mpHostCtl').hidden = !mp.host; $('mpWait').hidden = mp.host;
+}
+async function mpHost() {
+  const name = takeName(); if (!name) return;
+  mpMsg('Opening a room…'); setBusy(true);
+  try { await loadPeer(); } catch (e) { setBusy(false); return mpMsg("Couldn't load the multiplayer engine. Check your connection."); }
+  const tryCode = n => {
+    const code = Array.from({ length: 4 }, () => CODE_ABC[Math.floor(Math.random() * CODE_ABC.length)]).join('');
+    const peer = new Peer(ID_PREFIX + code, { debug: 0 }); let opened = false;
+    peer.on('open', () => {
+      opened = true; Object.assign(mp, { on: true, host: true, peer, code, myId: 'host' }); mp.players.clear(); mp.conns.clear();
+      mp.players.set('host', { id: 'host', name, slot: 0 }); setBusy(false); mpMsg(''); mpView('lobby'); renderLobby();
+    });
+    peer.on('connection', conn => { conn.on('data', d => hostOnData(conn, d)); conn.on('close', () => hostDrop(conn.peer)); conn.on('error', () => hostDrop(conn.peer)); });
+    peer.on('error', err => { if (!opened) { try { peer.destroy(); } catch (e) {} if (err.type === 'unavailable-id' && n < 4) return tryCode(n + 1); setBusy(false); return mpMsg(netErr(err)); } if (err.type !== 'peer-unavailable') toast(netErr(err)); });
+    peer.on('disconnected', () => { if (mp.on && mp.host && mp.peer === peer && !peer.destroyed) try { peer.reconnect(); } catch (e) {} });
+  };
+  tryCode(0);
+}
+function lobbyMsg() { return { t: 'lobby', code: mp.code, players: [...mp.players.values()].map(p => ({ id: p.id, name: p.name, slot: p.slot })) }; }
+function netSendAll(m) { for (const c of mp.conns.values()) if (c.open) try { c.send(m); } catch (e) {} }
+function netSend(m) { if (mp.hostConn && mp.hostConn.open) try { mp.hostConn.send(m); } catch (e) {} }
+function hostOnData(conn, d) {
+  if (!mp.on || !mp.host || !d || typeof d !== 'object') return;
+  const id = conn.peer;
+  if (d.t === 'hi') {
+    if (mp.players.has(id)) return;
+    const slot = freeSlot();
+    if (slot < 0) { try { conn.send({ t: 'full' }); } catch (e) {} setTimeout(() => conn.close(), 400); return; }
+    mp.conns.set(id, conn); mp.players.set(id, { id, name: cleanName(d.name), slot });
+    toast(cleanName(d.name) + ' joined'); Sound.tone([660], 0.08);
+    netSendAll(lobbyMsg()); renderLobby(); return;
+  }
+  const p = mp.players.get(id); if (!p) return;
+  const j = J[p.slot];
+  if (d.t === 'st' && d.s) { j.net = Object.assign(d.s, { t: performance.now() }); }
+  else if (d.t === 'land' && d.l) { j.landed = d.l; j.ph = 'landed'; }
+}
+function hostDrop(id) {
+  const p = mp.players.get(id); if (!p || id === 'host') return;
+  mp.players.delete(id); mp.conns.delete(id);
+  const j = J[p.slot]; j.human = false; j.local = false; j.net = null; j.name = BOT_NAMES[p.slot];
+  toast(p.name + ' left, a bot takes the slot'); netSendAll(lobbyMsg()); if (!$('mp').hidden) renderLobby();
+}
+function applyRoster() {
+  for (const j of J) { j.human = false; j.local = false; j.name = BOT_NAMES[j.i]; }
+  for (const p of mp.players.values()) { const j = J[p.slot]; j.human = true; j.name = p.name; if (p.id === mp.myId) { j.local = true; mySlot = p.slot; } }
+}
+function hostStart() {
+  if (!mp.host) return;
+  const sd = (Math.random() * 0xffffff) | 0;
+  applyRoster(); netSendAll(lobbyMsg()); netSendAll({ t: 'go', seed: sd, assist });
+  startJump(sd, assist);
+}
+async function mpJoin() {
+  const name = takeName(); if (!name) return;
+  const code = $('mpCode').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (code.length !== 4) return mpMsg('Room codes are 4 letters and numbers.');
+  mpMsg('Joining ' + code + '…'); setBusy(true);
+  try { await loadPeer(); } catch (e) { setBusy(false); return mpMsg("Couldn't load the multiplayer engine. Check your connection."); }
+  const peer = new Peer({ debug: 0 }); let joined = false, done = false;
+  const fail = m => { if (joined || done) return; done = true; clearTimeout(mp.joinTimer); setBusy(false); try { peer.destroy(); } catch (e) {} mpMsg(m); };
+  clearTimeout(mp.joinTimer); mp.joinTimer = setTimeout(() => fail("Couldn't connect. Check the code, or try on Wi-Fi."), 15000);
+  peer.on('error', err => { if (!joined) return fail(err.type === 'peer-unavailable' ? 'No room with that code. Double-check it with the host.' : netErr(err)); if (err.type !== 'peer-unavailable') toast(netErr(err)); });
+  peer.on('open', id => {
+    if (done) return;
+    const conn = peer.connect(ID_PREFIX + code, { reliable: true, serialization: 'json' });
+    conn.on('open', () => {
+      if (done) return; joined = true; clearTimeout(mp.joinTimer); setBusy(false);
+      Object.assign(mp, { on: true, host: false, peer, hostConn: conn, myId: id, code }); mp.players.clear();
+      const hi = () => { try { conn.send({ t: 'hi', name }); } catch (e) {} }; hi(); let tries = 0;
+      mp.hiTimer = setInterval(() => { if (!mp.on || mp.hostConn !== conn || mp.players.has(id) || ++tries > 8) return clearInterval(mp.hiTimer); hi(); }, 1000);
+      mpMsg(''); mpView('lobby'); renderLobby();
+    });
+    conn.on('data', d => clientOnData(d));
+    conn.on('close', () => { if (mp.on && !mp.host && mp.hostConn === conn) { mpLeave(); toMenu(); toast('Lost the connection to the host', 3); } });
+  });
+}
+function clientOnData(d) {
+  if (!mp.on || mp.host || !d || typeof d !== 'object') return;
+  if (d.t === 'full') { mpLeave(); mpView('start'); setBusy(false); return mpMsg('That helicopter is full (4 jumpers max).'); }
+  if (d.t === 'lobby') {
+    mp.players.clear(); for (const q of d.players || []) mp.players.set(q.id, { id: q.id, name: cleanName(q.name), slot: q.slot | 0 });
+    if (!$('mp').hidden) renderLobby(); return;
+  }
+  if (d.t === 'go') { applyRoster(); startJump(d.seed | 0, d.assist ? 1 : 0); return; }
+  if (d.t === 'snap') {
+    const now = performance.now();
+    for (const k in d.s) { const i = +k; if (i === mySlot) continue; J[i].net = Object.assign(d.s[k], { t: now }); }
+    if (d.f) {
+      const f = d.f; F.idx = f.i; F.hold = f.h; F.pts = f.p; F.over = !!f.o; F.docked = f.d.map(Boolean);
+      F.rel = f; F.done = f.dn || F.done;
+      if (F.pts > lastPts) onPoint();
+    }
+    return;
+  }
+  if (d.t === 'res') { results = d.r; showResults(); }
+}
+const r2 = v => Math.round(v * 100) / 100;
+function packJ(j) {
+  const rel = j.ph === 'ff' || j.ph === 'heli', o = rel ? refAt(jumpT, new THREE.Vector3(), tC) : null, p = rel ? j.pos.clone().sub(o) : j.pos, v = rel ? j.vel.clone().sub(tC) : j.vel;
+  return { r: rel ? 1 : 0, p: [r2(p.x), r2(p.y), r2(p.z)], v: [r2(v.x), r2(v.y), r2(v.z)], y: r2(j.yaw), l: r2(j.lean), s: r2(j.slide), ph: j.ph, ld: j.landed ? { kind: j.landed.kind, ok: j.landed.ok, dist: j.landed.dist, surface: j.landed.surface, auto: j.landed.auto } : null }; }
+function netTick(dt) {
+  sendT -= dt; if (sendT > 0) return; sendT = 1 / 15;
+  if (mp.host) {
+    const s = {}; for (const j of J) s[j.i] = packJ(j);
+    netSendAll({ t: 'snap', s, f: { i: F.idx, h: r2(F.hold), p: F.pts, o: F.over ? 1 : 0, d: F.docked.map(x => x ? 1 : 0), c: (o => [r2(F.c.x - o.x), r2(F.level - o.y), r2(F.c.z - o.z)])(refAt(jumpT, tB, tC)), v: [r2(F.cv.x - tC.x), r2(F.cv.y - tC.y), r2(F.cv.z - tC.z)], dn: F.done } });
+  } else netSend({ t: 'st', s: packJ(myJ()) });
+}
+function mpLeave() {
+  clearTimeout(mp.joinTimer); clearInterval(mp.hiTimer);
+  const peer = mp.peer; Object.assign(mp, { on: false, host: false, peer: null, hostConn: null, myId: null, code: '' }); mp.conns.clear(); mp.players.clear();
+  try { peer && peer.destroy(); } catch (e) {}
+}
+
+/* =========================================================
+   Test hooks: window.__sky2
+   ========================================================= */
+const _start = startJump;
+window.__sky2 = {
+  get state() { return state; }, J, F, mp, get mySlot() { return mySlot; },
+  solo(sd, as = 1) { soloRoster(); _start(sd || 1234, as); showJumpers(); },
+  // let a bot fly my jumper (handy for tests): auto = true
+  auto: false,
+  sim(seconds) {
+    const steps = Math.round(seconds / DT);
+    for (let i = 0; i < steps && (state === 'heli' || state === 'jump'); i++) {
+      if (this.auto && myJ().ph !== 'heli') { botCtl(myJ(), DT); const c = myJ().ctl; Object.assign(inp, { lean: c.lean, turn: c.turn, slide: c.slide, fall: c.fall, main: c.main, mainP: c.main && !this._pm }); this._pm = c.main; if (myJ().ph === 'track' && myJ().pos.y < PULL) inp.mainP = true; }
+      tick(DT); inp.mainP = false;
+      if (mp.on) netTick(DT);
+    }
+    return { state, alt: myJ().pos.y * FT, pts: F.pts, idx: F.idx };
+  },
+  frame() { updateVisuals(1 / 60); updateCamera(1 / 60); updateHUD(1); renderer.render(scene, camera); },
+};
+const origStart = startJump;
+startJump = function (sd, as) { origStart(sd, as); showJumpers(); };
+toMenu();
+requestAnimationFrame(frame);
+})();
+</script>

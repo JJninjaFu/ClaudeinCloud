@@ -5,6 +5,8 @@ Experimenting w Claude in the cloud! Woot!
 
 | Game | Folder | What it is |
 |---|---|---|
+| Skydivin' 2 | [`skydivin2/`](skydivin2/index.html) | 4-way formation skydiving for up to 4 friends (bots fill the rest). Two jumpers off each skid of a helicopter at 13,500 ft, then lean forward and back (like the rider on Mineral Fork) to fly your slot, slide and match fall rate, and hold each formation for 3 seconds: Star, Line, Caterpillar, Diamond, Box, Accordion. Break off at 4,500 ft, track, pull, and see who lands closest to the X. |
+| Survivin' Skydivin' | [`survivin-skydivin/`](survivin-skydivin/index.html) | Solo skydiving survival. Exit the plane on the green light, fly through rings in freefall, pull by 3,500 ft, then deal with what opens: line twists (kick out), streamers, pilot chute in tow and lineovers (cut away, pull the reserve). Wind, geese, other jumpers, trees, a pond and power lines. Flare and land on the X. Three jumps: Fun Jump, Cloud Hopper, Sunset Load. |
 | Funnin' N Gunnin' | [`funnin-n-gunnin/`](funnin-n-gunnin/index.html) | Isometric army battle in the spirit of Running With Rifles, with Foxhole-style dirt. Red vs Blue, 25 soldiers a side (bots fill in around 1 to 4 players). Hold control points to bleed the other side's tickets. Every explosion leaves a crater, you can dig your own foxhole, and walls crumble block by block. |
 | Mineral Fork | [`mineral-fork/`](mineral-fork/index.html) | Dirt bike hillclimb based on the brothers' Big Cottonwood ride: roll off the tailgate, climb the Trail 1154 switchbacks and the red scree pitch (Day 1), then the Red Face hillclimb (Day 2). Feather the throttle and work your body position or you spin out, slide back or loop out. |
 | Pool Dig | [`pool-dig/`](pool-dig/index.html) | Excavator sim: dig a 33 × 16 ft backyard pool to grade (3 ft shallow to 6 ft deep), load the dump truck, and don't cut the sprinkler line. |
@@ -12,6 +14,19 @@ Experimenting w Claude in the cloud! Woot!
 | Topping Out | [`topping-out/`](topping-out/index.html) | Steel erection on a downtown lot: fly columns, beams and decks from the laydown yard and build a frame floor by floor. Default gantry crane (no swing, climbs with the building) or a swinging tower crane. Four floors tops out the job. |
 
 The root `index.html` is a game menu for GitHub Pages. Each game is one self-contained HTML file. It runs in any browser, including on a phone with touch sticks, and uses three.js r128 from cdnjs.
+
+### Skydivin' 2 controls
+- **Phone:** left stick leans you forward/back (drive toward or away from your slot) and turns you; right stick slides you sideways (left/right) and sets fall rate (up float, down sink). Big button pulls and flares.
+- **Keyboard:** W/S lean · A/D turn · Q/E slide · R float · F sink · Space pull / flare · C camera (chase, top, helmet) · M sound
+- **Controller:** left stick lean & turn · right stick slide & fall rate · A pull / flare · B camera
+- **How it plays:** your see-through ghost marks your slot. Get in it, face the way it faces and keep the level bar green. When all four are docked, hold 3 seconds for the point. You carry momentum, so lean back early or you'll bump. *Easy docks* adds a gentle pull into the slot; *Pro* is tighter.
+- **Jump with friends:** *Jump with friends*, enter your name, *Host a jump* and send the 4-letter code, or type a code and *Join*. Slots 1-2 sit on the left skid, 3-4 on the right. Empty slots are bots. Same PeerJS rooms as Mineral Fork.
+
+### Survivin' Skydivin' controls
+- **Phone:** touch anywhere on the left half for the stick. The big yellow button does the next thing: JUMP, PULL, KICK, CUT AWAY, RESERVE, hold to FLARE. Hold DIVE to go head down. CUT and RES buttons appear when you need them.
+- **Keyboard:** WASD/arrows · Space big button · Shift dive · X cut away · R reserve · C camera · P pause · M sound
+- **Controller:** left stick · A big button · RT dive / flare · LT brakes · X cut away · Y reserve · B camera · Start pause
+- **Survival notes:** pull by 3,500 ft (audible altimeter beeps at 5,500 / 4,500 / 3,500 / 2,500). Decision altitude is 1,800 ft. The AAD fires your reserve at 750 ft if you're still in freefall, but it won't save you from a streamer. Land into the wind (windsock points downwind) and flare at about 10 ft; your shadow helps you judge it.
 
 ### Funnin' N Gunnin' controls
 - **Phone:** left stick moves, right stick aims (push it to the edge to fire, aim assist helps), **NADE** throws where you aim, hold **DIG** to dig a foxhole where you stand, **DUCK** crouches, **SQUAD** grabs up to 4 nearby troops to follow you (tap again to dismiss), **TAKE** appears next to a dropped weapon.
@@ -47,6 +62,7 @@ One downtown lot, played start to finish: wrecking-ball demolition → clear rub
 3. Wrecking-ball demolition (needs a physics engine for chunks), rubble feeds the dig phase
 
 ## Ideas list
+- Skydivin' 2: bigger ways (8-way with bots), more formations, video judge replay, wingsuit mode
 - Pool Dig: pour the base and set forms, more yards (tight side access, a tree in the way, rock)
 - Moto Track Builder: dirt bike tracks and ruts in the dirt
 - Funnin' N Gunnin' v2: vehicles (jeeps and APCs, then tanks). v3: helicopters, artillery and anti-air call-ins unlocked by rank.
