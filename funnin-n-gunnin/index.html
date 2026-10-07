@@ -75,9 +75,11 @@ body.no-touch #reticle.show{display:block}
 #bSquad{left:162px;bottom:calc(30px + env(safe-area-inset-bottom,0px));width:54px;height:54px;font-size:13px}
 #bPause{right:auto;left:50%;transform:translateX(-50%);top:calc(70px + env(safe-area-inset-top,0px));width:40px;height:30px;border-radius:6px;font-size:13px}
 #bSound{left:12px;top:calc(98px + env(safe-area-inset-top,0px));width:auto;height:28px;border-radius:6px;padding:0 9px;font-family:var(--f-m);font-size:11px;font-weight:600}
+#bTrench{right:96px;bottom:calc(240px + env(safe-area-inset-bottom,0px));width:58px;height:58px;font-size:13px}
+.tb.armed{background:var(--yel);color:#1d1c1a;border-color:#fff}
 @media (max-height:430px){
   .pad{width:112px;height:112px;bottom:14px}
-  #bNade{right:136px;bottom:84px} #bDig{right:74px;bottom:134px} #bCrouch{right:12px;bottom:142px}
+  #bNade{right:136px;bottom:84px} #bDig{right:74px;bottom:134px} #bCrouch{right:12px;bottom:142px} #bTrench{right:74px;bottom:194px}
   #bSquad{left:136px;bottom:20px} #bTake{bottom:96px}
   #hint{bottom:150px}
   #mini{width:120px;height:90px} #feed{top:120px}
@@ -158,6 +160,7 @@ input:focus{outline:none;border-color:var(--yel)}
   <div class="pad" id="padR" data-label="Aim · push to fire"><i></i></div>
   <button class="tb" id="bNade">Nade<small id="bNadeN">3</small></button>
   <button class="tb" id="bDig">Dig</button>
+  <button class="tb" id="bTrench">Trench</button>
   <button class="tb" id="bCrouch">Duck</button>
   <button class="tb" id="bSquad">Squad</button>
   <button class="tb" id="bTake" hidden>Take</button>
@@ -184,9 +187,9 @@ input:focus{outline:none;border-color:var(--yel)}
       <button class="go alt" id="bFriends" style="flex:1">Play with friends</button>
     </div>
     <div class="help">
-      <div><b>Phone</b> Left stick moves. Right stick aims, push it to the edge to fire. NADE throws where you aim, hold DIG to dig a foxhole, DUCK to crouch, SQUAD to grab nearby troops. Walk up to a vehicle and tap GET IN; in a vehicle the left stick points where to drive and SEAT hops to the gun.</div>
-      <div><b>Keyboard</b> WASD move · mouse aim · click fire · right-click or G grenade · hold F dig · C crouch · E take weapon or get in/out · T switch seat · Q squad · R reload · wheel zoom · P pause · M sound</div>
-      <div><b>Controller</b> Left stick move · right stick aim · RT fire · LB/RB grenade · A dig (seat in vehicles) · B crouch · X take / get in / out · Y squad · Start pause</div>
+      <div><b>Phone</b> Left stick moves. Right stick aims, push it to the edge to fire. NADE throws where you aim, hold DIG to dig a foxhole, DUCK to crouch, SQUAD to grab nearby troops. TRENCH, then drag a line on the ground and soldiers dig it. Walk up to a vehicle and tap GET IN; in a vehicle the left stick points where to drive and SEAT hops to the gun.</div>
+      <div><b>Keyboard</b> WASD move · mouse aim · click fire · right-click or G grenade · hold F dig · V trench (hold left mouse and drag a line, soldiers dig it) · C crouch · E take weapon or get in/out · T switch seat · Q squad · R reload · wheel zoom · P pause · M sound</div>
+      <div><b>Controller</b> Left stick move · right stick aim · RT fire · LB/RB grenade · A dig (seat in vehicles) · Back trench (right stick moves the cursor, RT or A draws) · B crouch · X take / get in / out · Y squad · Start pause</div>
     </div>
   </div>
 </div>
@@ -490,6 +493,7 @@ function buildWorld(seed) {
     const flag = new THREE.Mesh(new THREE.PlaneGeometry(2, 1.2), new THREE.MeshLambertMaterial({ color: TEAM_HEX[t], side: THREE.DoubleSide })); flag.position.set(1, 5.3, 0); g.add(flag);
     worldGroup.add(g);
   }
+  trenchWorldInit();
   flowDirty = true; rebuildFlow();
   buildMiniBase();
 }
@@ -544,6 +548,7 @@ function terrainOp(x, z, R, depth, rim, scorchAmt) {
     }
   }
   refreshTerrain(x0, z0, x1, z1);
+  if (scorchAmt) liningBlast(x, z, R + 0.6);
   for (const t of trees) if (t.alive && Math.abs(t.x - x) < r2 + 1 && Math.abs(t.z - z) < r2 + 1) placeTree(t);
 }
 
@@ -643,7 +648,7 @@ function losClear(ax, ay, az, bx, by, bz, skipA, skipB, skipVa, skipVb) {
   for (let i = 1; i < n; i++) {
     const t = i / n, d = t * L; if (d < skipA || d > L - skipB) continue;
     const x = ax + dx * t, y = ay + dy * t, z = az + dz * t;
-    if (y < hAt(x, z)) return false;
+    if (y < hAt(x, z) + (d > 2.4 ? liningTopAt(x, z) : 0)) return false;
     if (blockAt(x, y, z) >= 0) return false;
     if (vehicles.length && vehAt(x, y, z, skipVa, skipVb)) return false;
   }
@@ -1050,7 +1055,7 @@ function traceShot(shooter, o, d, range) {
   for (let t = 0.2; t < best; t += step) {
     const x = o.x + d.x * t, y = o.y + d.y * t, z = o.z + d.z * t;
     if (!inMap(x, z)) return { t, kind: 1, x, y, z };
-    if (t > 1.4 && y < hAt(x, z)) return { t, kind: 1, x, y, z };
+    if (t > 1.4 && y < hAt(x, z) + (t > 2.4 ? liningTopAt(x, z) : 0)) return { t, kind: 1, x, y, z };
     const b = blockAt(x, y, z);
     if (b >= 0) return { t, kind: 2, id: b, x, y, z };
     const vh = vehicles.length ? vehAt(x, y, z, shooter.veh) : null;
@@ -1144,6 +1149,7 @@ function damage(t, dmg, by, wname, ix, iz, boomV) {
 }
 function kill(t, by, wname, ix, iz, boomV) {
   if (t.veh) leaveSeat(t);
+  if (t.job > 0) { t.job = 0; t.nodeI = -1; }
   t.alive = false; t.hp = 0; t.deaths++;
   t.respawnT = t.human ? 5 : rnd(6, 10);
   G.tickets[t.team] = Math.max(0, G.tickets[t.team] - 1);
@@ -1339,10 +1345,18 @@ function findCover(s, th) {
     let sc = (covered ? 10 : 0) - r * 0.6 + (hAt(x, z) < H0[(z | 0) * VW + (x | 0)] - 0.4 ? 3 : 0);
     if (sc > bs) { bs = sc; best = { x, z, ok: covered }; }
   }
+  for (const sp of TR.spots) {   // a finished trench is the best cover on the map
+    if (Math.abs(sp.x - s.x) > 12 || Math.abs(sp.z - s.z) > 12) continue;
+    const y = hAt(sp.x, sp.z), r = Math.hypot(sp.x - s.x, sp.z - s.z);
+    const covered = !losClear(th.x, ey, th.z, sp.x, y + 0.85, sp.z, 1, 0.3);
+    const sc = (covered ? 10 : 0) - r * 0.5 + 4;
+    if (sc > bs) { bs = sc; best = { x: sp.x, z: sp.z, ok: covered }; }
+  }
   return best && best.ok ? best : null;
 }
 function botThink(s) {
   const w = WPN[s.wpn];
+  if (s.job > 0 && s.nodeI >= 0 && ((s.target && Math.hypot(s.target.x - s.x, s.target.z - s.z) < 35) || s.suppress > 0.45)) trenchDrop(s);
   // target upkeep
   const tg = s.target;
   if (tg && (!tg.alive || Math.hypot(tg.x - s.x, tg.z - s.z) > (s.wpn === 'rocket' ? 62 : w.range + 8) || tg.team === s.team || (tg.isVeh && (!vehOccupied(tg) || (tg.T.sealed && s.wpn !== 'rocket'))) || (tg.veh && tg.veh.T.sealed))) s.target = null;
@@ -1406,10 +1420,10 @@ function botThink(s) {
   if (s.target) {
     const d = Math.hypot(s.target.x - s.x, s.target.z - s.z);
     s.crouch = s.wpn === 'mg' || s.wpn === 'sniper' || s.suppress > 0.45 || (d > 18 && Math.random() < 0.5) ? true : (Math.random() < 0.15 ? !s.crouch : s.crouch);
-  } else if (!s.cover) s.crouch = s.suppress > 0.8;
+  } else if (!s.cover && !(s.job > 0)) s.crouch = s.suppress > 0.8;
 }
 function botMove(s, dt) {
-  let mx = 0, mz = 0, speed = 4.0;
+  let mx = 0, mz = 0, speed = 4.0, faceYaw = null;
   if (s.flee > 0) { s.flee -= dt; mx = s.fleeX; mz = s.fleeZ; speed = 5; s.crouch = false; }
   else if (s.cover) {
     const dx = s.cover.x - s.x, dz = s.cover.z - s.z, d = Math.hypot(dx, dz);
@@ -1424,6 +1438,9 @@ function botMove(s, dt) {
       if (G.time > s.strafeAt) { s.strafeAt = G.time + rnd(1, 2.5); s.strafe = pick([-1, 0, 0, 1]); }
       mx = -dz / d * s.strafe; mz = dx / d * s.strafe; speed = 2.4;
     }
+  } else if (s.job > 0 && !s.target && s.suppress < 0.45) {
+    const w = trenchWork(s, dt);
+    if (w) { mx = w.mx; mz = w.mz; speed = w.speed; faceYaw = w.yaw; }
   } else if (s.leader) {
     const L = s.leader;
     if (!L.alive) s.leader = null;
@@ -1463,6 +1480,7 @@ function botMove(s, dt) {
   // facing
   let ty = s.yaw;
   if (s.target) ty = Math.atan2(s.target.x - s.x, s.target.z - s.z);
+  else if (faceYaw != null) ty = faceYaw;
   else if (Math.hypot(s.vx, s.vz) > 0.5) ty = Math.atan2(s.vx, s.vz);
   let dy = ((ty - s.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
   s.yaw += clamp(dy, -7 * dt, 7 * dt);
@@ -1520,6 +1538,225 @@ function doDig(s) {
   for (let i = 0; i < 3; i++) spawnP(partSolid, x, s.y + 0.4, z, rnd(-2, 2), rnd(3, 5), rnd(-2, 2), 0.14, 0x6b5238, 1, { grav: 18 });
 }
 function applyDig(x, z) { terrainOp(x, z, 1.15, 0.2, 0.55, 0); }
+
+/* ---------- trenches: draw a line on the ground, soldiers dig it, sandbags line the lips ----------
+   The order is an op ('tj'); every dig step is another op ('tg' job, node, step) that grades the terrain with min(),
+   so peers that replay the history get the same ground. 'tl' lines a finished node, 'tc' closes the job.
+   The lining is a per-cell flag too (liningH): shots and sight lines see it as 0.5 m of cover on top of the ground. */
+const TR = { mode: false, draw: null, jobs: new Map(), nextId: 1, ghosts: new Map(), spots: [], preview: null, cursor: null, padCur: null, padAx: null, t: 0 };
+const TR_STEP = 1.2, TR_MAXPTS = 72, TR_DEPTH = 1.3, TR_STEPS = 5, TR_LIP = 1.5, LINING_MAX = 3600, LINING_TOP = 0.5;
+let liningH = null, liningMesh = null, liningN = 0, liningCells = null;
+const liningTopAt = (x, z) => liningH && liningH[cellOf(x, z)] ? LINING_TOP : 0;
+
+function trenchWorldInit() {
+  TR.jobs.clear(); TR.ghosts.clear(); TR.spots = []; TR.nextId = 1; TR.draw = null; TR.mode = false; TR.padCur = null;
+  const tb = $('bTrench'); if (tb) tb.classList.remove('armed');
+  liningH = new Uint8Array(W * D); liningCells = new Map(); liningN = 0;
+  liningMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial(), LINING_MAX);
+  liningMesh.setColorAt(0, _c.setHex(0xb59a6a)); liningMesh.count = 0; liningMesh.frustumCulled = false; worldGroup.add(liningMesh);
+  const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * (TR_MAXPTS + 2)), 3)); pg.setDrawRange(0, 0);
+  TR.preview = new THREE.Line(pg, new THREE.LineBasicMaterial({ color: 0xf5b800, depthTest: false, transparent: true, opacity: 0.95 }));
+  TR.preview.renderOrder = 20; TR.preview.frustumCulled = false; worldGroup.add(TR.preview);
+  const cur = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.75, 20), new THREE.MeshBasicMaterial({ color: 0xf5b800, depthTest: false, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
+  cur.rotation.x = -Math.PI / 2; cur.renderOrder = 21; cur.visible = false; TR.cursor = cur; worldGroup.add(cur);
+}
+function trenchNew(id, team, flat) {
+  const nodes = []; for (let i = 0; i + 1 < flat.length; i += 2) nodes.push({ x: flat[i], z: flat[i + 1], st: 0, f: 0, by: -1 });
+  const job = { id, team, nodes, done: false, diggers: [], want: 3 };
+  TR.jobs.set(id, job); TR.nextId = Math.max(TR.nextId, id + 1); trenchGhost(job); return job;
+}
+function trenchGhost(job) {   // team-coloured line over the part that is still to dig
+  const old = TR.ghosts.get(job.id); if (old) { worldGroup.remove(old); old.geometry.dispose(); old.material.dispose(); TR.ghosts.delete(job.id); }
+  if (job.done) return;
+  const pos = [], n = job.nodes;
+  for (let i = 0; i + 1 < n.length; i++) {
+    if (n[i].st === 2 && n[i + 1].st === 2) continue;
+    for (const q of [n[i], n[i + 1]]) pos.push(q.x, hAt(q.x, q.z) + 0.3, q.z);
+  }
+  if (!pos.length) return;
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  const m = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: job.team ? 0x6fa0ff : 0xff7a66, depthTest: false, transparent: true, opacity: 0.9 }));
+  m.renderOrder = 15; m.frustumCulled = false; worldGroup.add(m); TR.ghosts.set(job.id, m);
+}
+// dig step `frac` (0..1) of one node: lower every vertex near its stretch of the path toward the trench profile
+function trenchGrade(job, idx, frac) {
+  const nodes = job.nodes, n = nodes[idx]; if (!n) return;
+  const p = nodes[idx - 1] || n, q = nodes[idx + 1] || n;
+  const ax = (p.x + n.x) / 2, az = (p.z + n.z) / 2, bx = (n.x + q.x) / 2, bz = (n.z + q.z) / 2, R = 1.4;
+  const x0 = Math.floor(Math.min(ax, bx) - R), x1 = Math.ceil(Math.max(ax, bx) + R), z0 = Math.floor(Math.min(az, bz) - R), z1 = Math.ceil(Math.max(az, bz) + R);
+  const sx = bx - ax, sz = bz - az, sl = sx * sx + sz * sz;
+  for (let i = Math.max(1, z0); i <= Math.min(D - 1, z1); i++) for (let j = Math.max(1, x0); j <= Math.min(W - 1, x1); j++) {
+    const v = i * VW + j; if (vNoDig[v]) continue;
+    const t = sl > 1e-6 ? clamp(((j - ax) * sx + (i - az) * sz) / sl, 0, 1) : 0;
+    const L = Math.hypot(j - (ax + sx * t), i - (az + sz * t)); if (L >= 1.35) continue;
+    const k = clamp((L - 0.45) / 0.9, 0, 1), pr = 1 - k * k * (3 - 2 * k);
+    const target = H0[v] - TR_DEPTH * frac * pr;
+    if (target < H[v]) H[v] = target;
+  }
+  refreshTerrain(x0, z0, x1, z1);
+  for (const t of trees) if (t.alive && Math.abs(t.x - n.x) < 4 && Math.abs(t.z - n.z) < 4) placeTree(t);
+}
+// sandbags on both lips of a finished node
+function trenchLine(job, idx) {
+  if (!liningMesh) return;
+  const nodes = job.nodes, n = nodes[idx], p = nodes[idx - 1] || n, q = nodes[idx + 1] || n;
+  let tx = q.x - p.x, tz = q.z - p.z; const tl = Math.hypot(tx, tz) || 1; tx /= tl; tz /= tl;
+  const yaw = Math.atan2(tx, tz);
+  for (const side of [-1, 1]) {
+    if (liningN >= LINING_MAX) return;
+    const bx = n.x - tz * side * TR_LIP, bz = n.z + tx * side * TR_LIP;       // unjittered: the cover flag must match on every peer
+    if (!inMap(bx, bz)) continue;
+    const c = cellOf(bx, bz); if (solid[c] === 1) continue;
+    const list = liningCells.get(c) || [];
+    for (let course = 0; course < 2; course++) for (const off of course ? [0, 0.6] : [-0.3, 0.3]) {   // two staggered courses of individual bags
+      if (liningN >= LINING_MAX) break;
+      const id = liningN++, r = Math.random(), o = off + (Math.random() - 0.5) * 0.06, lat = (Math.random() - 0.5) * 0.1;
+      const x = bx + tx * o - tz * side * lat, z = bz + tz * o + tx * side * lat;
+      _m.compose(_v.set(x, hAt(x, z) + 0.13 + course * 0.25, z), _q.setFromEuler(_e.set(0, yaw + (Math.random() - 0.5) * 0.16, (Math.random() - 0.5) * 0.08)), _s.set(0.52 - course * 0.04, 0.25, 0.56));
+      liningMesh.setMatrixAt(id, _m); liningMesh.setColorAt(id, _c.setRGB(0.6 + r * 0.16 - course * 0.03, 0.5 + r * 0.12 - course * 0.03, 0.34 + r * 0.08));
+      list.push(id);
+    }
+    liningH[c] = 1; liningCells.set(c, list);
+  }
+  liningMesh.count = liningN; liningMesh.instanceMatrix.needsUpdate = true; liningMesh.instanceColor.needsUpdate = true;
+}
+function liningBlast(x, z, r) {
+  if (!liningCells || !liningCells.size) return;
+  let hit = false;
+  for (let cz = Math.floor(z - r); cz <= Math.floor(z + r); cz++) for (let cx = Math.floor(x - r); cx <= Math.floor(x + r); cx++) {
+    if (!inMap(cx, cz)) continue;
+    const c = cz * W + cx, ids = liningCells.get(c); if (!ids || Math.hypot(cx + 0.5 - x, cz + 0.5 - z) > r) continue;
+    for (const id of ids) liningMesh.setMatrixAt(id, ZERO_M);
+    liningCells.delete(c); liningH[c] = 0; hit = true;
+  }
+  if (hit) liningMesh.instanceMatrix.needsUpdate = true;
+}
+
+/* --- the order (any player) and the work (bots, host only) --- */
+function trenchOrder(team, flat, issuer) {
+  if (!isHost() || !Array.isArray(flat) || flat.length < 8 || flat.length > TR_MAXPTS * 2 + 4 || flat.some(v => !isFinite(v))) return;
+  const who = sold[issuer]; let active = 0;
+  for (const j of TR.jobs.values()) if (j.team === team && !j.done) active++;
+  if (active >= 4) { if (who) msgTo(who, 'Four trenches are already being dug'); return; }
+  if (!sold.some(s => freeBot(s, team))) { if (who) msgTo(who, 'No free soldiers to dig'); return; }
+  flat = flat.map((v, i) => clamp(+v, 3, (i & 1 ? D : W) - 3));
+  const id = TR.nextId++, op = ['tj', id, team, flat];
+  applyOp(op, false); hist(op);
+  const job = TR.jobs.get(id); job.want = clamp(Math.ceil(job.nodes.length / 9), 2, 6);
+  const got = trenchAssign(job);
+  if (who) msgTo(who, 'Trench ordered · ' + got + ' soldiers digging');
+}
+function trenchAssign(job) {
+  const need = job.want - job.diggers.length; if (need <= 0) return 0;
+  const a = job.nodes[0];
+  const free = sold.filter(s => freeBot(s, job.team)).sort((p, q) => Math.hypot(p.x - a.x, p.z - a.z) - Math.hypot(q.x - a.x, q.z - a.z)).slice(0, need);
+  for (const s of free) { s.job = job.id; s.nodeI = -1; s.tdT = 0; job.diggers.push(s.i); }
+  return free.length;
+}
+function trenchDrop(s) {   // a fight broke out: hand the node back, the work resumes after
+  const job = TR.jobs.get(s.job), n = job && job.nodes[s.nodeI];
+  if (n && n.by === s.i) { n.st = 0; n.by = -1; }
+  s.nodeI = -1;
+}
+function trenchCheckDone(job) {
+  if (job.done || !job.nodes.every(q => q.st === 2)) return;
+  const op = ['tc', job.id]; applyOp(op, false); hist(op);
+  for (const i of job.diggers) { const s = sold[i]; if (s && s.job === job.id) { s.job = 0; s.nodeI = -1; } }
+}
+function trenchFinish(job, idx) {
+  job.nodes[idx].st = 2; job.nodes[idx].by = -1;
+  const op = ['tl', job.id, idx]; applyOp(op, false); hist(op);
+  trenchCheckDone(job);
+}
+const _tw = { mx: 0, mz: 0, speed: 0, yaw: null };
+function trenchWork(s, dt) {
+  const job = TR.jobs.get(s.job);
+  if (!job || job.done) { s.job = 0; s.nodeI = -1; return null; }
+  let n = s.nodeI >= 0 ? job.nodes[s.nodeI] : null;
+  if (!n || n.st !== 1 || n.by !== s.i) {
+    n = null; s.nodeI = -1;
+    for (let i = 0; i < job.nodes.length; i++) {
+      const q = job.nodes[i]; if (q.st !== 0) continue;
+      if (solid[cellOf(q.x, q.z)] === 1) { q.st = 2; continue; }       // a wall is in the way: skip that stretch
+      q.st = 1; q.by = s.i; s.nodeI = i; n = q; break;
+    }
+    if (!n) { trenchCheckDone(job); s.job = 0; return null; }
+  }
+  const dx = n.x - s.x, dz = n.z - s.z, d = Math.hypot(dx, dz);
+  if (d > 0.8) { _tw.mx = dx / d; _tw.mz = dz / d; _tw.speed = 4.2; _tw.yaw = null; s.crouch = false; s.tdT = 0; return _tw; }
+  const nb = job.nodes[s.nodeI + 1] || job.nodes[s.nodeI - 1] || n;
+  _tw.mx = _tw.mz = 0; _tw.speed = 0; _tw.yaw = nb === n ? s.yaw : Math.atan2(nb.x - n.x, nb.z - n.z); s.crouch = true;
+  s.tdT += dt;
+  if (s.tdT > 0.5) {
+    s.tdT = 0; n.f++;
+    if (n.f === 1) for (const t of trees) if (t.alive && Math.hypot(t.x - n.x, t.z - n.z) < 1.6) { fellTree(t); hist(['tf', t.id]); }
+    const op = ['tg', job.id, s.nodeI, n.f]; applyOp(op, false); hist(op);
+    for (let i = 0; i < 3; i++) spawnP(partSolid, n.x, hAt(n.x, n.z) + 0.3, n.z, rnd(-2, 2), rnd(3, 5), rnd(-2, 2), 0.14, 0x6b5238, 1, { grav: 18 });
+    if (n.f >= TR_STEPS) { const k = s.nodeI; s.nodeI = -1; trenchFinish(job, k); }
+  }
+  return _tw;
+}
+function trenchTick(dt) {    // host: keep every job staffed, hand dead diggers' nodes back
+  TR.t -= dt; if (TR.t > 0 || !isHost()) return; TR.t = 2;
+  for (const job of TR.jobs.values()) {
+    if (job.done) continue;
+    job.diggers = job.diggers.filter(i => sold[i].alive && sold[i].job === job.id);
+    for (const n of job.nodes) if (n.st === 1) { const d = sold[n.by]; if (!d || !d.alive || d.job !== job.id || job.nodes[d.nodeI] !== n) { n.st = 0; n.by = -1; } }
+    if (job.diggers.length < Math.min(2, job.want) && job.nodes.some(n => n.st === 0)) trenchAssign(job);
+  }
+}
+
+/* --- drawing it (mouse, touch, controller) --- */
+function groundPick(cx, cy) {
+  _ndc.set(cx / innerWidth * 2 - 1, -(cy / innerHeight) * 2 + 1); ray.setFromCamera(_ndc, camera);
+  let y = 0, x = 0, z = 0;
+  for (let it = 0; it < 3; it++) { _plane.set(_v.set(0, 1, 0), -y); if (!ray.ray.intersectPlane(_plane, _hit)) return null; x = _hit.x; z = _hit.z; y = hAt(x, z); }
+  return inMap(x, z) ? { x, z } : null;
+}
+function trenchPreview() {
+  const d = TR.draw; if (!d || !TR.preview) return;
+  const a = TR.preview.geometry.attributes.position.array, n = d.pts.length;
+  for (let i = 0; i < n; i++) { const q = d.pts[i]; a[i * 3] = q[0]; a[i * 3 + 1] = hAt(q[0], q[1]) + 0.3; a[i * 3 + 2] = q[1]; }
+  TR.preview.geometry.attributes.position.needsUpdate = true; TR.preview.geometry.setDrawRange(0, n);
+}
+function trenchBegin(pid, x, z) { TR.draw = { pid, pts: [[x, z]] }; trenchPreview(); }
+function trenchPush(x, z) {   // one point every TR_STEP along the path the pointer travelled
+  const d = TR.draw; if (!d) return;
+  let last = d.pts[d.pts.length - 1];
+  for (let guard = 0; guard < 40; guard++) {
+    const dx = x - last[0], dz = z - last[1], L = Math.hypot(dx, dz);
+    if (L < TR_STEP || d.pts.length >= TR_MAXPTS) break;
+    last = [last[0] + dx / L * TR_STEP, last[1] + dz / L * TR_STEP]; d.pts.push(last);
+  }
+  trenchPreview();
+}
+function trenchEnd(ok) {
+  const d = TR.draw; TR.draw = null; if (TR.preview) TR.preview.geometry.setDrawRange(0, 0);
+  if (!d || !ok) return;
+  if (d.pts.length < 4) { toast('Draw a longer line · at least 12 ft', 2); return; }
+  const flat = []; for (const q of d.pts) flat.push(+clamp(q[0], 3, W - 3).toFixed(1), +clamp(q[1], 3, D - 3).toFixed(1));
+  const me = localSoldier(), team = me ? me.team : G.myTeam;
+  if (isHost()) trenchOrder(team, flat, G.mySlot); else sendHost({ t: 'tn', p: flat });
+  trenchMode(false);
+}
+function trenchMode(on) {
+  if (G.state !== 'play') on = false;
+  TR.mode = on;
+  if (!on) { TR.draw = null; TR.padCur = null; if (TR.preview) TR.preview.geometry.setDrawRange(0, 0); if (TR.cursor) TR.cursor.visible = false; }
+  const tb = $('bTrench'); if (tb) tb.classList.toggle('armed', on);
+  if (on) toast(isTouch ? 'Trench: drag a line on the ground' : 'Trench: hold left mouse and drag · V cancels', 3.5);
+}
+function trenchPadUpdate(dt) {
+  const a = TR.padAx;
+  if (!TR.mode || !a) { if (TR.cursor) TR.cursor.visible = false; return; }
+  const me = localSoldier(), B = screenBasis();
+  if (!TR.padCur) TR.padCur = { x: me.x + lastAimDir.x * 7, z: me.z + lastAimDir.z * 7 };
+  TR.padCur.x = clamp(TR.padCur.x + (B.rx * a.gx - B.ux * a.gy) * 18 * dt, 3, W - 3);
+  TR.padCur.z = clamp(TR.padCur.z + (B.rz * a.gx - B.uz * a.gy) * 18 * dt, 3, D - 3);
+  TR.cursor.visible = true; TR.cursor.position.set(TR.padCur.x, hAt(TR.padCur.x, TR.padCur.z) + 0.25, TR.padCur.z);
+  if (a.down) { if (!TR.draw) trenchBegin('pad', TR.padCur.x, TR.padCur.z); else if (TR.draw.pid === 'pad') trenchPush(TR.padCur.x, TR.padCur.z); }
+  else if (TR.draw && TR.draw.pid === 'pad') trenchEnd(true);
+}
 
 /* ---------- control points + tickets ---------- */
 function updatePoints(dt) {
@@ -1589,7 +1826,7 @@ function simStep(dt) {
   }
   updateVehicles(dt);
   updateGrenades(dt); updateRockets(dt);
-  updatePoints(dt);
+  updatePoints(dt); trenchTick(dt);
   for (let i = G.pickups.length - 1; i >= 0; i--) { if ((G.pickups[i].t -= dt) <= 0) { ev(['p-', G.pickups[i].id]); G.pickups.splice(i, 1); } }
 }
 
@@ -2162,7 +2399,7 @@ function botDrive(v, dt) {
 }
 
 /* ---------- crews ---------- */
-function freeBot(s, team) { return s.alive && !s.human && !s.veh && !s.leader && s.team === team && s.flee <= 0; }
+function freeBot(s, team) { return s.alive && !s.human && !s.veh && !s.leader && s.team === team && s.flee <= 0 && !(s.job > 0); }
 function recruit(v, k, r) {
   let best = null, bd = r || 14;
   for (const s of sold) { if (!freeBot(s, v.team)) continue; const d = Math.hypot(s.x - v.x, s.z - v.z); if (d < bd) { bd = d; best = s; } }
@@ -2261,12 +2498,20 @@ addEventListener('blur', () => { keys.clear(); mouse.down = false; });
 canvas.addEventListener('pointermove', e => { if (e.pointerType === 'mouse') { mouse.x = e.clientX; mouse.y = e.clientY; mouse.inside = true; mouse.used = true; aimMode = 'mouse'; } });
 canvas.addEventListener('pointerdown', e => {
   Snd.init();
+  if (TR.mode && G.state === 'play' && (e.pointerType !== 'mouse' || e.button === 0)) {
+    const q = groundPick(e.clientX, e.clientY);
+    if (q) { try { canvas.setPointerCapture(e.pointerId); } catch (err) {} trenchBegin(e.pointerId, q.x, q.z); }
+    return;
+  }
   if (e.pointerType !== 'mouse') return;
   mouse.x = e.clientX; mouse.y = e.clientY; mouse.used = true; aimMode = 'mouse';
   if (e.button === 0) mouse.down = true;
   if (e.button === 2) pressed.add('Nade');
 });
 addEventListener('pointerup', e => { if (e.pointerType === 'mouse' && e.button === 0) mouse.down = false; });
+canvas.addEventListener('pointermove', e => { if (TR.draw && TR.draw.pid === e.pointerId) { const q = groundPick(e.clientX, e.clientY); if (q) trenchPush(q.x, q.z); } });
+addEventListener('pointerup', e => { if (TR.draw && TR.draw.pid === e.pointerId) trenchEnd(true); });
+addEventListener('pointercancel', e => { if (TR.draw && TR.draw.pid === e.pointerId) trenchEnd(false); });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('pointerleave', () => { mouse.inside = false; });
 canvas.addEventListener('wheel', e => { e.preventDefault(); zoom = clamp(zoom * (e.deltaY > 0 ? 1.1 : 0.9), 0.6, 1.7); }, { passive: false });
@@ -2292,6 +2537,7 @@ function bindTap(id, fn) {
 bindTap('bNade', () => pressed.add('Nade'));
 bindTap('bCrouch', () => pressed.add('KeyC'));
 bindTap('bSquad', () => pressed.add('KeyQ'));
+bindTap('bTrench', () => pressed.add('KeyV'));
 bindTap('bTake', () => pressed.add('KeyE'));
 bindTap('bPause', () => openPause());
 bindTap('bSound', () => toggleSound());
@@ -2318,19 +2564,22 @@ function readInput() {
   const k = c => keys.has(c) ? 1 : 0;
   let sx = k('KeyD') + k('ArrowRight') - k('KeyA') - k('ArrowLeft') + sticks.L.x;
   let sy = k('KeyS') + k('ArrowDown') - k('KeyW') - k('ArrowUp') + sticks.L.y;
-  let fire = mouse.down && aimMode === 'mouse', dig = keys.has('KeyF') || touchDig;
+  let fire = mouse.down && aimMode === 'mouse' && !TR.mode, dig = keys.has('KeyF') || touchDig;
   let aimX = 0, aimY = 0, aimActive = false, aimMag = 0;
   if (sticks.R.on) { aimX = sticks.R.x; aimY = sticks.R.y; aimMag = Math.hypot(aimX, aimY); aimActive = aimMag > 0.25; fire = aimMag > 0.62; }
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  TR.padAx = null;
   for (const p of pads) {
     if (!p) continue;
     const b = i => p.buttons[i] ? p.buttons[i].value : 0;
     const bp = i => p.buttons[i] && p.buttons[i].pressed && !prevPad[i];
     sx += dz(p.axes[0] || 0); sy += dz(p.axes[1] || 0);
     const gx = dz(p.axes[2] || 0), gy = dz(p.axes[3] || 0);
+    if (TR.mode) TR.padAx = { gx, gy, down: b(7) > 0.4 || b(0) > 0.5 };
+    if (bp(8)) pressed.add('KeyV');
     if (Math.hypot(gx, gy) > 0.3) { aimX = gx; aimY = gy; aimActive = true; aimMag = Math.hypot(gx, gy); aimMode = 'pad'; }
-    if (b(7) > 0.4) { fire = true; if (!aimActive && aimMode !== 'mouse') aimMode = 'pad'; }
-    if (b(0) > 0.5) dig = true;
+    if (b(7) > 0.4 && !TR.mode) { fire = true; if (!aimActive && aimMode !== 'mouse') aimMode = 'pad'; }
+    if (b(0) > 0.5 && !TR.mode) dig = true;
     if (bp(4) || bp(5)) pressed.add('Nade');
     if (bp(1)) pressed.add('KeyC');
     if (bp(2)) pressed.add('KeyE');
@@ -2345,8 +2594,10 @@ function readInput() {
   if (inVeh && ((dig && !prevDigIn) || pressed.has('DigTap'))) pressed.add('KeyT');
   prevDigIn = dig;
   localInput.dig = inVeh ? false : dig; localInput.fire = fire;
-  if (pressed.has('Escape') || pressed.has('KeyP')) openPause();
+  if (pressed.has('Escape') && TR.mode) trenchMode(false);
+  else if (pressed.has('Escape') || pressed.has('KeyP')) openPause();
   if (pressed.has('KeyM')) toggleSound();
+  if (pressed.has('KeyV')) trenchMode(!TR.mode && !!s && s.alive && !s.veh);
   if (!s || !s.alive) { pressed.clear(); return; }
   // aim point
   let ax, az, ay;
@@ -2630,7 +2881,8 @@ function updateHud(dt) {
     $('bTake').hidden = !isTouch || !(p || cv || v);
     $('bTake').textContent = v ? 'Get out' : cv ? (stealing ? 'Steal ' : 'Get in ') + cv.T.name : p ? 'Take ' + WPN[p.wpn].name : '';
     let hint = '';
-    if (v && s.seat === 0 && v.seats[1] && !v.seats[1].human) hint = isTouch ? 'A buddy is on the gun · SEAT to take it' : 'A buddy is on the gun · T to take it · E to get out';
+    if (TR.mode) hint = isTouch ? 'TRENCH · drag a line on the ground' : 'TRENCH · hold left mouse and drag a line · V cancels';
+    else if (v && s.seat === 0 && v.seats[1] && !v.seats[1].human) hint = isTouch ? 'A buddy is on the gun · SEAT to take it' : 'A buddy is on the gun · T to take it · E to get out';
     else if (v && !isTouch) hint = 'E get out · T switch seat';
     else if (cv && !isTouch) hint = 'E · ' + (stealing ? 'steal the enemy ' : 'get in the ') + cv.T.name;
     else if (p && !isTouch) hint = 'E · take the ' + WPN[p.wpn].name;
@@ -2764,7 +3016,7 @@ function resetMatch(seed) {
   G.seed = seed; G.time = 0; G.vstat = []; G.tickets = [500, 500]; G.bleedT = 0; G.over = false; G.winner = -1;
   G.grenades = []; G.rockets = []; G.pickups = []; G.events = []; G.history = []; G.paused = false; G.spawnPick = null;
   for (const c of corpses) { c.x = -999; hideSlot(c.slot); } corpses.length = 0;
-  for (const s of sold) { Object.assign(s, { scanAt: 0, goalAt: 0, nadeAt: 0, barkAt: 0, coverAt: 0, strafeAt: 0, wanderAt: 0, lastShot: -99, lastHit: -99, suppress: 0, flee: 0, cover: null, wander: null, lastKnown: null, gx: 0, gz: 0, veh: null, seat: -1, human: null, alive: false, respawnT: rnd(0, 2.5), kills: 0, deaths: 0, caps: 0, leader: null, target: null, wantSpawn: null, spawnN: 0 }); s.name = 'Pvt. ' + FIRST[s.i % PER]; s.cls = BOT_CLASS[s.i % PER]; tintSlot(s.i, s.team, false); }
+  for (const s of sold) { Object.assign(s, { scanAt: 0, goalAt: 0, nadeAt: 0, barkAt: 0, coverAt: 0, strafeAt: 0, wanderAt: 0, lastShot: -99, lastHit: -99, suppress: 0, flee: 0, cover: null, wander: null, lastKnown: null, gx: 0, gz: 0, veh: null, seat: -1, human: null, alive: false, respawnT: rnd(0, 2.5), kills: 0, deaths: 0, caps: 0, leader: null, target: null, wantSpawn: null, spawnN: 0, job: 0, nodeI: -1, tdT: 0 }); s.name = 'Pvt. ' + FIRST[s.i % PER]; s.cls = BOT_CLASS[s.i % PER]; tintSlot(s.i, s.team, false); }
   for (const p of PARTS) p.instanceColor.needsUpdate = true;
   buildWorld(seed);
   initVehicles();
@@ -2938,6 +3190,7 @@ function hostOnData(conn, d) {
   else if (d.t === 'tk') takePickup(s, d.id);
   else if (d.t === 'sq') toggleSquad(s);
   else if (d.t === 'rl') startReload(s);
+  else if (d.t === 'tn') trenchOrder(s.team, d.p, s.i);
   else if (d.t === 'sp') { if (!s.alive) { s.cls = clamp(d.cls | 0, 0, 3); s.wantSpawn = d.k === 'hq' || d.k === 'apc' ? d.k : +d.k; } }
   else if (d.t === 'vx' && s.alive) {
     if (d.a === 'in' && !s.veh) { const v = nearVehicle(s, 2.4); if (v) enterVehicle(s, v); }
@@ -3050,6 +3303,7 @@ function clientStart(d) {
   resetMatch(d.seed | 0);
   G.time = d.time || 0; G.tickets = d.tickets || [250, 250];
   for (const op of d.hist || []) applyOp(op, true);
+  for (const j of TR.jobs.values()) trenchGhost(j);
   (d.pts || []).forEach((q, i) => { if (points[i]) { points[i].own = q[0]; points[i].prog = q[1]; } });
   for (const k of d.pk || []) G.pickups.push({ id: k[0], x: k[1], z: k[2], wpn: WLIST[k[3]], t: 45 });
   G.mySlot = d.slot; mp.matchOn = true;
@@ -3061,6 +3315,10 @@ function applyOp(op, quiet) {
   const k = op[0];
   if (k === 'cr') terrainOp(op[1], op[2], op[3], op[4], 0.32, 0.9);
   else if (k === 'dg') applyDig(op[1], op[2]);
+  else if (k === 'tj') trenchNew(op[1], op[2], op[3]);
+  else if (k === 'tg') { const j = TR.jobs.get(op[1]), n = j && j.nodes[op[2]]; if (n) { trenchGrade(j, op[2], op[3] / TR_STEPS); n.f = op[3]; if (op[3] >= TR_STEPS) n.st = 2; else if (!n.st) n.st = 1; } }
+  else if (k === 'tl') { const j = TR.jobs.get(op[1]), n = j && j.nodes[op[2]]; if (n) { trenchLine(j, op[2]); TR.spots.push({ x: n.x, z: n.z, team: j.team }); if (!quiet) trenchGhost(j); } }
+  else if (k === 'tc') { const j = TR.jobs.get(op[1]); if (j) { j.done = true; trenchGhost(j); } }
   else if (k === 'bd') { for (const id of op[1]) killBlock(id, null, quiet); }
   else if (k === 'tf') { const t = trees[op[1]]; if (t) { if (quiet) { t.alive = false; placeTree(t); const c = cellOf(t.x, t.z); solid[c] = 0; treeAt[c] = -1; flowDirty = true; } else fellTree(t); } }
 }
@@ -3116,7 +3374,7 @@ function clientEvent(e) {
     case 'sh': if (e[1] !== me) { const s = sold[e[1]]; fxMuzzle(s.x, s.y + 1.4, s.z, true); Snd.shot('rocket', s.x, s.z); } break;
     case 'bm': fxBoom(e[1], e[2], e[3], BOOMK[e[4]] || 'nade'); break;
     case 'vs': { const v = vehicles[e[1]]; if (v) vCannonFx(v, { x: e[2], y: e[3], z: e[4] }); break; }
-    case 'cr': case 'dg': case 'bd': case 'tf': applyOp(e, false); break;
+    case 'cr': case 'dg': case 'bd': case 'tf': case 'tj': case 'tg': case 'tl': case 'tc': applyOp(e, false); break;
     case 'dd': { const s = sold[e[1]]; if (s.alive || e[1] !== me) { if (s.alive) { s.alive = false; addCorpse(s, e[2], e[3], e[4]); } } if (e[1] === me) { s.alive = false; s.respawnT = 5; } break; }
     case 'bk': showBark(e[1], e[2], e[3]); break;
     case 'p+': G.pickups.push({ id: e[1], x: e[2], z: e[3], wpn: WLIST[e[4]], t: 45 }); break;
@@ -3195,6 +3453,7 @@ function tick(dt) {
   { const me = localSoldier(), v = me && me.alive && me.veh; Snd.engine(!!v && G.state === 'play', v ? v.speed : 0, v && v.type !== 'jeep'); }
   if (G.state === 'play') {
     readInput();
+    { const me = localSoldier(); if (TR.mode && (!me || !me.alive || me.veh)) trenchMode(false); trenchPadUpdate(dt); const mt = me ? me.team : G.myTeam; for (const [id, m] of TR.ghosts) m.visible = TR.jobs.get(id).team === mt; }
     if (isHost()) { if (!G.paused) simStep(dt); } else clientStep(dt);
     updateDead(dt);
   } else if (world) simStep(dt);
@@ -3215,7 +3474,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && Sn
 
 window.__war = {
   G, sold, mp, get vehicles() { return vehicles; }, enterVehicle, exitVehicle, swapSeat, nearVehicle, respawnVehicle, get points() { return points; }, get blocks() { return blocks; }, get H() { return H; }, get H0() { return H0; },
-  hAt, explode, startSolo, hostStartMatch, localInput, isHost,
+  hAt, explode, startSolo, hostStartMatch, localInput, isHost, applyOp, resetMatch, trench: { TR, order: trenchOrder, get liningH() { return liningH; }, get liningN() { return liningN; }, groundPick, mode: trenchMode },
   sim(seconds, dt) { dt = dt || 1 / 30; for (let t = 0; t < seconds; t += dt) { if (G.state === 'play') readInput(); if (isHost()) simStep(dt); else clientStep(dt); updateDead(dt); if (mp.on) netTick(dt); } drawDynamic(0); },
   frame() { tick(1 / 30); renderer.render(scene, camera); }
 };
