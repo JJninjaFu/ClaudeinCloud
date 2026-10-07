@@ -445,7 +445,7 @@ const skyMesh = new THREE.Mesh(new THREE.SphereGeometry(4000, 32, 16), skyMat); 
     col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
   }
   g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
-  const terr = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 })); scene.add(terr);
+  const terr = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, envMapIntensity: 0.2 })); scene.add(terr);
 }
 
 /* ---------------- Wake: GPU ripple sim in a window that follows the ski ---------------- */
@@ -622,22 +622,6 @@ function hw(s) { return 0.37 * Math.pow(clamp((1 - s) * 2.6, 0, 1), 0.55) * (0.8
 function keelY(s) { return -0.30 + 0.42 * Math.pow(Math.max(s - 0.45, 0) / 0.55, 2.2); }
 function deckY(s) { return s > 0.47 ? 0.14 + 0.30 * smoothstep(0.47, 0.72, s) * (1 - 0.6 * smoothstep(0.85, 1.0, s)) : 0.02; }
 function bottomY(s, x) { return keelY(s) + HULL.dead * Math.abs(x); }
-function buildHullGeometry() {
-  const NS = 22, verts = [], idx = [];
-  const ring = (s) => { // cross-section polygon around the hull at station s, 10 points, ccw seen from the bow
-    const w = hw(s), ky = keelY(s), cy = ky + HULL.dead * w, dy = Math.max(deckY(s), cy + 0.04);
-    return [[0, ky], [w * 0.5, bottomY(s, w * 0.5)], [w, cy], [w, dy], [w * 0.6, dy], [0, dy], [-w * 0.6, dy], [-w, dy], [-w, cy], [-w * 0.5, bottomY(s, w * 0.5)]];
-  };
-  const rings = [];
-  for (let i = 0; i <= NS; i++) { const s = i / NS, z = -HULL.len / 2 + s * HULL.len; const r = ring(s); rings.push(r.map(([x, y]) => [x, y, z])); }
-  const base = (i) => i * 10;
-  for (const r of rings) for (const p of r) verts.push(...p);
-  for (let i = 0; i < NS; i++) for (let k = 0; k < 10; k++) { const a = base(i) + k, b = base(i) + (k + 1) % 10, c = base(i + 1) + k, d = base(i + 1) + (k + 1) % 10; idx.push(a, c, b, b, c, d); }
-  // stern cap
-  const sc = verts.length / 3; verts.push(0, -0.1, -HULL.len / 2); for (let k = 0; k < 10; k++) idx.push(sc, base(0) + k, base(0) + (k + 1) % 10);
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3)); g.setIndex(idx); g.computeVertexNormals();
-  return g;
-}
 // physics sample points on the bottom (and a few on the deck so an upside-down ski still floats)
 const HPTS = (() => {
   const pts = [], NSs = 7, lat = [-0.62, 0, 0.62];
@@ -657,7 +641,7 @@ const HPTS = (() => {
 
 /* ---------------- Jetski rigid body ---------------- */
 const SKI = {
-  mass: 330, I: new THREE.Vector3(190, 210, 70), power: 160 * 745.7 * 0.36, Tmax: 3600, nozzle: 28 * Math.PI / 180,
+  mass: 330, I: new THREE.Vector3(190, 210, 70), power: 160 * 745.7 * 0.36, Tmax: 3600, nozzle: 9 * Math.PI / 180,
   pump: new THREE.Vector3(0, -0.22, -1.15),
 };
 const ski = {
@@ -712,7 +696,7 @@ function stepSki(dt) {
   }
   // cap the water's push at about 7 g so a slammed landing kicks, but never catapults
   _tmp2.copy(_F); _tmp2.y += SKI.mass * GRAV; const fm = _tmp2.length(), fcap = SKI.mass * GRAV * 7; if (fm > fcap) { _tmp2.multiplyScalar(fcap / fm); _F.copy(_tmp2); _F.y -= SKI.mass * GRAV; }
-  ski.wet = wet / 21; ski.slam = slam;
+  ski.wet = wet / 21; ski.slam = slam; ski.pumpIn = pumpIn;
   const wetF = ski.wet;
   // hull drag: forward quadratic, strong lateral (the V keel), vertical plunge damping
   const vf = v.dot(_fwd), vr = v.dot(_rgt), vu = v.dot(_up);
@@ -732,12 +716,9 @@ function stepSki(dt) {
   ski.rpm = lerp(ski.rpm, 0.18 + 0.82 * gas, 1 - Math.exp(-dt * 3));
   if (pumpIn && gas > 0) {
     const T = thrAvail * gas;
-    _tmp2.set(-Math.sin(ski.nozzle), 0, Math.cos(ski.nozzle)).applyQuaternion(q).multiplyScalar(T);
+    _tmp2.set(Math.sin(ski.nozzle), 0, Math.cos(ski.nozzle)).applyQuaternion(q).multiplyScalar(T); // nozzle right = jet pushes the stern left, bow swings right
     _R.copy(SKI.pump).applyQuaternion(q);
     _F.add(_tmp2); _T.add(_R.clone().cross(_tmp2));
-    _T.addScaledVector(_up, ski.nozzle * T * 0.55); // extra yaw authority for game feel
-  } else if (pumpIn && Math.abs(vf) > 1) {
-    _T.addScaledVector(_up, ski.nozzle * 60 * Math.abs(vf)); // the nozzle still deflects some flow
   }
   // rider: lean and weight shift. Carving: a leaned V-hull turns.
   const rollA = Math.asin(clamp(_rgt.y, -1, 1));
@@ -747,18 +728,23 @@ function stepSki(dt) {
   ski.trim = lerp(ski.trim, ski.wipe ? 0 : inp.pitch, 1 - Math.exp(-dt * 6));
   if (wetF > 0) {
     const sp2 = Math.max(vf, 0) * Math.max(vf, 0);
-    _T.addScaledVector(_fwd, -ski.lean * (400 + 6 * sp2) * wetF);     // lean torque (roll about forward axis)
-    _T.addScaledVector(_fwd, -rollA * (600 + 14 * sp2) * wetF);       // the hull rights itself, more so at speed
+    _T.addScaledVector(_fwd, ski.lean * (400 + 6 * sp2) * wetF);      // lean torque: positive roll about the bow axis = right side down
+    _T.addScaledVector(_fwd, -rollA * (600 + 9 * sp2) * wetF);        // the hull rights itself, more so at speed
+    _T.addScaledVector(_fwd, -w.dot(_fwd) * (260 + 70 * Math.max(vf, 0)) * wetF); // roll damping, or it rocks back and forth at speed
     _T.addScaledVector(_rgt, -ski.trim * 620 * wetF);                 // weight forward/back (pitch)
-    _T.addScaledVector(_up, (ski.lean * 55 - rollA * 20) * Math.max(vf, 0) * wetF); // carve: lean right, turn right
-    _T.addScaledVector(_up, inp.steer * Math.max(vf, 0) * 25 * wetF);
+    // steering: chase a yaw rate set by speed, gas (the jet only steers under power) and bank angle. Negative yaw = turn right.
+    const authority = ski.wipe ? 0 : (pumpIn ? 0.3 + 0.7 * gas : 0.1);
+    const maxRate = clamp(1.05 - 0.018 * Math.max(vf, 0), 0.5, 1.05);
+    const wantW = clamp(-(inp.steer * authority * 0.75 + ski.lean * 0.2 + rollA * 0.3) * maxRate, -1.2, 1.2);
+    _T.addScaledVector(_up, (wantW - w.dot(_up)) * SKI.I.y * 6 * wetF);
     // self-righting when the rider has let go, so a flipped ski comes back after a wipeout
     if (ski.wipe && _up.y < 0.6) _T.addScaledVector(_fwd, -rollA * 400);
   } else {
     // in the air the rider throws the ski around: pull back = backflip, lean = barrel roll
     const wl = ski.w.clone(); const wx = wl.dot(_rgt), wz = wl.dot(_fwd), wy = wl.dot(_up);
     const pitchIn = ski.wipe ? 0 : inp.pitch;
-    const targetPitch = -pitchIn * 8.0, targetRoll = -inp.lean * 5.0, targetYaw = inp.steer * 2.5;
+    const aP = smoothstep(0.08, 0.3, ski.airT), aR = smoothstep(0.2, 0.5, ski.airT);   // air control ramps in, so a small wave hop doesn't spin you
+    const targetPitch = -pitchIn * 8.0 * aP, targetRoll = inp.lean * 5.0 * aR, targetYaw = -inp.steer * 2.5;
     _T.addScaledVector(_rgt, (targetPitch - wx) * 700);
     _T.addScaledVector(_fwd, (targetRoll - wz) * 380);
     if (Math.abs(inp.lean) < 0.1) _T.addScaledVector(_fwd, -rollA * 260); // the rider levels the ski in the air
@@ -824,54 +810,197 @@ function wipeout(why) {
 
 /* ---------------- Ski + rider meshes ---------------- */
 const skiGroup = new THREE.Group(); scene.add(skiGroup);
-const riderGroup = new THREE.Group(); skiGroup.add(riderGroup);
 const riderLoose = new THREE.Group(); riderLoose.visible = false; scene.add(riderLoose);
-let hullMesh, poleGroup, torso, head, legL, legR, armL, armR;
+const SRGB = hex => new THREE.Color(hex).convertSRGBToLinear();   // r128 has no colour management: convert by hand
+const PAL = {
+  hull: SRGB(0x14151a), bottom: SRGB(0x24262b), yellow: SRGB(0xf5b800), orange: SRGB(0xff6b1a), rail: SRGB(0x55585e), wall: SRGB(0x1b1c20), mat: SRGB(0x2d2f33),
+};
+
+// A sky-ish environment so the paint and plastic have something to reflect
 {
-  const hullMat = new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.35, metalness: 0.05, side: THREE.DoubleSide });
-  hullMesh = new THREE.Mesh(buildHullGeometry(), hullMat); skiGroup.add(hullMesh);
-  // yellow / orange racing stripes as thin slabs along the sides
-  const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.05, 1.4), new THREE.MeshStandardMaterial({ color: 0xf5b800, roughness: 0.4 })); stripe.position.set(0, 0.08, -0.15); skiGroup.add(stripe);
-  const stripe2 = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.035, 0.9), new THREE.MeshStandardMaterial({ color: 0xff6b1a, roughness: 0.4 })); stripe2.position.set(0, 0.30, 0.55); skiGroup.add(stripe2);
-  // tray pad
-  const pad = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.03, 1.0), new THREE.MeshStandardMaterial({ color: 0x23201c, roughness: 0.95 })); pad.position.set(0, 0.035, -0.6); skiGroup.add(pad);
-  // handle pole hinged at the hood, with bars
-  poleGroup = new THREE.Group(); poleGroup.position.set(0, 0.42, 0.55); skiGroup.add(poleGroup);
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 1.05, 10), new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.5, metalness: 0.6 }));
-  pole.position.set(0, 0.37, -0.15); pole.rotation.x = 0.42; poleGroup.add(pole);
-  const bars = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.62, 10), pole.material); bars.rotation.z = Math.PI / 2; bars.position.set(0, 0.74, -0.33); poleGroup.add(bars);
-  // rider
-  const suit = new THREE.MeshStandardMaterial({ color: 0x1b1b22, roughness: 0.8 }), vest = new THREE.MeshStandardMaterial({ color: 0xd8321f, roughness: 0.7 }), skin = new THREE.MeshStandardMaterial({ color: 0xc98f6a, roughness: 0.6 });
-  legL = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.065, 0.78, 10), suit); legR = legL.clone();
-  legL.position.set(-0.13, 0.42, -0.65); legR.position.set(0.13, 0.42, -0.55);
-  torso = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.55, 0.24), vest); torso.position.set(0, 1.1, -0.6);
-  head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 10), skin); head.position.set(0, 1.5, -0.55);
-  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.135, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.62), new THREE.MeshStandardMaterial({ color: 0xf5b800, roughness: 0.35 })); helmet.position.y = 0.01; head.add(helmet);
-  armL = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.04, 0.7, 8), vest); armR = armL.clone();
-  riderGroup.add(legL, legR, torso, head, armL, armR);
-  const loose = torso.clone(); loose.material = vest; loose.position.set(0, 0, 0); loose.rotation.x = Math.PI / 2; riderLoose.add(loose);
-  const lhead = head.clone(); lhead.position.set(0, 0.1, 0.4); riderLoose.add(lhead);
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256; const g = cv.getContext('2d');
+  const sky = g.createLinearGradient(0, 0, 0, 128); sky.addColorStop(0, '#2f63c4'); sky.addColorStop(0.55, '#8fb7e6'); sky.addColorStop(1, '#d4e4f2');
+  g.fillStyle = sky; g.fillRect(0, 0, 512, 128);
+  const sea = g.createLinearGradient(0, 128, 0, 256); sea.addColorStop(0, '#5aa6b0'); sea.addColorStop(0.3, '#168a9c'); sea.addColorStop(1, '#0a4a5e');
+  g.fillStyle = sea; g.fillRect(0, 128, 512, 128);
+  const su = Math.atan2(SUNV.z, SUNV.x) / (2 * Math.PI) + 0.5, sv = Math.asin(SUNV.y) / Math.PI + 0.5, sx = su * 512, sy = (1 - sv) * 256;
+  const rg = g.createRadialGradient(sx, sy, 0, sx, sy, 46); rg.addColorStop(0, 'rgba(255,248,225,1)'); rg.addColorStop(0.25, 'rgba(255,236,190,0.7)'); rg.addColorStop(1, 'rgba(255,230,180,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, 512, 256);
+  const tex = new THREE.CanvasTexture(cv); tex.mapping = THREE.EquirectangularReflectionMapping; tex.encoding = THREE.sRGBEncoding;
+  const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromEquirectangular(tex).texture; pm.dispose(); tex.dispose();
 }
-function poseRider(dt) {
-  const inWater = ski.wet > 0;
-  // knees bend with throttle and chop, body leans with input
-  const crouch = inWater ? 0.12 * inp.thr + 0.1 * Math.min(1, ski.slam / 6000) : 0.25;
-  const lean = ski.lean, trim = ski.trim;
-  torso.position.set(-lean * 0.16, 1.1 - crouch * 0.7, -0.6 + trim * -0.12 + crouch * 0.1);
-  torso.rotation.set(0.25 + crouch * 0.6 - trim * 0.35, 0, lean * 0.45);
-  head.position.set(-lean * 0.2, 1.5 - crouch * 0.8, -0.5 + crouch * 0.15 - trim * 0.12);
-  legL.position.y = 0.42 - crouch * 0.3; legR.position.y = 0.42 - crouch * 0.3; legL.scale.y = legR.scale.y = 1 - crouch * 0.55;
-  legL.rotation.z = lean * 0.25; legR.rotation.z = lean * 0.25;
-  // arms from shoulders to the bars
-  poleGroup.updateMatrix(); const bar = new THREE.Vector3(0, 0.74, -0.33).applyMatrix4(poleGroup.matrix);
-  for (const [arm, sx] of [[armL, -1], [armR, 1]]) {
-    const sh = new THREE.Vector3(torso.position.x + sx * 0.2, torso.position.y + 0.22, torso.position.z + 0.05);
-    const hand = new THREE.Vector3(bar.x + sx * 0.3, bar.y, bar.z);
-    const mid = sh.clone().add(hand).multiplyScalar(0.5), dir = hand.clone().sub(sh), len = dir.length();
-    arm.position.copy(mid); arm.scale.y = len / 0.7; arm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+
+/* --- hull: lofted rings (same shape functions the physics uses), flat-coloured livery strips, smooth normals --- */
+function hullHalfRing(s) { // 10 points from the keel up to the centre of the deck, +x side
+  const w = Math.max(hw(s), 0.012), ky = keelY(s), cy = ky + HULL.dead * w;
+  const tray = 1 - smoothstep(0.455, 0.475, s);                                  // 1 in the footwell, 0 on the hood
+  const dy = Math.max(deckY(s), cy + 0.05), edge = dy + 0.075 * tray, crown = 0.05 * (1 - tray) + 0.01;
+  return [
+    [0, ky], [w * 0.35, bottomY(s, w * 0.35)], [w * 0.7, bottomY(s, w * 0.7)], [w, cy],
+    [w * 1.02, cy + (edge - cy) * 0.4], [w * 0.98, cy + (edge - cy) * 0.8], [w * 0.9, edge],
+    [lerp(w * 0.62, w * 0.8, tray), lerp(dy + crown * 0.8, edge, tray)],
+    [lerp(w * 0.3, w * 0.72, tray), lerp(dy + crown * 0.95, dy, tray)],
+    [0, dy + crown * (1 - tray)],
+  ];
+}
+function hullStripColor(k, s) { // k = segment along the ring (0 keel .. 8 deck centre), s = station 0 stern .. 1 bow
+  const hood = s > 0.475;
+  if (k <= 2) return PAL.bottom;
+  if (k === 3) return PAL.hull;
+  if (k === 4) return (s > 0.05 && s < 0.40) ? PAL.yellow : ((s > 0.60 && s < 0.90) ? PAL.orange : PAL.hull);
+  if (k === 5) return PAL.hull;
+  if (k === 6) return hood ? PAL.hull : PAL.rail;
+  if (k === 7) return hood ? PAL.hull : PAL.wall;
+  return hood ? ((s > 0.52 && s < 0.95) ? PAL.orange : PAL.hull) : PAL.mat;
+}
+function buildHullGeometry() {
+  const breaks = [0.05, 0.40, 0.455, 0.475, 0.52, 0.60, 0.90, 0.95];
+  const st = [...new Set([...Array.from({ length: 57 }, (_, i) => i / 56), ...breaks].map(x => +x.toFixed(5)))].sort((a, b) => a - b);
+  const R = 18, pos = [], idx = [];
+  for (const s of st) {
+    const half = hullHalfRing(s), z = -HULL.len / 2 + s * HULL.len;
+    for (let j = 0; j < R; j++) { const h = j <= 9 ? half[j] : half[18 - j]; pos.push(j <= 9 ? h[0] : -h[0], h[1], z); }
   }
-  poleGroup.rotation.x = -0.1 + crouch * 0.5 + trim * 0.25;
+  for (let i = 0; i < st.length - 1; i++) for (let j = 0; j < R; j++) {
+    const a = i * R + j, b = i * R + (j + 1) % R, c = (i + 1) * R + j, d = (i + 1) * R + (j + 1) % R; idx.push(a, b, c, b, d, c);
+  }
+  let g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  // make sure the faces point outward
+  const n = g.attributes.normal, p = g.attributes.position; let dot = 0;
+  for (let v = 0; v < p.count; v++) dot += n.getX(v) * p.getX(v) + n.getY(v) * (p.getY(v) - 0.1) + n.getZ(v) * 0;
+  if (dot < 0) { for (let t = 0; t < idx.length; t += 3) { const q = idx[t + 1]; idx[t + 1] = idx[t + 2]; idx[t + 2] = q; } g.setIndex(idx); g.computeVertexNormals(); }
+  g = g.toNonIndexed();
+  const cols = new Float32Array(g.attributes.position.count * 3);
+  for (let q = 0; q < (st.length - 1) * R; q++) {
+    const i = Math.floor(q / R), j = q % R, k = j <= 8 ? j : (j === 9 ? 8 : 17 - j), c = hullStripColor(k, (st[i] + st[i + 1]) / 2);
+    for (let t = 0; t < 6; t++) { const o = (q * 6 + t) * 3; cols[o] = c.r; cols[o + 1] = c.g; cols[o + 2] = c.b; }
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+  return g;
 }
+{ // stern transom: a flat back panel so the hull is closed when seen from behind
+  const half = hullHalfRing(0), z = -HULL.len / 2, P = [], N = [], I = []; let cy = 0; for (const h of half) cy += h[1] / half.length;
+  P.push(0, cy, z); for (let j = 0; j < 18; j++) { const h = j <= 9 ? half[j] : half[18 - j]; P.push(j <= 9 ? h[0] : -h[0], h[1], z); }
+  for (let j = 0; j < 19; j++) N.push(0, 0, -1); for (let j = 0; j < 18; j++) I.push(0, 1 + j, 1 + (j + 1) % 18);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); g.setIndex(I);
+  skiGroup.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: PAL.hull, roughness: 0.35, metalness: 0.1, side: THREE.DoubleSide })));
+}
+const stdMat = (hex, rough, metal) => new THREE.MeshStandardMaterial({ color: SRGB(hex), roughness: rough, metalness: metal || 0 });
+const hullMesh = new THREE.Mesh(buildHullGeometry(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.26, metalness: 0.12, side: THREE.DoubleSide }));
+skiGroup.add(hullMesh);
+const between = (geo, A, B) => { // orient a unit-height (y from 0 to 1) mesh from A to B
+  const m = new THREE.Mesh(geo); const d = B.clone().sub(A), L = d.length(); m.position.copy(A); m.scale.set(1, L, 1); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); return m;
+};
+const unitCyl = (r0, r1, seg) => { const g = new THREE.CylinderGeometry(r1, r0, 1, seg || 10, 1); g.translate(0, 0.5, 0); return g; };
+// footwell rails, foot pads, bow bumper, number board
+for (const sx of [-1, 1]) {
+  const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.95, 8), stdMat(0xb9bec6, 0.25, 0.9)); rail.rotation.x = Math.PI / 2; rail.position.set(sx * 0.325, 0.11, -0.66); skiGroup.add(rail);
+  for (const z of [-1.1, -0.2]) { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.05, 6), stdMat(0xb9bec6, 0.25, 0.9)); post.position.set(sx * 0.325, 0.085, z); skiGroup.add(post); }
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.012, 0.34), stdMat(0xff6b1a, 0.85)); pad.position.set(sx * 0.14, 0.038, -0.64); skiGroup.add(pad);
+}
+{
+  const bump = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), stdMat(0x0b0b0d, 0.5)); bump.scale.set(0.9, 0.9, 1.4); bump.position.set(0, 0.17, 1.245); skiGroup.add(bump);
+  const mat = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.012, 1.08), stdMat(0x26282b, 0.95)); mat.position.set(0, 0.026, -0.71); skiGroup.add(mat); // non-slip floor, matte
+  const cv = document.createElement('canvas'); cv.width = 128; cv.height = 96; const g = cv.getContext('2d');
+  g.fillStyle = '#f5b800'; g.fillRect(0, 0, 128, 96); g.fillStyle = '#14151a'; g.font = '800 78px "Big Shoulders Display", Impact, Arial Narrow, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('7', 64, 52);
+  const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.22), new THREE.MeshStandardMaterial({ map: t, roughness: 0.5 }));
+  board.rotation.x = -Math.PI / 2; board.rotation.z = Math.PI; board.position.set(0, 0.5, 0.72); skiGroup.add(board);
+}
+// jet nozzle at the stern (swivels with the steering)
+const nozzleG = new THREE.Group(); nozzleG.position.set(0, -0.13, -1.27); skiGroup.add(nozzleG);
+{
+  const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.1, 0.26, 14), stdMat(0x6a6e75, 0.3, 0.85)); cone.rotation.x = Math.PI / 2; cone.position.z = -0.1; nozzleG.add(cone);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.066, 0.012, 8, 16), stdMat(0xff6b1a, 0.4)); ring.position.z = -0.23; nozzleG.add(ring);
+}
+// handle pole: pivots at the hood, bars turn with the steering
+const poleGroup = new THREE.Group(); poleGroup.position.set(0, 0.42, 0.55); skiGroup.add(poleGroup);
+const POLE_TOP = new THREE.Vector3(0, 0.66, -0.45);
+{
+  const col = between(unitCyl(0.034, 0.026, 12), new THREE.Vector3(0, 0, 0), POLE_TOP); col.material = stdMat(0x2a2c31, 0.35, 0.7); poleGroup.add(col);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.05, 12), stdMat(0x14151a, 0.5)); base.position.y = 0.01; poleGroup.add(base);
+  const bars = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.62, 10), stdMat(0xb9bec6, 0.25, 0.9)); bars.rotation.z = Math.PI / 2; bars.position.copy(POLE_TOP); poleGroup.add(bars);
+  for (const sx of [-1, 1]) {
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.13, 10), stdMat(0x0b0b0d, 0.9)); grip.rotation.z = Math.PI / 2; grip.position.set(sx * 0.25, POLE_TOP.y, POLE_TOP.z); poleGroup.add(grip);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.014, 10), stdMat(0xff6b1a, 0.5)); cap.rotation.z = Math.PI / 2; cap.position.set(sx * 0.32, POLE_TOP.y, POLE_TOP.z); poleGroup.add(cap);
+  }
+  const pod = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.045, 0.08), stdMat(0x0f1013, 0.4)); pod.position.set(0, POLE_TOP.y + 0.04, POLE_TOP.z + 0.02); pod.rotation.x = -0.35; poleGroup.add(pod);
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.07, 0.03), stdMat(0xf5b800, 0.6)); pad.position.set(0, POLE_TOP.y - 0.02, POLE_TOP.z - 0.02); poleGroup.add(pad);
+}
+
+/* --- rider: jointed body (two-bone IK for the legs and arms), so the hands stay on the bars and the feet on the deck --- */
+function buildRider() {
+  const R = { group: new THREE.Group(), torso: new THREE.Group(), crouch: 0 };
+  const suit = stdMat(0x181a20, 0.7), vest = stdMat(0xff6b1a, 0.55), yoke = stdMat(0xf5b800, 0.55), skin = stdMat(0xc58b66, 0.55), glove = stdMat(0xf5b800, 0.55), boot = stdMat(0x101114, 0.75), helmet = stdMat(0xf5b800, 0.22, 0.05), visor = stdMat(0x0a0b0d, 0.1, 0.5);
+  const add = (geo, mat, parent) => { const m = new THREE.Mesh(geo, mat); (parent || R.group).add(m); return m; };
+  R.pelvis = add(new THREE.SphereGeometry(0.135, 14, 10), suit); R.pelvis.scale.set(1.15, 0.8, 0.9);
+  const T = R.torso; R.group.add(T);
+  const abd = add(new THREE.CylinderGeometry(0.14, 0.135, 0.26, 14), suit, T); abd.position.y = 0.17; abd.scale.z = 0.7;
+  const chest = add(new THREE.CylinderGeometry(0.2, 0.158, 0.34, 16), vest, T); chest.position.y = 0.43; chest.scale.z = 0.62;
+  const stripeB = add(new THREE.CylinderGeometry(0.162, 0.16, 0.05, 16), yoke, T); stripeB.position.y = 0.285; stripeB.scale.z = 0.64;
+  for (const sx of [-1, 1]) { const sh = add(new THREE.SphereGeometry(0.058, 10, 8), yoke, T); sh.position.set(sx * 0.215, 0.53, 0); }
+  const neck = add(new THREE.CylinderGeometry(0.046, 0.05, 0.1, 10), skin, T); neck.position.y = 0.64;
+  const head = new THREE.Group(); head.position.set(0, 0.74, 0.015); T.add(head); R.head = head;
+  add(new THREE.SphereGeometry(0.098, 16, 12), skin, head).scale.set(0.95, 1.08, 1);
+  const hm = add(new THREE.SphereGeometry(0.118, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.64), helmet, head); hm.position.y = 0.012;
+  const vz = add(new THREE.SphereGeometry(0.121, 14, 8, Math.PI / 2 - 0.85, 1.7, Math.PI * 0.33, Math.PI * 0.2), visor, head); vz.position.y = 0.012;
+  const chin = add(new THREE.SphereGeometry(0.075, 10, 8), helmet, head); chin.scale.set(1, 0.6, 0.9); chin.position.set(0, -0.075, 0.045);
+  R.hipsL = new THREE.Vector3(-0.09, -0.02, 0); R.hipsR = new THREE.Vector3(0.09, -0.02, 0);
+  const limb = (r0, r1, mat) => { const m = add(unitCyl(r0, r1, 10), mat); return m; };
+  R.thigh = [limb(0.082, 0.058, suit), limb(0.082, 0.058, suit)]; R.shin = [limb(0.058, 0.04, suit), limb(0.058, 0.04, suit)];
+  R.knee = [add(new THREE.SphereGeometry(0.058, 10, 8), suit), add(new THREE.SphereGeometry(0.058, 10, 8), suit)];
+  R.foot = [add(new THREE.BoxGeometry(0.095, 0.065, 0.26), boot), add(new THREE.BoxGeometry(0.095, 0.065, 0.26), boot)];
+  R.uarm = [limb(0.05, 0.042, suit), limb(0.05, 0.042, suit)]; R.farm = [limb(0.042, 0.033, suit), limb(0.042, 0.033, suit)];
+  R.elbow = [add(new THREE.SphereGeometry(0.043, 10, 8), suit), add(new THREE.SphereGeometry(0.043, 10, 8), suit)];
+  R.hand = [add(new THREE.SphereGeometry(0.046, 10, 8), glove), add(new THREE.SphereGeometry(0.046, 10, 8), glove)];
+  return R;
+}
+const _ik = { d: new THREE.Vector3(), dir: new THREE.Vector3(), pv: new THREE.Vector3(), B: new THREE.Vector3(), C: new THREE.Vector3() };
+function twoBone(A, Cin, l1, l2, pole, upper, lower, joint) {
+  const { d, dir, pv, B, C } = _ik; C.copy(Cin); d.copy(C).sub(A); let dist = d.length(); const maxd = (l1 + l2) * 0.999;
+  if (dist > maxd) { d.multiplyScalar(maxd / dist); dist = maxd; C.copy(A).add(d); }
+  dir.copy(d).normalize(); const a = (l1 * l1 - l2 * l2 + dist * dist) / (2 * Math.max(dist, 1e-4)), h = Math.sqrt(Math.max(l1 * l1 - a * a, 0));
+  pv.copy(pole).addScaledVector(dir, -pole.dot(dir)).normalize(); B.copy(A).addScaledVector(dir, a).addScaledVector(pv, h);
+  for (const [m, P, Q] of [[upper, A, B], [lower, B, C]]) { const dd = Q.clone().sub(P), L = dd.length(); m.position.copy(P); m.scale.set(1, L, 1); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dd.normalize()); }
+  joint.position.copy(B); return C;
+}
+const _p1 = new THREE.Vector3(), _p2 = new THREE.Vector3(), _p3 = new THREE.Vector3(), _p4 = new THREE.Vector3(), _pole = new THREE.Vector3();
+// o: pelvis (V3), pitch, roll, feet [V3,V3] (ankle targets), hands [V3,V3]
+function poseRider(R, o) {
+  R.pelvis.position.copy(o.pelvis); R.torso.position.copy(o.pelvis); R.torso.rotation.set(o.pitch, o.yaw || 0, o.roll, 'ZXY'); R.torso.updateMatrix();
+  for (let i = 0; i < 2; i++) {
+    const sx = i === 0 ? -1 : 1;
+    _p1.set(sx * 0.09, -0.02, 0).add(o.pelvis);                                                    // hip
+    _pole.set(sx * 0.3, 0.1, 1);
+    const ank = twoBone(_p1, o.feet[i], 0.43, 0.43, _pole, R.thigh[i], R.shin[i], R.knee[i]);
+    R.foot[i].position.set(ank.x, ank.y - 0.03, ank.z + 0.075);
+    _p2.set(sx * 0.215, 0.53, 0).applyMatrix4(R.torso.matrix);                                      // shoulder
+    _pole.set(sx * 0.9, -0.45, -0.5);
+    const wr = twoBone(_p2, o.hands[i], 0.3, 0.29, _pole, R.uarm[i], R.farm[i], R.elbow[i]);
+    R.hand[i].position.copy(wr);
+  }
+}
+const riderRide = buildRider(); skiGroup.add(riderRide.group);
+const riderFloat = buildRider(); riderLoose.add(riderFloat.group);
+const _hands = [new THREE.Vector3(), new THREE.Vector3()], _feet = [new THREE.Vector3(), new THREE.Vector3()], _pel = new THREE.Vector3();
+function poseRide(dt) {
+  const R = riderRide, inWater = ski.wet > 0;
+  const crouchT = inWater ? clamp(0.1 + 0.25 * inp.thr + 0.5 * Math.min(1, ski.slam / 6000), 0, 1) : 0.55;   // knees soak up chop, tuck in the air
+  R.crouch = lerp(R.crouch, crouchT, 1 - Math.exp(-dt * 9));
+  const lean = ski.lean, trim = ski.trim, cr = R.crouch;
+  poleGroup.rotation.y = -ski.nozzle * 4; nozzleG.rotation.y = ski.nozzle * 4;
+  poleGroup.updateMatrix();
+  _hands[0].set(-0.25, POLE_TOP.y, POLE_TOP.z).applyMatrix4(poleGroup.matrix); _hands[1].set(0.25, POLE_TOP.y, POLE_TOP.z).applyMatrix4(poleGroup.matrix);
+  _feet[0].set(-0.14, 0.095, -0.56); _feet[1].set(0.14, 0.095, -0.72);
+  _pel.set(-lean * 0.14, 0.8 - cr * 0.2, -0.66 - trim * 0.14 + cr * 0.05);
+  poseRider(R, { pelvis: _pel, pitch: 0.5 + cr * 0.35 - trim * 0.25, roll: lean * 0.3, yaw: 0, feet: _feet, hands: _hands });
+}
+function poseFloat(dt) {
+  const R = riderFloat, bob = Math.sin(water.t * 1.7) * 0.02;
+  _hands[0].set(-0.4, 0.07 + bob, 0.5); _hands[1].set(0.4, 0.07 - bob, 0.45); _feet[0].set(-0.13, 0.03 - bob, -0.8); _feet[1].set(0.13, 0.03 + bob, -0.85); _pel.set(0, 0.07 + bob, 0);
+  poseRider(R, { pelvis: _pel, pitch: 1.42, roll: 0, yaw: 0, feet: _feet, hands: _hands });
+}
+const head = riderRide.head;
 
 /* ---------------- Spray particles ---------------- */
 const SPN = 420;
@@ -1045,7 +1174,7 @@ function updateCamera(dt, snap) {
   const targetYaw = hv > 2 ? Math.atan2(ski.v.x, ski.v.z) : Math.atan2(_fwd.x, _fwd.z);
   let dy = targetYaw - camYaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
   camYaw += dy * (snap ? 1 : 1 - Math.exp(-dt * 2.2));
-  const back = 7.5 + hv * 0.08, up = 2.6 + Math.max(0, ski.p.y - 1) * 0.15;
+  const back = 5.6 + hv * 0.05, up = 2.0 + Math.max(0, ski.p.y - 1) * 0.15;
   _tmp.set(ski.p.x - Math.sin(camYaw) * back, ski.p.y + up, ski.p.z - Math.cos(camYaw) * back);
   camPos.lerp(_tmp, snap ? 1 : 1 - Math.exp(-dt * 4.5));
   waterAt(camPos.x, camPos.z, _wa); camPos.y = Math.max(camPos.y, _wa[0] + 0.7, groundH(camPos.x, camPos.z) + 0.7);
@@ -1096,12 +1225,12 @@ function simulate(dt) {
 }
 function syncVisuals(dt) {
   skiGroup.position.copy(ski.p); skiGroup.quaternion.copy(ski.q);
-  riderGroup.visible = !ski.wipe; riderLoose.visible = !!ski.wipe;
+  riderRide.group.visible = !ski.wipe; riderLoose.visible = !!ski.wipe;
   if (ski.wipe) { // rider floats behind the ski
     if (ski.wipeT < 0.05) riderLoose.position.copy(ski.p).addScaledVector(_fwd, -1.5);
     waterAt(riderLoose.position.x, riderLoose.position.z, _wa); riderLoose.position.y = _wa[0] + 0.05; riderLoose.rotation.y += dt * 0.3;
   }
-  poseRider(dt);
+  if (ski.wipe) poseFloat(dt); else poseRide(dt);
   // wake: press the hull footprint into the ripple field, foam where it planes
   const tx = RSIZE / RN;
   const want = [ski.p.x, ski.p.z];
@@ -1151,7 +1280,7 @@ if (Q.has('auto')) startRide();
 /* ---------------- Test hook ---------------- */
 window.__ski = {
   ski, inp, score, SEAS, CASC, waterAt, groundH, surfAt, setSea, resetSki, startRide, get state() { return state; },
-  water, camera, renderer, set freeCam(v) { freeCam = v; },
+  water, camera, renderer, scene, set freeCam(v) { freeCam = v; },
   scene_water() { return waterMat; }, waterMesh,
   sprayLife() { return sprayLife; }, ripRT, get ripCenter() { return ripCenter; },
   sim(sec, input) { // headless: fixed 60 Hz steps with a given input (or a function of time)
