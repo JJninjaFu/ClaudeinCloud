@@ -5,6 +5,7 @@ Experimenting w Claude in the cloud! Woot!
 
 | Game | Folder | What it is |
 |---|---|---|
+| Rippin' N Flippin' | [`rippin-n-flippin/`](rippin-n-flippin/index.html) | Stand-up jetski on real water, Wave Race style. Three FFT wave cascades (wind sea + swell) drive both the picture and the hull physics, a long swell shoals and breaks on the beach in sets, and the ski leaves a wake. Hit a set wave fast, pull back in the air for a backflip (or lean for a barrel roll), land it upright for points. Four sea states from Glassy to Surf. Water shading after Aurélien's Clearwater (MIT), rebuilt on three.js. |
 | Skydivin' 2 | [`skydivin2/`](skydivin2/index.html) | 4-way formation skydiving for up to 4 friends (bots fill the rest). Two jumpers off each skid of a helicopter at 13,500 ft, then lean forward and back (like the rider on Mineral Fork) to fly your slot, slide and match fall rate, and hold each formation for 3 seconds: Star, Line, Caterpillar, Diamond, Box, Accordion. Break off at 4,500 ft, track, pull, and see who lands closest to the X. |
 | Survivin' Skydivin' | [`survivin-skydivin/`](survivin-skydivin/index.html) | Solo skydiving survival. Exit the plane on the green light, fly through rings in freefall, pull by 3,500 ft, then deal with what opens: line twists (kick out), streamers, pilot chute in tow and lineovers (cut away, pull the reserve). Wind, geese, other jumpers, trees, a pond and power lines. Flare and land on the X. Three jumps: Fun Jump, Cloud Hopper, Sunset Load. |
 | Funnin' N Gunnin' | [`funnin-n-gunnin/`](funnin-n-gunnin/index.html) | Isometric army battle in the spirit of Running With Rifles, with Foxhole-style dirt. Red vs Blue, 25 soldiers a side (bots fill in around 1 to 4 players). Hold control points to bleed the other side's tickets. Every explosion leaves a crater, you can dig your own foxhole, and walls crumble block by block. Each side has 2 jeeps, an APC and a tank that bots crew and drive; hop in, take the gun, or steal the enemy's. |
@@ -14,6 +15,12 @@ Experimenting w Claude in the cloud! Woot!
 | Topping Out | [`topping-out/`](topping-out/index.html) | Steel erection on a downtown lot: fly columns, beams and decks from the laydown yard and build a frame floor by floor. Default gantry crane (no swing, climbs with the building) or a swinging tower crane. Four floors tops out the job. |
 
 The root `index.html` is a game menu for GitHub Pages. Each game is one self-contained HTML file. It runs in any browser, including on a phone with touch sticks, and uses three.js r128 from cdnjs.
+
+### Rippin' N Flippin' controls
+- **Phone:** left stick steers (left/right) and shifts your weight (up = nose down, pull down = lean back; in the air that's the backflip), slide up the **GAS** strip, **BRAKE** button.
+- **Keyboard:** W gas · S brake · A/D steer · ↑/↓ weight forward/back (↓ in the air flips) · ←/→ lean (barrel roll in the air) · C camera · R reset · M sound · 1-4 sea state · Esc menu
+- **Controller:** left stick steer and weight · right stick lean · RT gas · LT brake · B camera · Y reset
+- **How it plays:** the jet only steers under gas, like a real ski. Lean into turns. The set waves (every fifth wave is the big one) break on the beach ahead of you: hit a face at 40+ mph, hold ↓ as you leave the lip and let go about three quarters of the way around. Land flat-ish or you wipe out; the ski rights itself and you're back on in a few seconds. Beaching resets you to the water.
 
 ### Skydivin' 2 controls
 - **Phone:** left stick leans you forward/back (drive toward or away from your slot) and turns you; right stick slides you sideways (left/right) and sets fall rate (up float, down sink). Big button pulls and flares.
