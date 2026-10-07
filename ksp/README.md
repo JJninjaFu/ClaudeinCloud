@@ -3,7 +3,7 @@
 A 30-part, 3-kerbal crew rocket with six stages of rowdiness. It launches on a Mainsail plus four Kickbacks, has a working launch escape tower, and has about 6.9 km/s of vacuum delta-v. That's enough to reach orbit and then take the Poodle upper stage to the Mun or Minmus and home.
 
 ## Install
-Copy `Hard Hat Heavy.craft` into `<KSP folder>/Ships/VAB/` (or `<KSP folder>/saves/<your save>/Ships/VAB/` for one save), then load it in the VAB. In career mode you need every part unlocked.
+Copy `Hard Hat Heavy.craft` into your save's craft folder: `<KSP folder>/saves/<save name>/Ships/VAB/` (create `Ships/VAB` if it's missing), then use **Load** in the VAB. The game-level `<KSP folder>/Ships/VAB/` folder is for stock craft and doesn't show in the normal Load list. In career mode you need every part unlocked.
 
 ## Stages (in firing order)
 | KSP stage | What happens |
