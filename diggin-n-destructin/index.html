@@ -1,0 +1,2580 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Diggin' N Destructin'</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --yel:#f5b800; --org:#ff6b1a; --red:#e0483a; --blue:#3b7bea; --ink:#f3efe6; --muted:#b9b2a5; --ok:#86d46e; --bad:#ef5a45;
+  --asph:#1d1c1a; --panel:rgba(29,28,26,.9); --panel2:#2a2825; --line:rgba(243,239,230,.14);
+  --f-d:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;
+  --f-b:'IBM Plex Sans Condensed','Arial Narrow',system-ui,sans-serif;
+  --f-m:'IBM Plex Mono',ui-monospace,monospace;
+  --side:262px;
+  color-scheme:dark;
+}
+html,body{height:100%;margin:0;overflow:hidden;background:#2b2a26;color:var(--ink);font-family:var(--f-b);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--yel);outline-offset:2px}
+.lbl{font-family:var(--f-m);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+/* ---------- top bar ---------- */
+#hud{position:fixed;inset:0;pointer-events:none}
+#top{position:absolute;left:0;right:var(--side);top:0;display:flex;align-items:center;gap:10px;padding:calc(6px + env(safe-area-inset-top,0px)) 10px 6px;background:linear-gradient(180deg,rgba(29,28,26,.92),rgba(29,28,26,.4));pointer-events:none}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:3px 10px;display:flex;align-items:baseline;gap:7px;min-height:34px}
+.stat b{font-family:var(--f-d);font-weight:800;font-size:25px;line-height:1;font-variant-numeric:tabular-nums}
+.stat small{font-family:var(--f-m);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+#cr b{color:var(--yel)}
+#pw.low b{color:var(--bad)}
+.pwbar{width:70px;height:7px;border-radius:4px;background:#3d3a35;overflow:hidden;align-self:center}
+.pwbar i{display:block;height:100%;background:var(--ok);width:50%}
+#pw.low .pwbar i{background:var(--bad)}
+#msg{flex:1;text-align:center;font-family:var(--f-m);font-size:12.5px;color:var(--yel);text-shadow:0 1px 4px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbtn{pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:7px;min-width:36px;height:34px;padding:0 10px;font-family:var(--f-m);font-size:12px;font-weight:600}
+.tbtn:hover{border-color:var(--yel)}
+
+/* ---------- sidebar ---------- */
+#side{position:absolute;right:0;top:0;bottom:0;width:var(--side);background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;gap:8px;padding:calc(8px + env(safe-area-inset-top,0px)) 8px calc(8px + env(safe-area-inset-bottom,0px));pointer-events:auto}
+#mini{width:100%;aspect-ratio:4/3;display:block;border-radius:5px;background:#222;cursor:pointer;touch-action:none}
+.tabs{display:flex;gap:4px}
+.tab{flex:1;background:var(--panel2);border:1px solid transparent;border-radius:6px;padding:6px 4px;font-family:var(--f-d);font-weight:800;font-size:17px;text-transform:uppercase;letter-spacing:.04em}
+.tab.on{border-color:var(--yel);color:var(--yel)}
+#items{display:grid;grid-template-columns:1fr 1fr;gap:6px;overflow:auto;align-content:start;flex:1;min-height:0}
+.it{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 7px 8px;text-align:left;position:relative;overflow:hidden;display:grid;gap:1px;min-height:58px}
+.it b{font-family:var(--f-d);font-weight:800;font-size:16px;line-height:1.05;text-transform:uppercase;letter-spacing:.02em}
+.it span{font-family:var(--f-m);font-size:11px;color:var(--yel)}
+.it small{font-size:10.5px;color:var(--muted);line-height:1.2}
+.it .pg{position:absolute;left:0;bottom:0;height:4px;background:var(--yel);width:0}
+.it .q{position:absolute;right:5px;top:3px;font-family:var(--f-m);font-size:11px;color:#fff}
+.it.dis{opacity:.4}
+.it.rdy{border-color:var(--yel);animation:pulse 1s infinite}
+.it.rdy::after{content:'PLACE';position:absolute;right:5px;bottom:5px;font-family:var(--f-m);font-size:10px;font-weight:700;color:#1d1c1a;background:var(--yel);border-radius:3px;padding:0 4px}
+.it.act{border-color:var(--ok)}
+@keyframes pulse{50%{background:#4a4220}}
+.it:hover:not(.dis){border-color:var(--yel)}
+
+/* ---------- selection panel + command bar ---------- */
+#sel{position:absolute;left:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));max-width:calc(100vw - var(--side) - 24px);display:grid;gap:6px;pointer-events:auto}
+#info{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 11px;display:grid;gap:4px;min-width:200px}
+#info b{font-family:var(--f-d);font-weight:800;font-size:20px;text-transform:uppercase;line-height:1}
+#info small{font-family:var(--f-m);font-size:11.5px;color:var(--muted)}
+.hpb{height:6px;background:#3d3a35;border-radius:3px;overflow:hidden}
+.hpb i{display:block;height:100%;background:var(--ok);width:100%}
+#cmds{display:flex;gap:6px;flex-wrap:wrap}
+.cb{background:var(--panel);border:1px solid var(--line);border-radius:8px;min-width:60px;height:46px;padding:0 10px;font-family:var(--f-d);font-weight:800;font-size:16px;text-transform:uppercase;letter-spacing:.03em;display:grid;place-items:center;line-height:1.05}
+.cb small{display:block;font-family:var(--f-m);font-size:9.5px;font-weight:500;color:var(--muted);letter-spacing:0}
+.cb.on{background:var(--yel);color:#1d1c1a;border-color:#fff}
+.cb.on small{color:#1d1c1a}
+.cb:hover{border-color:var(--yel)}
+#selbox{position:fixed;border:1.5px solid var(--yel);background:rgba(245,184,0,.12);pointer-events:none;display:none}
+#hint{position:absolute;left:calc(50% - var(--side)/2);transform:translateX(-50%);top:calc(56px + env(safe-area-inset-top,0px));font-family:var(--f-m);font-size:12.5px;background:var(--panel);padding:5px 12px;border-radius:6px;color:var(--yel);white-space:nowrap;border:1px solid var(--line)}
+#toast{position:fixed;left:calc(50% - var(--side)/2);top:calc(90px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 14px;font-weight:600;pointer-events:none;text-align:center;max-width:calc(100vw - var(--side) - 24px)}
+body.noside{--side:0px} body.noside #side{display:none}
+#bSide{display:none}
+#labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+.hpl{position:absolute;width:34px;height:4px;background:rgba(0,0,0,.6);border-radius:2px;transform:translate(-50%,0);overflow:hidden}
+.hpl i{display:block;height:100%;background:var(--ok)}
+.bubble{position:absolute;transform:translate(-50%,-100%);font-family:var(--f-m);font-size:11px;font-weight:600;white-space:nowrap;padding:1px 6px;border-radius:4px;background:rgba(20,19,17,.78);color:#fff}
+
+/* ---------- screens ---------- */
+.screen{position:fixed;inset:0;display:grid;place-items:center;padding:16px;overflow:auto;background:linear-gradient(180deg,rgba(18,17,15,.5),rgba(18,17,15,.88))}
+.card{background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--yel);border-radius:10px;padding:20px 20px 18px;width:min(580px,100%);display:grid;gap:14px}
+h1{font-family:var(--f-d);font-weight:900;font-size:clamp(44px,10.5vw,76px);line-height:.86;margin:0;text-transform:uppercase;letter-spacing:.01em}
+h1 .r{color:var(--red)} h1 .y{color:var(--yel)}
+h2{font-family:var(--f-d);font-weight:800;font-size:30px;line-height:1;margin:0;text-transform:uppercase}
+p{margin:0;color:var(--muted);line-height:1.45}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.opt{flex:1 1 0;min-width:110px;background:var(--panel2);border:2px solid transparent;border-radius:8px;padding:9px 10px;text-align:left;display:grid;gap:2px}
+.opt b{font-family:var(--f-d);font-weight:800;font-size:19px;text-transform:uppercase;letter-spacing:.02em}
+.opt span{font-size:12.5px;color:var(--muted);line-height:1.3}
+.opt.sel{border-color:var(--yel)}
+.go{background:var(--yel);color:#1d1c1a;border:0;border-radius:8px;padding:13px 18px;font-family:var(--f-d);font-weight:800;font-size:23px;text-transform:uppercase;letter-spacing:.03em}
+.go.alt{background:transparent;color:var(--ink);border:2px solid var(--line)}
+.help{font-size:13px;color:var(--muted);display:grid;gap:4px;line-height:1.4}
+.help b{color:var(--ink)}
+#loading{position:fixed;inset:0;display:grid;place-items:center;background:#1d1c1a;font-family:var(--f-d);font-weight:800;font-size:30px;text-transform:uppercase;color:var(--yel)}
+.bigcount{font-family:var(--f-d);font-weight:900;font-size:64px;line-height:1;color:var(--yel)}
+
+/* ---------- phone ---------- */
+@media (max-width:760px){
+  :root{--side:min(46vw,190px)}
+  #bSide{display:block}
+  #msg{display:block;position:absolute;left:8px;top:calc(46px + env(safe-area-inset-top,0px));text-align:left;font-size:11px;white-space:normal;line-height:1.25;background:rgba(29,28,26,.78);padding:2px 7px;border-radius:5px;flex:none;max-width:calc(100vw - var(--side) - 16px);overflow:visible}
+  #msg:empty{display:none}
+  #hint{top:calc(84px + env(safe-area-inset-top,0px));white-space:normal;max-width:calc(100vw - var(--side) - 16px);text-align:center}
+  .it b{font-size:12px;letter-spacing:0;overflow-wrap:normal;word-break:keep-all}
+  .it span{font-size:10.5px}
+  #items{gap:5px}
+  .tab{font-size:14px;padding:5px 2px}
+  .tabs{flex-wrap:wrap}
+  .stat b{font-size:20px} .stat{padding:2px 7px;min-height:30px}
+  .pwbar{width:44px}
+  .it{min-height:50px;padding:5px 6px 7px} .it b{font-size:14px} .it small{display:none}
+  .cb{min-width:52px;height:42px;font-size:14px}
+  #info{min-width:150px}
+}
+@media (max-height:430px){
+  #mini{aspect-ratio:auto;height:78px}
+  .tab{padding:3px;font-size:14px}
+  #hint{top:44px}
+}
+</style>
+
+<canvas id="c"></canvas>
+<div id="labels"></div>
+<div id="selbox"></div>
+
+<div id="hud" hidden>
+  <div id="top">
+    <div class="stat" id="cr"><small>Credits</small><b id="crv">2000</b></div>
+    <div class="stat" id="pw"><small>Power</small><b id="pwv">0</b><div class="pwbar"><i id="pwb"></i></div></div>
+    <div id="msg"></div>
+    <button class="tbtn" id="bSide">Menu</button>
+    <button class="tbtn" id="bSound" style="pointer-events:auto">Sound</button>
+    <button class="tbtn" id="bPause" style="pointer-events:auto">II</button>
+  </div>
+  <div id="hint" hidden></div>
+  <div id="sel">
+    <div id="info" hidden><b id="iname">-</b><div class="hpb"><i id="ihp"></i></div><small id="isub"></small></div>
+    <div id="cmds"></div>
+  </div>
+  <div id="side">
+    <canvas id="mini" width="320" height="240"></canvas>
+    <div class="tabs"><button class="tab on" data-tab="build">Build</button><button class="tab" data-tab="train">Train</button></div>
+    <div id="items"></div>
+  </div>
+</div>
+<div id="toast" hidden></div>
+
+<div id="menu" class="screen">
+  <div class="card">
+    <div>
+      <div class="lbl">Real-time strategy · move dirt, win wars</div>
+      <h1>Diggin' <span class="y">N</span> <span class="r">Destructin'</span></h1>
+    </div>
+    <p>Deploy your construction vehicle, build a base, harvest ore and march on theirs. Every shovelful of ground is real: trenches, berms and craters change where soldiers hide and where tanks can go.</p>
+    <div class="row">
+      <button class="go" id="bStart" style="flex:1">Skirmish vs. computer</button>
+    </div>
+    <div class="help">
+      <div><b>Mouse</b> Left click or drag to select · right click to move, attack or harvest · wheel zoom · arrow keys or screen edge scroll · Q/E rotate · Ctrl+1-9 set a group, 1-9 recall · A attack-move · S stop · D deploy · H home</div>
+      <div><b>Engineers</b> T then draw a line on the ground: they walk it and dig a trench with sandbags on the lips.</div>
+      <div><b>Excavators</b> Z dig, X fill, C level: draw a line and the machine moves real dirt, scoop by scoop. What it digs it must dump somewhere; fill from the sand piles in your base. Trenches and berms stop vehicles.</div>
+      <div><b>Phone</b> Tap a unit to select it, tap the ground to send it, drag to scroll, pinch to zoom. BOX switches dragging to box-select. Press and hold a sidebar item to cancel it. Menu hides the sidebar.</div>
+      </div>
+  </div>
+</div>
+<div id="end" class="screen" hidden>
+  <div class="card">
+    <div class="lbl" id="endLbl">Match over</div>
+    <h2 id="endTitle">Victory</h2>
+    <p id="endSub"></p>
+    <div class="row"><button class="go" id="bAgain" style="flex:1">Play again</button><button class="go alt" id="bMenu" style="flex:1">Menu</button></div>
+  </div>
+</div>
+<div id="loading" hidden>Laying out the map…</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[(Math.random() * a.length) | 0];
+const FT = 3.28084;
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+/* ---------- renderer ---------- */
+const canvas = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+const scene = new THREE.Scene();
+const SKY = 0xa9bfcc;
+scene.background = new THREE.Color(SKY);
+scene.fog = new THREE.Fog(SKY, 95, 210);
+const camera = new THREE.PerspectiveCamera(36, 1, 1, 420);
+scene.add(new THREE.HemisphereLight(0xe8f0ff, 0x5a4a32, 0.62));
+const sun = new THREE.DirectionalLight(0xfff1d6, 0.7); sun.position.set(-40, 80, 30); scene.add(sun);
+const boomLight = new THREE.PointLight(0xffa040, 0, 26, 2); scene.add(boomLight);
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+
+/* ---------- world constants ---------- */
+const W = 160, D = 120, LV = 2, LVH = 1.25, MAXDIG = 1.35;
+const VW = W + 1, NV = VW * (D + 1);
+const TEAM_HEX = [0xc23a2e, 0x2f62c4], TEAM_DARK = [0x7a231b, 0x1d3a78], TEAM_CSS = ['#e0483a', '#3b7bea'], TEAM_NAME = ['Red', 'Blue'];
+const roadZ = x => 60 + Math.sin(x * 0.045) * 4;
+const BASE = [{ x: 24, z: 60 }, { x: W - 24, z: 60 }];                 // where each army starts
+const PILES = [[15, 41], [15, 79], [W - 15, 41], [W - 15, 79]];       // sand piles inside the bases: [x, z]
+const ORE_DEF = [[42, 30], [42, 90], [W - 42, 30], [W - 42, 90], [80, 13], [80, 107]];
+const ORE_CELL = 140;                                                 // credits-worth of ore in a full cell
+let navVer = 0;
+let world = null;
+let H, H0, scorch, vNoDig, solid, blkIdx, treeAt, bare, sandA, oreAmt, bldgIdx;
+let terrainGeo, terrainMesh;
+let blocks = [], blockMesh, bagMesh, trees = [], trunkMesh, crownMesh, oreMesh, oreCells = [];
+const worldGroup = new THREE.Group(); scene.add(worldGroup);
+const uiGroup = new THREE.Group(); scene.add(uiGroup);
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _v = new THREE.Vector3(), _s = new THREE.Vector3(), _e = new THREE.Euler(), _c = new THREE.Color();
+const ZERO_M = new THREE.Matrix4().makeScale(0, 0, 0);
+
+
+function hAt(x, z) {
+  x = clamp(x, 0, W - 0.001); z = clamp(z, 0, D - 0.001);
+  const j = x | 0, i = z | 0, fx = x - j, fz = z - i, a = i * VW + j;
+  return (H[a] * (1 - fx) + H[a + 1] * fx) * (1 - fz) + (H[a + VW] * (1 - fx) + H[a + VW + 1] * fx) * fz;
+}
+const cellOf = (x, z) => (clamp(z | 0, 0, D - 1)) * W + clamp(x | 0, 0, W - 1);
+const inMap = (x, z) => x >= 0 && z >= 0 && x < W && z < D;
+
+
+
+function clearWorld() {
+  while (worldGroup.children.length) {
+    const o = worldGroup.children.pop();
+    o.traverse(n => { if (n.geometry) n.geometry.dispose(); if (n.material) [].concat(n.material).forEach(m => { if (m.map) m.map.dispose(); m.dispose(); }); });
+  }
+  blocks = []; trees = []; oreCells = [];
+}
+
+function buildWorld(seed) {
+  clearWorld();
+  const R = mulberry32(seed);
+  const r1 = R() * 6, r2 = R() * 6, r3 = R() * 6, r4 = R() * 6;
+  H = new Float32Array(NV); scorch = new Float32Array(NV); vNoDig = new Uint8Array(NV); bare = new Float32Array(NV); sandA = new Float32Array(NV); oreAmt = new Float32Array(W * D); bldgIdx = new Int16Array(W * D).fill(-1);
+  solid = new Uint8Array(W * D); blkIdx = new Int16Array(W * D * LV).fill(-1); treeAt = new Int16Array(W * D).fill(-1);
+  for (let i = 0; i <= D; i++) for (let j = 0; j <= W; j++) {
+    const x = j, z = i;
+    let h = 1.7 * Math.sin(x * 0.045 + r1) * Math.cos(z * 0.052 + r2) + 0.75 * Math.sin(x * 0.11 + z * 0.07 + r3) + 0.3 * Math.sin(x * 0.23 - z * 0.19 + r4);
+    const edge = Math.min(x, W - x, z, D - z);
+    if (edge < 9) h += (9 - edge) * 0.42;
+    const rd = Math.abs(z - roadZ(x)); if (rd < 5) h -= (5 - rd) * 0.06;
+    H[i * VW + j] = h;
+  }
+  const flatten = (cx, cz, rad, fall) => {
+    let sum = 0, n = 0;
+    for (let i = Math.max(0, cz - rad | 0); i <= Math.min(D, cz + rad); i++) for (let j = Math.max(0, cx - rad | 0); j <= Math.min(W, cx + rad); j++) { sum += H[i * VW + j]; n++; }
+    const t = sum / Math.max(1, n);
+    for (let i = Math.max(0, cz - rad - fall | 0); i <= Math.min(D, cz + rad + fall); i++) for (let j = Math.max(0, cx - rad - fall | 0); j <= Math.min(W, cx + rad + fall); j++) {
+      const d = Math.hypot(j - cx, i - cz), k = d <= rad ? 1 : 1 - (d - rad) / fall;
+      if (k > 0) { const s = k * k * (3 - 2 * k); H[i * VW + j] = lerp(H[i * VW + j], t, s); }
+    }
+    return t;
+  };
+  for (const bs of BASE) flatten(bs.x, bs.z, 14, 9);
+  for (const o of ORE_DEF) flatten(o[0], o[1], 6, 4);
+
+  // buildings: [x0, z0, w, d, style]  style 0 house, 1 barn, 2 shop
+  const B = [
+    [66, 46, 7, 6, 0], [86, 45, 6, 7, 2], [67, 67, 6, 7, 0], [87, 67, 7, 6, 2], [77, 76, 8, 7, 2], [76, 37, 6, 5, 0],
+    [47, 19, 8, 6, 1], [33, 97, 7, 5, 0], [122, 20, 6, 6, 0], [110, 98, 8, 6, 1],
+    [56, 70, 5, 5, 0], [100, 44, 5, 5, 0], [26, 30, 5, 5, 1], [130, 86, 5, 5, 1], [98, 74, 6, 5, 0], [58, 42, 5, 6, 0]
+  ];
+  const bStyles = [[0xd9cbb0, 0xcbb994, 0xe3d7bf], [0x8d3e2c, 0x9a4632, 0x7f3626], [0xb9b3a6, 0xa9a397, 0xc6c0b2]];
+  const blockDefs = [];
+  for (const [x0, z0, w, d, st] of B) {
+    let sum = 0, n = 0;
+    for (let i = z0; i <= z0 + d; i++) for (let j = x0; j <= x0 + w; j++) { sum += H[i * VW + j]; n++; }
+    const base = sum / n + 0.05;
+    for (let i = z0 - 2; i <= z0 + d + 2; i++) for (let j = x0 - 2; j <= x0 + w + 2; j++) {
+      if (!inMap(j, i)) continue;
+      const inside = i >= z0 && i <= z0 + d && j >= x0 && j <= x0 + w;
+      const v = i * VW + j;
+      H[v] = inside ? base : lerp(H[v], base, 0.55);
+      if (i >= z0 - 1 && i <= z0 + d + 1 && j >= x0 - 1 && j <= x0 + w + 1) vNoDig[v] = 1;
+    }
+    const doorSide = (R() * 4) | 0;
+    for (let cz = z0; cz < z0 + d; cz++) for (let cx = x0; cx < x0 + w; cx++) {
+      const edgeX = cx === x0 || cx === x0 + w - 1, edgeZ = cz === z0 || cz === z0 + d - 1;
+      if (!edgeX && !edgeZ) continue;
+      // door gap: two cells mid-wall on one side
+      const midX = x0 + (w >> 1), midZ = z0 + (d >> 1);
+      const door = (doorSide === 0 && cz === z0 && (cx === midX || cx === midX - 1)) || (doorSide === 1 && cz === z0 + d - 1 && (cx === midX || cx === midX - 1)) ||
+        (doorSide === 2 && cx === x0 && (cz === midZ || cz === midZ - 1)) || (doorSide === 3 && cx === x0 + w - 1 && (cz === midZ || cz === midZ - 1));
+      if (door) continue;
+      const corner = edgeX && edgeZ;
+      const window = !corner && ((edgeZ ? cx - x0 : cz - z0) % 3 === 1);
+      blockDefs.push([cx, cz, 0, base, 0, bStyles[st][(R() * 3) | 0]]);
+      if (!window) blockDefs.push([cx, cz, 1, base, 0, bStyles[st][(R() * 3) | 0]]);
+    }
+  }
+  // sand piles: real terrain you can dig into and haul away
+  const Hpre = H.slice();
+  for (const [px, pz] of PILES) {
+    for (let i = Math.max(0, pz - 8 | 0); i <= Math.min(D, pz + 8); i++) for (let j = Math.max(0, px - 8 | 0); j <= Math.min(W, px + 8); j++) {
+      const d = Math.hypot(j - px, i - pz), r = 7;
+      if (d < r) { const k = Math.pow(1 - (d / r) * (d / r), 1.4); H[i * VW + j] += 4.4 * k; sandA[i * VW + j] = Math.max(sandA[i * VW + j], Math.min(1, k * 3)); }
+    }
+  }
+  // terrain mesh
+  H0 = Hpre;
+  const pos = new Float32Array(NV * 3), nor = new Float32Array(NV * 3), col = new Float32Array(NV * 3);
+  for (let i = 0; i <= D; i++) for (let j = 0; j <= W; j++) { const v = i * VW + j; pos[v * 3] = j; pos[v * 3 + 1] = H[v]; pos[v * 3 + 2] = i; }
+  const idx = new Uint32Array(W * D * 6); let k = 0;
+  for (let i = 0; i < D; i++) for (let j = 0; j < W; j++) {
+    const a = i * VW + j, b = a + 1, c = a + VW, d = c + 1;
+    idx[k++] = a; idx[k++] = c; idx[k++] = b; idx[k++] = b; idx[k++] = c; idx[k++] = d;
+  }
+  terrainGeo = new THREE.BufferGeometry();
+  terrainGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  terrainGeo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  terrainGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  terrainGeo.setIndex(new THREE.BufferAttribute(idx, 1));
+  world = { seed, noise: new Float32Array(NV) };
+  for (let v = 0; v < NV; v++) world.noise[v] = R();
+  refreshTerrain(0, 0, W, D);
+  terrainGeo.computeBoundingSphere();
+  terrainMesh = new THREE.Mesh(terrainGeo, new THREE.MeshLambertMaterial({ vertexColors: true }));
+  worldGroup.add(terrainMesh);
+  // skirt ring beyond the map so the edge doesn't float
+  const skirtMat = new THREE.MeshLambertMaterial({ color: 0x6f7f4a });
+  for (const [x, z, w, d] of [[-60, -60, W + 120, 60], [-60, D, W + 120, 60], [-60, 0, 60, D], [W, 0, 60, D]]) {
+    const g = new THREE.PlaneGeometry(w, d); g.rotateX(-Math.PI / 2);
+    const m = new THREE.Mesh(g, skirtMat); m.position.set(x + w / 2, 3.2, z + d / 2); worldGroup.add(m);
+  }
+
+  // blocks
+  const n = blockDefs.length;
+  blockMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, LVH, 1), new THREE.MeshLambertMaterial(), n);
+  bagMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 0.8, 1), new THREE.MeshLambertMaterial(), n);
+  blockMesh.count = n; bagMesh.count = n;
+  for (let i = 0; i < n; i++) { blockMesh.setMatrixAt(i, ZERO_M); bagMesh.setMatrixAt(i, ZERO_M); }
+  blockDefs.forEach((bd, id) => {
+    let [cx, cz, lv, base, type, color] = bd;
+    if (blkIdx[(cz * W + cx) * LV + lv] >= 0) return;
+    if (type === 1) {
+      if (solid[cz * W + cx]) return;
+      base = Math.min(H[cz * VW + cx], H[cz * VW + cx + 1], H[(cz + 1) * VW + cx], H[(cz + 1) * VW + cx + 1]) - 0.05;
+      for (const v of [cz * VW + cx, cz * VW + cx + 1, (cz + 1) * VW + cx, (cz + 1) * VW + cx + 1]) vNoDig[v] = 1;
+    }
+    const b = { id, cx, cz, lv, type, y0: base + lv * LVH, y1: base + (type ? 0.8 : (lv + 1) * LVH), hp: type ? 160 : 110, alive: true, color };
+    blocks[id] = b;
+    blkIdx[(cz * W + cx) * LV + lv] = id;
+    if (lv === 0) solid[cz * W + cx] = 1;
+    const mesh = type ? bagMesh : blockMesh;
+    _m.makeTranslation(cx + 0.5, (b.y0 + b.y1) / 2, cz + 0.5);
+    mesh.setMatrixAt(id, _m); mesh.setColorAt(id, _c.setHex(color));
+  });
+  for (const mesh of [blockMesh, bagMesh]) { if (!mesh.instanceColor) mesh.setColorAt(0, _c.setHex(0)); mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true; worldGroup.add(mesh); }
+
+  // trees
+  const tg = [];
+  for (let tries = 0; tg.length < 130 && tries < 3000; tries++) {
+    const x = 4 + R() * (W - 8), z = 4 + R() * (D - 8);
+    if (Math.abs(z - roadZ(x)) < 5) continue;
+    if (BASE.some(q => Math.hypot(q.x - x, q.z - z) < 22) || ORE_DEF.some(o => Math.hypot(o[0] - x, o[1] - z) < 9) || PILES.some(o => Math.hypot(o[0] - x, o[1] - z) < 10)) continue;
+    const c = cellOf(x, z); if (solid[c] || vNoDig[(z | 0) * VW + (x | 0)]) continue;
+    if (tg.some(t => Math.hypot(t.x - x, t.z - z) < 2.6)) continue;
+    // clump them: prefer near other trees
+    if (tg.length > 12 && R() < 0.6 && !tg.some(t => Math.hypot(t.x - x, t.z - z) < 9)) continue;
+    tg.push({ x: (x | 0) + 0.5, z: (z | 0) + 0.5, s: 0.8 + R() * 0.55, c: R() });
+  }
+  trunkMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.13, 0.2, 1.8, 6), new THREE.MeshLambertMaterial({ color: 0x5c4630 }), tg.length);
+  crownMesh = new THREE.InstancedMesh(new THREE.ConeGeometry(1.35, 3.4, 7), new THREE.MeshLambertMaterial(), tg.length);
+  tg.forEach((t, i) => {
+    const c = cellOf(t.x, t.z); solid[c] = 2; treeAt[c] = i;
+    t.alive = true; t.id = i; trees.push(t);
+    placeTree(t);
+    crownMesh.setColorAt(i, _c.setRGB(0.2 + t.c * 0.08, 0.36 + t.c * 0.1, 0.17));
+  });
+  crownMesh.instanceColor.needsUpdate = true;
+  worldGroup.add(trunkMesh, crownMesh);
+
+  buildOre(R);
+  trenchWorldInit();
+  rtsWorldInit();
+  buildMiniBase();
+}
+
+function placeTree(t) {
+  if (!t.alive) { trunkMesh.setMatrixAt(t.id, ZERO_M); crownMesh.setMatrixAt(t.id, ZERO_M); }
+  else {
+    const y = hAt(t.x, t.z);
+    _m.compose(_v.set(t.x, y + 0.9 * t.s, t.z), _q.identity(), _s.set(t.s, t.s, t.s)); trunkMesh.setMatrixAt(t.id, _m);
+    _m.compose(_v.set(t.x, y + (1.6 + 1.7) * t.s, t.z), _q.identity(), _s.set(t.s, t.s, t.s)); crownMesh.setMatrixAt(t.id, _m);
+  }
+  trunkMesh.instanceMatrix.needsUpdate = true; crownMesh.instanceMatrix.needsUpdate = true;
+}
+
+/* terrain colors + normals for a vertex rectangle */
+function refreshTerrain(x0, z0, x1, z1) {
+  x0 = clamp(x0 | 0, 0, W); z0 = clamp(z0 | 0, 0, D); x1 = clamp(Math.ceil(x1), 0, W); z1 = clamp(Math.ceil(z1), 0, D);
+  const pos = terrainGeo.attributes.position.array, nor = terrainGeo.attributes.normal.array, col = terrainGeo.attributes.color.array;
+  for (let i = z0; i <= z1; i++) for (let j = x0; j <= x1; j++) {
+    const v = i * VW + j;
+    pos[v * 3 + 1] = H[v];
+    const hl = H[i * VW + Math.max(0, j - 1)], hr = H[i * VW + Math.min(W, j + 1)], hu = H[Math.max(0, i - 1) * VW + j], hd = H[Math.min(D, i + 1) * VW + j];
+    let nx = hl - hr, ny = 2, nz = hu - hd; const l = Math.hypot(nx, ny, nz); nor[v * 3] = nx / l; nor[v * 3 + 1] = ny / l; nor[v * 3 + 2] = nz / l;
+    const nse = world.noise[v];
+    let r = 0.31 + nse * 0.06, g = 0.44 + nse * 0.07, b = 0.19 + nse * 0.03;
+    const rd = Math.abs(i - roadZ(j));
+    if (rd < 2.6) { const k = rd < 1.8 ? 0.85 : (2.6 - rd) / 0.8 * 0.85; r = lerp(r, 0.62, k); g = lerp(g, 0.53, k); b = lerp(b, 0.38, k); }
+    const dug = clamp(Math.abs(H0[v] - H[v]) * 2.2 + bare[v], 0, 1);
+    if (dug > 0) { r = lerp(r, 0.47 + nse * 0.05, dug); g = lerp(g, 0.35 + nse * 0.04, dug); b = lerp(b, 0.23, dug); }
+    if (sandA[v] > 0) { const k = sandA[v] * 0.9; r = lerp(r, 0.8 + nse * 0.05, k); g = lerp(g, 0.69 + nse * 0.05, k); b = lerp(b, 0.43, k); }
+    const oc = oreAmt[Math.min(D - 1, i) * W + Math.min(W - 1, j)];
+    if (oc > 0) { const k = Math.min(0.55, oc / ORE_CELL * 0.55); r = lerp(r, 0.78, k); g = lerp(g, 0.55, k); b = lerp(b, 0.18, k); }
+    const sc = clamp(scorch[v], 0, 0.85);
+    if (sc > 0) { r = lerp(r, 0.17, sc); g = lerp(g, 0.15, sc); b = lerp(b, 0.12, sc); }
+    col[v * 3] = r; col[v * 3 + 1] = g; col[v * 3 + 2] = b;
+  }
+  terrainGeo.attributes.position.needsUpdate = true; terrainGeo.attributes.normal.needsUpdate = true; terrainGeo.attributes.color.needsUpdate = true;
+  miniDirty = true;
+}
+
+/* crater or dig (deterministic: host sends the op, everyone applies it) */
+function terrainOp(x, z, R, depth, rim, scorchAmt) {
+  const r2 = R * (rim ? 1.7 : 1.05);
+  const x0 = Math.floor(x - r2), x1 = Math.ceil(x + r2), z0 = Math.floor(z - r2), z1 = Math.ceil(z + r2);
+  for (let i = Math.max(0, z0); i <= Math.min(D, z1); i++) for (let j = Math.max(0, x0); j <= Math.min(W, x1); j++) {
+    const v = i * VW + j, d = Math.hypot(j - x, i - z);
+    if (scorchAmt && d < R * 1.4) scorch[v] = Math.min(1, scorch[v] + scorchAmt * (1 - d / (R * 1.4)));
+    if (vNoDig[v] || j === 0 || i === 0 || j === W || i === D) continue;
+    if (d < R) {
+      const drop = depth * (1 - (d / R) * (d / R) * 0.85);
+      H[v] = Math.max(H0[v] - MAXDIG, H[v] - drop);
+    } else if (rim && d < r2) {
+      const k = 1 - (d - R) / (r2 - R);
+      H[v] = Math.min(H0[v] + 0.65, H[v] + depth * rim * k);
+    }
+  }
+  refreshTerrain(x0, z0, x1, z1);
+  if (scorchAmt) liningBlast(x, z, R + 0.6);
+  for (const t of trees) if (t.alive && Math.abs(t.x - x) < r2 + 1 && Math.abs(t.z - z) < r2 + 1) placeTree(t);
+}
+
+
+/* ---------- blocks ---------- */
+const debrisQueue = [];
+function killBlock(id, out, quiet) {
+  const b = blocks[id]; if (!b || !b.alive) return;
+  b.alive = false;
+  blkIdx[(b.cz * W + b.cx) * LV + b.lv] = -1;
+  (b.type ? bagMesh : blockMesh).setMatrixAt(id, ZERO_M);
+  (b.type ? bagMesh : blockMesh).instanceMatrix.needsUpdate = true;
+  if (out) out.push(id);
+  if (!quiet) debrisQueue.push(b);
+  if (b.lv === 0) {
+    solid[b.cz * W + b.cx] = 0; markNav();
+    const up = blkIdx[(b.cz * W + b.cx) * LV + 1];
+    if (up >= 0) killBlock(up, out, quiet);   // nothing holds it up
+  }
+}
+function blockAt(x, y, z) {
+  if (!inMap(x, z)) return -1;
+  const c = ((z | 0) * W + (x | 0)) * LV;
+  for (let lv = 0; lv < LV; lv++) { const id = blkIdx[c + lv]; if (id >= 0) { const b = blocks[id]; if (y >= b.y0 && y <= b.y1) return id; } }
+  return -1;
+}
+function fellTree(t) {
+  if (!t.alive) return; t.alive = false; placeTree(t);
+  const c = cellOf(t.x, t.z); solid[c] = 0; treeAt[c] = -1; markNav();
+  fxBurst(t.x, hAt(t.x, t.z) + 2, t.z, 7, 0x3b5a2a, 5, 0.35);
+}
+
+
+/* circle vs solid cells */
+function collide(o, r) {
+  for (let it = 0; it < 2; it++) {
+    const x0 = Math.floor(o.x - r), x1 = Math.floor(o.x + r), z0 = Math.floor(o.z - r), z1 = Math.floor(o.z + r);
+    for (let cz = z0; cz <= z1; cz++) for (let cx = x0; cx <= x1; cx++) {
+      if (!inMap(cx, cz)) continue;
+      const s = solid[cz * W + cx]; if (!s) continue;
+      if (s === 2) { // tree trunk: small circle
+        const dx = o.x - (cx + 0.5), dz = o.z - (cz + 0.5), d = Math.hypot(dx, dz), m = r + 0.3;
+        if (d < m && d > 1e-4) { o.x += dx / d * (m - d); o.z += dz / d * (m - d); }
+        continue;
+      }
+      const px = clamp(o.x, cx, cx + 1), pz = clamp(o.z, cz, cz + 1), dx = o.x - px, dz = o.z - pz, d = Math.hypot(dx, dz);
+      if (d < r) {
+        if (d > 1e-4) { o.x += dx / d * (r - d); o.z += dz / d * (r - d); }
+        else { o.x += (o.x < cx + 0.5 ? -1 : 1) * 0.05; }
+      }
+    }
+  }
+  o.x = clamp(o.x, 1.2, W - 1.2); o.z = clamp(o.z, 1.2, D - 1.2);
+}
+
+/* line of sight (terrain + blocks) */
+function losClear(ax, ay, az, bx, by, bz, skipA, skipB, skipVa, skipVb) {
+  const dx = bx - ax, dy = by - ay, dz = bz - az, L = Math.hypot(dx, dy, dz), n = Math.ceil(L / 0.55);
+  skipA = skipA == null ? 1.2 : skipA; skipB = skipB == null ? 0.8 : skipB;
+  for (let i = 1; i < n; i++) {
+    const t = i / n, d = t * L; if (d < skipA || d > L - skipB) continue;
+    const x = ax + dx * t, y = ay + dy * t, z = az + dz * t;
+    if (y < hAt(x, z) + ((d > 2.0 && L - d < 3.4) ? liningTopAt(x, z) : 0)) return false;
+    if (blockAt(x, y, z) >= 0) return false;
+    { const bi = bldgIdx[cellOf(x, z)]; if (bi >= 0 && bldgs[bi].alive && y < bldgs[bi].y + bldgs[bi].hgt) return false; }
+  }
+  return true;
+}
+
+
+/* ---------- minimap base ---------- */
+let miniBase = null, miniDirty = true;
+function buildMiniBase() {
+  miniBase = document.createElement('canvas'); miniBase.width = W; miniBase.height = D; miniDirty = true;
+}
+function redrawMiniBase() {
+  if (!miniBase) return;
+  miniDirty = false;
+  const x = miniBase.getContext('2d'), img = x.createImageData(W, D), col = terrainGeo.attributes.color.array;
+  for (let i = 0; i < D; i++) for (let j = 0; j < W; j++) {
+    const v = i * VW + j, p = (i * W + j) * 4, shade = clamp(1 + (H[v] - H[v + 1]) * 0.6, 0.7, 1.3);
+    let r = col[v * 3] * shade, g = col[v * 3 + 1] * shade, b = col[v * 3 + 2] * shade;
+    const s = solid[i * W + j];
+    if (s === 1) { r = 0.85; g = 0.82; b = 0.75; } else if (s === 2) { r = 0.16; g = 0.3; b = 0.14; }
+    img.data[p] = r * 255; img.data[p + 1] = g * 255; img.data[p + 2] = b * 255; img.data[p + 3] = 255;
+  }
+  x.putImageData(img, 0, 0);
+}
+
+const NS = 300, NCORPSE = 90;
+const GUN = { rifle: [0.07, 0.09, 0.85], mg: [0.12, 0.13, 1.05], rocket: [0.16, 0.16, 1.1], shovel: [0.05, 0.05, 0.9] };
+
+/* ---------- soldier meshes (instanced: live 0..49, corpses 50..119) ---------- */
+const NI = NS + NCORPSE;
+const mk = (geo, color) => { const m = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: color || 0xffffff }), NI); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; scene.add(m); return m; };
+const legGeo = new THREE.BoxGeometry(0.17, 0.8, 0.2); legGeo.translate(0, -0.4, 0);
+const P_TORSO = mk(new THREE.BoxGeometry(0.5, 0.62, 0.3));
+const P_HEAD = mk(new THREE.SphereGeometry(0.15, 8, 6), 0xd9a87e);
+const P_HELM = mk(new THREE.SphereGeometry(0.17, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2));
+const P_LEGL = mk(legGeo), P_LEGR = mk(legGeo);
+const P_GUN = mk(new THREE.BoxGeometry(1, 1, 1), 0x2a2a28);
+const P_PACK = mk(new THREE.BoxGeometry(0.36, 0.4, 0.16));
+const PARTS = [P_TORSO, P_HEAD, P_HELM, P_LEGL, P_LEGR, P_GUN, P_PACK];
+function tintSlot(slot, team, human) {
+  const c = _c.setHex(TEAM_HEX[team]); if (human) c.offsetHSL(0, 0.1, 0.12);
+  P_TORSO.setColorAt(slot, c);
+  _c.setHex(TEAM_DARK[team]); P_HELM.setColorAt(slot, _c); P_PACK.setColorAt(slot, _c);
+  _c.setHex(0x3b3a33); P_LEGL.setColorAt(slot, _c); P_LEGR.setColorAt(slot, _c);
+  _c.setHex(0xd9a87e); P_HEAD.setColorAt(slot, _c);
+  _c.setHex(0x26261f); P_GUN.setColorAt(slot, _c);
+}
+for (let i = 0; i < NI; i++) { tintSlot(i, 0, false); for (const p of PARTS) p.setMatrixAt(i, ZERO_M); }
+for (const p of PARTS) { p.instanceColor.needsUpdate = true; }
+
+const _base = new THREE.Matrix4(), _tmp = new THREE.Matrix4(), _rx = new THREE.Matrix4();
+function poseSlot(slot, x, y, z, yaw, crouch, legPh, lie, wpn) {
+  _base.makeRotationY(yaw); _base.setPosition(x, y, z);
+  if (lie) { _rx.makeRotationX(-lie); _tmp.makeTranslation(0, 0.16 * lie / (Math.PI / 2), 0); _base.multiply(_tmp).multiply(_rx); }
+  const hip = crouch ? 0.5 : 0.82, legS = crouch ? 0.62 : 1;
+  const sw = Math.sin(legPh) * 0.65;
+  const set = (mesh, tx, ty, tz, rx, sx, sy, sz) => {
+    _m.makeRotationX(rx || 0); if (sx) _m.scale(_s.set(sx, sy, sz));
+    _m.setPosition(tx, ty, tz); _tmp.multiplyMatrices(_base, _m); mesh.setMatrixAt(slot, _tmp);
+  };
+  set(P_TORSO, 0, hip + 0.31, crouch ? 0.06 : 0, crouch ? 0.25 : 0);
+  set(P_PACK, 0, hip + 0.33, -0.22, crouch ? 0.25 : 0);
+  set(P_HEAD, 0, hip + 0.76, crouch ? 0.18 : 0);
+  set(P_HELM, 0, hip + 0.79, crouch ? 0.18 : 0);
+  set(P_LEGL, -0.13, hip, 0, crouch ? -1.0 : sw, 1, legS, 1);
+  set(P_LEGR, 0.13, hip, 0, crouch ? 0.3 : -sw, 1, legS, 1);
+  const g = GUN[wpn || 'rifle'] || GUN.rifle;
+  if (wpn === 'rocket') set(P_GUN, 0.2, hip + 0.62, 0.15, 0, g[0], g[1], g[2]);
+  else set(P_GUN, 0.2, hip + 0.42, 0.28 + g[2] * 0.3, 0, g[0], g[1], g[2]);
+}
+function hideSlot(slot) { for (const p of PARTS) p.setMatrixAt(slot, ZERO_M); }
+
+/* corpses */
+const corpses = []; let corpseNext = 0;
+function addCorpse(s, vx, vy, vz) {
+  const slot = NS + corpseNext; corpseNext = (corpseNext + 1) % NCORPSE;
+  let c = corpses.find(k => k.slot === slot);
+  if (!c) { c = { slot }; corpses.push(c); }
+  Object.assign(c, { x: s.x, y: s.y, z: s.z, yaw: s.yaw + (vx || vz ? 0 : rnd(-0.4, 0.4)), vx: vx || 0, vy: vy || 0, vz: vz || 0, lie: 0, spin: (vy > 2 ? rnd(4, 9) : 3.2), air: vy > 0.5, wpn: s.wpn, t: 0, team: s.team });
+  if (Math.hypot(vx, vz) > 0.5) c.yaw = Math.atan2(-vx, -vz);
+  tintSlot(slot, s.team, !!s.human);
+  for (const p of PARTS) p.instanceColor.needsUpdate = true;
+}
+function updateCorpses(dt) {
+  for (const c of corpses) {
+    c.t += dt;
+    if (c.air) {
+      c.vy -= 20 * dt; c.x += c.vx * dt; c.y += c.vy * dt; c.z += c.vz * dt;
+      const o = { x: c.x, z: c.z }; collide(o, 0.3); c.x = o.x; c.z = o.z;
+      const g = hAt(c.x, c.z);
+      if (c.y <= g && c.vy < 0) { c.y = g; c.air = false; c.vx = c.vz = 0; }
+      c.lie = Math.min(Math.PI / 2 + (c.air ? 0.6 : 0), c.lie + c.spin * dt);
+    } else { c.y = hAt(c.x, c.z); c.lie = Math.min(Math.PI / 2, c.lie + c.spin * dt); }
+    poseSlot(c.slot, c.x, c.y, c.z, c.yaw, false, 0, c.air ? c.lie : Math.min(c.lie, Math.PI / 2), c.wpn);
+  }
+}
+
+
+/* ---------- effects: tracers, particles, debris ---------- */
+const NTR = 160;
+const tracerMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.07, 0.07, 1), new THREE.MeshBasicMaterial({ color: 0xffe08a }), NTR);
+tracerMesh.frustumCulled = false; tracerMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(tracerMesh);
+const tracers = []; let trNext = 0;
+for (let i = 0; i < NTR; i++) { tracerMesh.setMatrixAt(i, ZERO_M); tracers.push({ life: 0 }); }
+function addTracer(sx, sy, sz, ex, ey, ez, heavy) {
+  const t = tracers[trNext]; trNext = (trNext + 1) % NTR;
+  const L = Math.hypot(ex - sx, ey - sy, ez - sz) || 1;
+  Object.assign(t, { sx, sy, sz, dx: (ex - sx) / L, dy: (ey - sy) / L, dz: (ez - sz) / L, L, d: 0, life: 1, w: heavy ? 1.8 : 1 });
+}
+function updateTracers(dt) {
+  const up = new THREE.Vector3(0, 0, 1);
+  tracers.forEach((t, i) => {
+    if (t.life <= 0) return;
+    t.d += 260 * dt;
+    if (t.d - 3 > t.L) { t.life = 0; tracerMesh.setMatrixAt(i, ZERO_M); return; }
+    const head = Math.min(t.d, t.L), tail = Math.max(0, t.d - 3), len = Math.max(0.05, head - tail), mid = (head + tail) / 2;
+    _q.setFromUnitVectors(up, _v.set(t.dx, t.dy, t.dz));
+    _m.compose(_v.set(t.sx + t.dx * mid, t.sy + t.dy * mid, t.sz + t.dz * mid), _q, _s.set(t.w, t.w, len));
+    tracerMesh.setMatrixAt(i, _m);
+  });
+  tracerMesh.instanceMatrix.needsUpdate = true;
+}
+
+const NP = 420;
+const partSolid = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial(), NP);
+const partSmoke = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshLambertMaterial({ transparent: true, opacity: 0.55, depthWrite: false }), NP);
+const partGlow = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending }), 90);
+for (const m of [partSolid, partSmoke, partGlow]) {
+  m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  for (let i = 0; i < m.count; i++) { m.setMatrixAt(i, ZERO_M); m.setColorAt(i, _c.setHex(0xffffff)); }
+  m.instanceColor.needsUpdate = true; scene.add(m);
+}
+const pools = new Map([[partSolid, { list: [], next: 0 }], [partSmoke, { list: [], next: 0 }], [partGlow, { list: [], next: 0 }]]);
+for (const [m, p] of pools) for (let i = 0; i < m.count; i++) p.list.push({ life: 0 });
+function spawnP(mesh, x, y, z, vx, vy, vz, size, color, life, opts) {
+  const pool = pools.get(mesh), i = pool.next; pool.next = (pool.next + 1) % mesh.count;
+  const p = pool.list[i];
+  Object.assign(p, { x, y, z, vx, vy, vz, size, life, max: life, grav: 0, grow: 0, rot: Math.random() * 6, spin: rnd(-6, 6), bounce: false, settle: false }, opts || {});
+  mesh.setColorAt(i, _c.setHex(color)); mesh.instanceColor.needsUpdate = true;
+}
+function updateParticles(dt) {
+  for (const [mesh, pool] of pools) {
+    let any = false;
+    pool.list.forEach((p, i) => {
+      if (p.life <= 0) return;
+      any = true;
+      p.life -= dt;
+      if (p.life <= 0) { mesh.setMatrixAt(i, ZERO_M); return; }
+      p.vy -= p.grav * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+      if (p.drag) { const k = Math.exp(-p.drag * dt); p.vx *= k; p.vz *= k; p.vy *= p.grav ? 1 : k; }
+      if (p.grav) { const g = hAt(p.x, p.z); if (p.y < g + p.size * 0.5) { p.y = g + p.size * 0.5; p.vy *= -0.3; p.vx *= 0.5; p.vz *= 0.5; p.spin *= 0.5; } }
+      p.rot += p.spin * dt;
+      const k = p.life / p.max;
+      let s = p.size;
+      if (mesh === partSmoke) s = p.size * (1 + (1 - k) * p.grow) * Math.min(1, k * 2.5);
+      else if (mesh === partGlow) s = p.size * (0.4 + k * 0.8);
+      else if (k < 0.15) s = p.size * k / 0.15;
+      _e.set(p.rot, p.rot * 0.7, 0); _q.setFromEuler(_e);
+      _m.compose(_v.set(p.x, p.y, p.z), _q, _s.set(s, s, s)); mesh.setMatrixAt(i, _m);
+    });
+    if (any) mesh.instanceMatrix.needsUpdate = true;
+  }
+}
+function fxBurst(x, y, z, n, color, speed, size) {
+  for (let i = 0; i < n; i++) spawnP(partSolid, x, y, z, rnd(-1, 1) * speed, rnd(0.5, 1.6) * speed, rnd(-1, 1) * speed, size * rnd(0.6, 1.2), color, rnd(1.2, 2.4), { grav: 18 });
+}
+function fxDirtPuff(x, y, z) {
+  spawnP(partSolid, x, y, z, rnd(-1, 1), rnd(2, 4), rnd(-1, 1), 0.12, 0x6b5238, 0.6, { grav: 18 });
+  spawnP(partSmoke, x, y + 0.2, z, 0, 0.6, 0, 0.25, 0x9a8a72, 0.5, { grow: 1.5 });
+}
+function fxChip(x, y, z, color) { for (let i = 0; i < 2; i++) spawnP(partSolid, x, y, z, rnd(-2, 2), rnd(1, 3), rnd(-2, 2), 0.1, color, 0.7, { grav: 18 }); }
+function fxMuzzle(x, y, z, big) { spawnP(partGlow, x, y, z, 0, 0, 0, big ? 0.32 : 0.2, 0xffc860, 0.05); }
+let shake = 0;
+function fxBoom(x, y, z, kind) {
+  const big = kind === 'rocket' ? 1.2 : kind === 'shell' ? 1.3 : kind === 'vboom' ? 1.7 : 1;
+  spawnP(partGlow, x, y + 0.6, z, 0, 0, 0, 2.6 * big, 0xffb347, 0.18);
+  spawnP(partGlow, x, y + 0.6, z, 0, 0, 0, 1.6 * big, 0xfff1c0, 0.1);
+  for (let i = 0; i < 10; i++) spawnP(partSmoke, x + rnd(-1, 1), y + rnd(0.3, 1.5), z + rnd(-1, 1), rnd(-1.5, 1.5), rnd(1, 3.5), rnd(-1.5, 1.5), rnd(0.6, 1.1) * big, i < 3 ? 0x4a4038 : 0x857a6c, rnd(1.6, 3.2), { grow: 2.2, drag: 1.2 });
+  for (let i = 0; i < 16; i++) spawnP(partSolid, x, y + 0.3, z, rnd(-6, 6), rnd(5, 12), rnd(-6, 6), rnd(0.12, 0.3), pick([0x5e4630, 0x6b5238, 0x4a3828]), rnd(1, 2.2), { grav: 22 });
+  for (let i = 0; i < 6; i++) spawnP(partGlow, x, y + 0.5, z, rnd(-9, 9), rnd(4, 10), rnd(-9, 9), 0.12, 0xffd080, rnd(0.25, 0.5), { grav: 20 });
+  boomLight.position.set(x, y + 2, z); boomLight.intensity = 3.2;
+  { const d = Math.hypot(cam.x - x, cam.z - z); shake = Math.max(shake, clamp(1.1 - d / 40, 0, 1)); }
+  Snd.boom(x, z, big);
+}
+function flushDebris() {
+  while (debrisQueue.length) {
+    const b = debrisQueue.pop();
+    const y = (b.y0 + b.y1) / 2;
+    for (let i = 0; i < 4; i++) spawnP(partSolid, b.cx + rnd(0.2, 0.8), y + rnd(-0.3, 0.3), b.cz + rnd(0.2, 0.8), rnd(-3, 3), rnd(1, 5), rnd(-3, 3), rnd(0.25, 0.45), b.color, rnd(5, 9), { grav: 20 });
+    spawnP(partSmoke, b.cx + 0.5, y, b.cz + 0.5, 0, 0.8, 0, 0.9, 0xb8ae9c, 2.2, { grow: 1.6 });
+  }
+}
+
+
+/* ---------- sound (synthesized) ---------- */
+const Snd = {
+  ctx: null, on: true, noise: null, budget: 0, lx: 80, lz: 60,
+  init() {
+    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    try {
+      const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+      this.ctx = new C(); this.master = this.ctx.createGain(); this.master.gain.value = this.on ? 0.55 : 0; this.master.connect(this.ctx.destination);
+      const len = this.ctx.sampleRate * 1.5, buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      this.noise = buf;
+    } catch (e) { this.ctx = null; }
+  },
+  setOn(v) { this.on = v; if (this.master) this.master.gain.value = v ? 0.55 : 0; },
+  vol(x, z) { const d = Math.hypot(x - this.lx, z - this.lz); return 1 / (1 + d / 10); },
+  burst(v, dur, f1, f2, q, type) {
+    const c = this.ctx, t = c.currentTime, src = c.createBufferSource(); src.buffer = this.noise; src.playbackRate.value = rnd(0.9, 1.1);
+    const f = c.createBiquadFilter(); f.type = type || 'bandpass'; f.frequency.setValueAtTime(f1, t); f.frequency.exponentialRampToValueAtTime(Math.max(40, f2), t + dur); f.Q.value = q || 0.8;
+    const g = c.createGain(); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.connect(f); f.connect(g); g.connect(this.master); src.start(t, Math.random() * 1.2); src.stop(t + dur + 0.05);
+  },
+  thump(v, f0, dur) {
+    const c = this.ctx, t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(30, t + dur);
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t + dur + 0.05);
+  },
+  shot(kind, x, z, mine) {
+    if (!this.ctx || !this.on || this.budget <= 0) return;
+    const v = mine ? 1 : this.vol(x, z); if (v < 0.06) return; this.budget--;
+    if (kind === 'sniper') { this.burst(0.9 * v, 0.35, 2600, 300, 0.7); this.thump(0.5 * v, 140, 0.25); }
+    else if (kind === 'mg') this.burst(0.55 * v, 0.09, 1900, 500, 0.9);
+    else if (kind === 'pistol') this.burst(0.4 * v, 0.07, 2600, 800, 1);
+    else if (kind === 'rocket') { this.burst(0.6 * v, 0.6, 900, 200, 0.6, 'lowpass'); }
+    else if (kind === 'hmg') { this.burst(0.7 * v, 0.14, 1500, 300, 0.8); this.thump(0.25 * v, 130, 0.12); }
+    else if (kind === 'cannon') { this.burst(Math.min(1.2, 1.2 * v), 0.7, 1300, 70, 0.5, 'lowpass'); this.thump(Math.min(1, 0.9 * v), 75, 0.55); }
+    else this.burst(0.5 * v, 0.1, 2200, 600, 0.9);
+  },
+  boom(x, z, big) {
+    if (!this.ctx || !this.on) return;
+    const v = this.vol(x, z) * 1.6; if (v < 0.04) return;
+    this.burst(Math.min(1.2, v), 1.1 * big, 900, 60, 0.5, 'lowpass'); this.thump(Math.min(1, v), 90, 0.6);
+  },
+  engine(on, speed, heavy) {
+    if (!this.ctx) return;
+    if (!this.eng) {
+      const c = this.ctx, o = c.createOscillator(), o2 = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain();
+      o.type = 'sawtooth'; o2.type = 'square'; f.type = 'lowpass'; f.frequency.value = 300; g.gain.value = 0;
+      o.connect(f); o2.connect(f); f.connect(g); g.connect(this.master); o.start(); o2.start();
+      this.eng = { o, o2, f, g };
+    }
+    const e = this.eng, t = this.ctx.currentTime, base = heavy ? 32 : 48;
+    e.o.frequency.setTargetAtTime(base + Math.abs(speed) * (heavy ? 5 : 7), t, 0.15);
+    e.o2.frequency.setTargetAtTime((base + Math.abs(speed) * (heavy ? 5 : 7)) * 0.5, t, 0.15);
+    e.f.frequency.setTargetAtTime(220 + Math.abs(speed) * 40, t, 0.2);
+    e.g.gain.setTargetAtTime(on && this.on ? 0.07 + Math.min(0.06, Math.abs(speed) * 0.006) : 0, t, 0.2);
+  },
+  click() { if (this.ctx && this.on) this.burst(0.25, 0.04, 3000, 2000, 2); },
+  tick() { if (this.ctx && this.on) this.thump(0.15, 900, 0.08); }
+};
+
+
+/* ---------- trench lining: sandbags on the lips (cover for shots and sight lines, gone where craters hit) ---------- */
+const TR_STEP = 1.2, TR_DEPTH = 1.3, TR_STEPS = 5, TR_LIP = 1.5, LINING_MAX = 3600, LINING_TOP = 0.5;
+let liningH = null, liningMesh = null, liningN = 0, liningCells = null;
+const liningTopAt = (x, z) => liningH && liningH[cellOf(x, z)] ? LINING_TOP : 0;
+function trenchWorldInit() {
+  liningH = new Uint8Array(W * D); liningCells = new Map(); liningN = 0;
+  liningMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial(), LINING_MAX);
+  liningMesh.setColorAt(0, _c.setHex(0xb59a6a)); liningMesh.count = 0; liningMesh.frustumCulled = false; worldGroup.add(liningMesh);
+}
+// dig step `frac` (0..1) of one node: lower every vertex near its stretch of the path toward the trench profile
+function trenchGrade(job, idx, frac) {
+  const nodes = job.nodes, n = nodes[idx]; if (!n) return;
+  const p = nodes[idx - 1] || n, q = nodes[idx + 1] || n;
+  const ax = (p.x + n.x) / 2, az = (p.z + n.z) / 2, bx = (n.x + q.x) / 2, bz = (n.z + q.z) / 2, R = 1.4;
+  const x0 = Math.floor(Math.min(ax, bx) - R), x1 = Math.ceil(Math.max(ax, bx) + R), z0 = Math.floor(Math.min(az, bz) - R), z1 = Math.ceil(Math.max(az, bz) + R);
+  const sx = bx - ax, sz = bz - az, sl = sx * sx + sz * sz;
+  for (let i = Math.max(1, z0); i <= Math.min(D - 1, z1); i++) for (let j = Math.max(1, x0); j <= Math.min(W - 1, x1); j++) {
+    const v = i * VW + j; if (vNoDig[v]) continue;
+    const t = sl > 1e-6 ? clamp(((j - ax) * sx + (i - az) * sz) / sl, 0, 1) : 0;
+    const L = Math.hypot(j - (ax + sx * t), i - (az + sz * t)); if (L >= 1.35) continue;
+    const k = clamp((L - 0.45) / 0.9, 0, 1), pr = 1 - k * k * (3 - 2 * k);
+    const target = H0[v] - TR_DEPTH * frac * pr;
+    if (target < H[v]) H[v] = target;
+  }
+  refreshTerrain(x0, z0, x1, z1);
+  for (const t of trees) if (t.alive && Math.abs(t.x - n.x) < 4 && Math.abs(t.z - n.z) < 4) placeTree(t);
+}
+// sandbags on both lips of a finished node
+function trenchLine(job, idx) {
+  if (!liningMesh) return;
+  const nodes = job.nodes, n = nodes[idx], p = nodes[idx - 1] || n, q = nodes[idx + 1] || n;
+  let tx = q.x - p.x, tz = q.z - p.z; const tl = Math.hypot(tx, tz) || 1; tx /= tl; tz /= tl;
+  const yaw = Math.atan2(tx, tz);
+  for (const side of [-1, 1]) {
+    if (liningN >= LINING_MAX) return;
+    const bx = n.x - tz * side * TR_LIP, bz = n.z + tx * side * TR_LIP;       // unjittered: the cover flag must match on every peer
+    if (!inMap(bx, bz)) continue;
+    const c = cellOf(bx, bz); if (solid[c] === 1) continue;
+    const list = liningCells.get(c) || [];
+    for (let course = 0; course < 2; course++) for (const off of course ? [0, 0.6] : [-0.3, 0.3]) {   // two staggered courses of individual bags
+      if (liningN >= LINING_MAX) break;
+      const id = liningN++, r = Math.random(), o = off + (Math.random() - 0.5) * 0.06, lat = (Math.random() - 0.5) * 0.1;
+      const x = bx + tx * o - tz * side * lat, z = bz + tz * o + tx * side * lat;
+      _m.compose(_v.set(x, hAt(x, z) + 0.13 + course * 0.25, z), _q.setFromEuler(_e.set(0, yaw + (Math.random() - 0.5) * 0.16, (Math.random() - 0.5) * 0.08)), _s.set(0.52 - course * 0.04, 0.25, 0.56));
+      liningMesh.setMatrixAt(id, _m); liningMesh.setColorAt(id, _c.setRGB(0.6 + r * 0.16 - course * 0.03, 0.5 + r * 0.12 - course * 0.03, 0.34 + r * 0.08));
+      list.push(id);
+    }
+    liningH[c] = 1; liningCells.set(c, list);
+  }
+  liningMesh.count = liningN; liningMesh.instanceMatrix.needsUpdate = true; liningMesh.instanceColor.needsUpdate = true;
+}
+function liningBlast(x, z, r) {
+  if (!liningCells || !liningCells.size) return;
+  let hit = false;
+  for (let cz = Math.floor(z - r); cz <= Math.floor(z + r); cz++) for (let cx = Math.floor(x - r); cx <= Math.floor(x + r); cx++) {
+    if (!inMap(cx, cz)) continue;
+    const c = cz * W + cx, ids = liningCells.get(c); if (!ids || Math.hypot(cx + 0.5 - x, cz + 0.5 - z) > r) continue;
+    for (const id of ids) liningMesh.setMatrixAt(id, ZERO_M);
+    liningCells.delete(c); liningH[c] = 0; hit = true;
+  }
+  if (hit) liningMesh.instanceMatrix.needsUpdate = true;
+}
+
+
+
+/* ---------- ore fields ---------- */
+function oreCellPlace(c) {
+  const o = oreCells[c]; if (!o) return;
+  const k = clamp(oreAmt[c] / ORE_CELL, 0, 1), cx = c % W, cz = (c / W) | 0;
+  o.ids.forEach((id, n) => {
+    if (k <= 0.02) { oreMesh.setMatrixAt(id, ZERO_M); return; }
+    const a = o.off[n], s = (0.5 + 0.9 * k) * a[2];
+    _m.compose(_v.set(cx + a[0], hAt(cx + a[0], cz + a[1]) + 0.2 * s, cz + a[1]), _q.setFromEuler(_e.set(a[3], a[4], 0)), _s.set(s, s * 1.3, s));
+    oreMesh.setMatrixAt(id, _m);
+  });
+  oreMesh.instanceMatrix.needsUpdate = true;
+}
+function buildOre(R) {
+  const cells = [];
+  for (const [ox, oz] of ORE_DEF) for (let cz = oz - 7; cz <= oz + 7; cz++) for (let cx = ox - 7; cx <= ox + 7; cx++) {
+    if (!inMap(cx, cz) || solid[cz * W + cx]) continue;
+    const d = Math.hypot(cx + 0.5 - ox, cz + 0.5 - oz), k = 1 - d / 6.8; if (k <= 0 || R() > 0.45 + k) continue;
+    oreAmt[cz * W + cx] = ORE_CELL * (0.45 + 0.55 * Math.min(1, k * 1.7)) * (0.8 + 0.4 * R()); cells.push(cz * W + cx);
+  }
+  oreMesh = new THREE.InstancedMesh(new THREE.OctahedronGeometry(0.42, 0), new THREE.MeshLambertMaterial({ color: 0xffffff }), Math.max(1, cells.length * 3));
+  oreMesh.frustumCulled = false; oreCells = [];
+  let id = 0;
+  for (const c of cells) {
+    const o = { ids: [], off: [] };
+    for (let n = 0; n < 3; n++) { o.ids.push(id); o.off.push([0.2 + R() * 0.6, 0.2 + R() * 0.6, 0.7 + R() * 0.6, R() * 3, R() * 3]); oreMesh.setColorAt(id, _c.setHex(pick([0xffc247, 0xf0a020, 0xffd873, 0xe58f1c]))); id++; }
+    oreCells[c] = o;
+  }
+  oreMesh.instanceColor.needsUpdate = true; worldGroup.add(oreMesh);
+  for (const c of cells) oreCellPlace(c);
+}
+const oreLeft = () => { let t = 0; for (let c = 0; c < oreAmt.length; c++) t += oreAmt[c]; return t; };
+
+/* ---------- game state ---------- */
+const G = { state: 'menu', time: 0, over: false, winner: -1, paused: false, seed: 1, speed: 1 };
+
+/* ---------- camera ---------- */
+const cam = { x: 80, z: 60, y: 0, yaw: -Math.PI / 4, pitch: 0.95, dist: 46, tyaw: -Math.PI / 4, tdist: 46 };
+let menuT = 0;
+function updateCamera(dt) {
+  if (G.state !== 'play') {
+    menuT += dt * 0.05; cam.x = 80 + Math.sin(menuT) * 30; cam.z = 60 + Math.cos(menuT * 1.3) * 14; cam.yaw = -Math.PI / 4 + Math.sin(menuT * 0.7) * 0.5; cam.dist = 54;
+  } else {
+    cam.yaw += (((cam.tyaw - cam.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 8);
+    cam.dist += (cam.tdist - cam.dist) * Math.min(1, dt * 9);
+  }
+  cam.y += (hAt(cam.x, cam.z) - cam.y) * Math.min(1, dt * 5);
+  shake = Math.max(0, shake - dt * 2.2);
+  const sh = shake * shake * 0.9, cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+  camera.position.set(cam.x + Math.sin(cam.yaw) * cp * cam.dist + rnd(-sh, sh), cam.y + sp * cam.dist + rnd(-sh, sh), cam.z + Math.cos(cam.yaw) * cp * cam.dist + rnd(-sh, sh));
+  camera.lookAt(cam.x, cam.y + 1, cam.z);
+  Snd.lx = cam.x; Snd.lz = cam.z;
+}
+
+
+
+/* =========================================================
+   Units: tables, pathfinding, movement, combat
+   ========================================================= */
+// weapons: range (m), dmg per hit, rate (s between shots), vs = damage multiplier per target class
+const WP = {
+  rifle:   { range: 15, dmg: 11, rate: 0.5, spr: 0.05, vs: { inf: 1, veh: 0.3, bld: 0.2, air: 0.5 }, snd: 'rifle', sup: 0.1 },
+  mg:      { range: 17, dmg: 6, rate: 0.11, spr: 0.08, vs: { inf: 1.2, veh: 0.2, bld: 0.15, air: 0.5 }, snd: 'mg', sup: 0.2 },
+  rocket:  { range: 21, dmg: 80, rate: 2.6, proj: 'rocket', speed: 34, vs: { inf: 0.7, veh: 1.5, bld: 1.1, air: 1.6 }, snd: 'rocket' },
+  vmg:     { range: 17, dmg: 7, rate: 0.1, spr: 0.07, vs: { inf: 1.2, veh: 0.2, bld: 0.15, air: 0.5 }, snd: 'mg', sup: 0.2 },
+  hmg:     { range: 19, dmg: 15, rate: 0.16, spr: 0.05, vs: { inf: 1.2, veh: 0.5, bld: 0.3, air: 0.8 }, snd: 'hmg', sup: 0.25 },
+  cannon:  { range: 27, dmg: 130, rate: 2.8, proj: 'shell', speed: 46, vs: { inf: 0.85, veh: 1, bld: 1.2, air: 0 }, snd: 'cannon' },
+  heli:    { range: 19, dmg: 60, rate: 1.6, proj: 'rocket', speed: 38, vs: { inf: 0.9, veh: 1.3, bld: 1, air: 0 }, snd: 'rocket' },
+  pistol:  { range: 7, dmg: 5, rate: 0.7, spr: 0.07, vs: { inf: 1, veh: 0.1, bld: 0.05, air: 0 }, snd: 'pistol', sup: 0.05 }
+};
+const UT = {
+  rifle:    { name: 'Rifleman', kind: 'inf', cost: 100, time: 6, hp: 90, speed: 4.3, r: 0.34, sight: 18, wpn: 'rifle', needs: 'barracks', desc: 'Cheap and plentiful.' },
+  mg:       { name: 'Gunner', kind: 'inf', cost: 170, time: 8, hp: 100, speed: 3.9, r: 0.34, sight: 18, wpn: 'mg', needs: 'barracks', desc: 'Shreds infantry.' },
+  rocket:   { name: 'Rocketeer', kind: 'inf', cost: 240, time: 10, hp: 80, speed: 3.8, r: 0.34, sight: 18, wpn: 'rocket', needs: 'barracks', req2: 'armory', desc: 'Breaks tanks and walls.' },
+  engineer: { name: 'Engineer', kind: 'inf', cost: 120, time: 7, hp: 70, speed: 4.0, r: 0.34, sight: 14, wpn: 'pistol', needs: 'barracks', digger: true, desc: 'Digs trenches.' },
+  jeep:     { name: 'Jeep', kind: 'veh', cost: 400, time: 10, hp: 260, speed: 9.5, r: 1.0, hw: 0.95, hl: 1.9, h: 1.4, sight: 22, wpn: 'vmg', needs: 'depot', turn: 2.6, desc: 'Fast scout.' },
+  apc:      { name: 'APC', kind: 'veh', cost: 700, time: 14, hp: 640, speed: 6.4, r: 1.4, hw: 1.35, hl: 2.7, h: 2.0, sight: 20, wpn: 'hmg', needs: 'depot', turn: 1.7, desc: 'Armored, heavy MG.' },
+  tank:     { name: 'Tank', kind: 'veh', cost: 950, time: 18, hp: 1000, speed: 5.0, r: 1.6, hw: 1.65, hl: 3.0, h: 2.1, sight: 22, wpn: 'cannon', needs: 'depot', turn: 1.3, desc: 'Main battle tank.' },
+  harvester: { name: 'Harvester', kind: 'veh', cost: 800, time: 14, hp: 700, speed: 4.6, r: 1.7, hw: 1.6, hl: 2.7, h: 2.3, sight: 14, wpn: null, needs: 'depot', turn: 1.4, desc: 'Hauls ore to a refinery.' },
+  excavator: { name: 'Excavator', kind: 'veh', cost: 800, time: 14, hp: 600, speed: 3.6, r: 1.7, hw: 1.5, hl: 2.4, h: 2.4, sight: 14, wpn: null, needs: 'depot', turn: 1.2, desc: 'Digs, hauls and dumps dirt.' },
+  cmv:      { name: 'Construction Vehicle', kind: 'veh', cost: 2000, time: 24, hp: 800, speed: 4.4, r: 1.8, hw: 1.6, hl: 3.0, h: 2.4, sight: 14, wpn: null, needs: 'depot', turn: 1.2, desc: 'Deploys into a Construction Yard.' },
+  heli:     { name: 'Gunship', kind: 'air', cost: 1200, time: 20, hp: 420, speed: 12, r: 1.4, hw: 1.2, hl: 2.0, h: 1.5, sight: 26, wpn: 'heli', needs: 'airfield', turn: 2.2, fly: 7, desc: 'Fast rocket helicopter.' }
+};
+const aimHt = u => u.kind === 'inf' ? u.y + (u.crouch ? 0.7 : 1.2) : u.y + (u.T.h || 1.5) * 0.5;
+const clsOf = u => u.kind === 'inf' ? 'inf' : u.kind === 'air' ? 'air' : 'veh';
+
+/* ---------- navigation: BFS flow fields, cached per destination ---------- */
+let navSteep = null, navBlkInf = null, navBlkVeh = null, navBuilt = -1;
+function navBuild() {
+  if (navBuilt === navVer) return; navBuilt = navVer;
+  if (!navSteep) { navSteep = new Float32Array(W * D); navBlkInf = new Uint8Array(W * D); navBlkVeh = new Uint8Array(W * D); }
+  for (let cz = 0; cz < D; cz++) for (let cx = 0; cx < W; cx++) {
+    const v = cz * VW + cx, a = H[v], b = H[v + 1], c = H[v + VW], d = H[v + VW + 1];
+    navSteep[cz * W + cx] = Math.max(a, b, c, d) - Math.min(a, b, c, d);
+  }
+  for (let cz = 0; cz < D; cz++) for (let cx = 0; cx < W; cx++) {
+    const c = cz * W + cx; navBlkInf[c] = solid[c] !== 0 || navSteep[c] > 2.1 ? 1 : 0;
+    let bv = solid[c] !== 0 || navSteep[c] > 1.15 ? 1 : 0;
+    if (!bv) for (let dz = -1; dz <= 1 && !bv; dz++) for (let dx = -1; dx <= 1; dx++) { const nx = cx + dx, nz = cz + dz; if (inMap(nx, nz) && solid[nz * W + nx] !== 0) { bv = 1; break; } }
+    navBlkVeh[c] = bv;
+  }
+}
+const fieldCache = new Map();
+const _bq = new Int32Array(W * D);
+function nearestOpen(blk, tx, tz) {
+  const cx = clamp(tx | 0, 0, W - 1), cz = clamp(tz | 0, 0, D - 1);
+  if (!blk[cz * W + cx]) return cz * W + cx;
+  for (let r = 1; r < 12; r++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+    if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+    const nx = cx + dx, nz = cz + dz; if (inMap(nx, nz) && !blk[nz * W + nx]) return nz * W + nx;
+  }
+  return cz * W + cx;
+}
+function getField(cls, tx, tz) {
+  navBuild();
+  const blk = cls === 'veh' ? navBlkVeh : navBlkInf, dc = nearestOpen(blk, tx, tz), key = cls + ':' + dc;
+  let e = fieldCache.get(key); if (e && e.v === navVer) return e;
+  const f = new Uint16Array(W * D).fill(65535); let h = 0, t = 0; f[dc] = 0; _bq[t++] = dc;
+  while (h < t) {
+    const c = _bq[h++], cx = c % W, cz = (c / W) | 0, nd = f[c] + 1;
+    for (let k = 0; k < 8; k++) {
+      const dx = N8[k][0], dz = N8[k][1], nx = cx + dx, nz = cz + dz; if (nx < 0 || nz < 0 || nx >= W || nz >= D) continue;
+      const n = nz * W + nx; if (blk[n] || f[n] <= nd) continue;
+      if (dx && dz && (blk[cz * W + nx] || blk[nz * W + cx])) continue;
+      f[n] = nd; _bq[t++] = n;
+    }
+  }
+  e = { v: navVer, f, dc, cls }; fieldCache.set(key, e);
+  if (fieldCache.size > 40) fieldCache.delete(fieldCache.keys().next().value);
+  return e;
+}
+const N8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+
+function flowDir(e, x, z, out) {
+  const f = e.f, blk = e.cls === 'veh' ? navBlkVeh : navBlkInf, cx = clamp(x | 0, 0, W - 1), cz = clamp(z | 0, 0, D - 1), c = cz * W + cx;
+  let best = f[c], bx = 0, bz = 0;
+  for (const [dx, dz] of N8) {
+    const nx = cx + dx, nz = cz + dz; if (!inMap(nx, nz)) continue;
+    const n = nz * W + nx; if (blk[n]) continue;
+    if (dx && dz && (blk[cz * W + nx] || blk[nz * W + cx])) continue;
+    const v = f[n] + (dx && dz ? 0.4 : 0);
+    if (v < best) { best = v; bx = dx; bz = dz; }
+  }
+  if (!bx && !bz) return false;
+  const tx = cx + bx + 0.5 - x, tz = cz + bz + 0.5 - z, l = Math.hypot(tx, tz) || 1; out.x = tx / l; out.z = tz / l; return true;
+}
+const reachable = (e, x, z) => e.f[clamp(z | 0, 0, D - 1) * W + clamp(x | 0, 0, W - 1)] < 65535;
+
+/* ---------- unit objects ---------- */
+let units = [], unitId = 1; const freeSlots = [];
+const vehGroup = new THREE.Group(); scene.add(vehGroup);
+function allocSlot() { return freeSlots.length ? freeSlots.pop() : -1; }
+function resetUnits() {
+  for (const u of units) { if (u.mesh) disposeMesh(u.mesh.root); }
+  while (vehGroup.children.length) vehGroup.remove(vehGroup.children[0]);
+  units = []; unitId = 1; freeSlots.length = 0; for (let i = NS - 1; i >= 0; i--) { freeSlots.push(i); for (const p of PARTS) p.setMatrixAt(i, ZERO_M); }
+  for (const c of corpses) { c.x = -999; hideSlot(c.slot); } corpses.length = 0;
+  for (const p of PARTS) p.instanceMatrix.needsUpdate = true;
+}
+function disposeMesh(o) { o.traverse(n => { if (n.geometry) n.geometry.dispose(); if (n.material) [].concat(n.material).forEach(m => m.dispose()); }); if (o.parent) o.parent.remove(o); }
+function spawnUnit(type, team, x, z, yaw) {
+  const T = UT[type];
+  const u = { id: unitId++, type, T, kind: T.kind, team, x, z, y: hAt(x, z), yaw: yaw || 0, vx: 0, vz: 0, speed: 0, hp: T.hp, maxhp: T.hp, alive: true, r: T.r,
+    order: null, target: null, fireCd: Math.random() * 0.6, scanAt: Math.random() * 0.4, tyaw: yaw || 0, legPh: 0, crouch: false, lastHit: -99, flash: 0, pitch: 0, roll: 0,
+    stuckT: 0, lx: x, lz: z, sup: 0, wheelRot: 0, wpn: T.wpn, sel: false, load: 0, cargo: 0 };
+  if (T.kind === 'inf') {
+    u.slot = allocSlot(); if (u.slot < 0) return null;
+    tintSlot(u.slot, team, false); for (const p of PARTS) p.instanceColor.needsUpdate = true;
+  } else { makeVehMesh(u); }
+  if (T.kind === 'air') u.fy = hAt(x, z) + T.fly;
+  units.push(u); return u;
+}
+const teamUnits = team => units.filter(u => u.alive && u.team === team);
+
+/* ---------- meshes for vehicles and aircraft ---------- */
+function vbox(g, w, h, d, mat, x, y, z) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); g.add(m); return m; }
+function vwheel(g, r, w, mat, x, y, z) { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, w, 10), mat); m.rotation.z = Math.PI / 2; m.position.set(x, y, z); g.add(m); return m; }
+const BODY_HEX = [[0x8c4a3c, 0x5e3128], [0x3e5a8c, 0x2a3c5e]];
+function makeVehMesh(u) {
+  const root = new THREE.Group(), tilt = new THREE.Group(); root.add(tilt);
+  const mats = {
+    body: new THREE.MeshLambertMaterial({ color: BODY_HEX[u.team][0] }), dark: new THREE.MeshLambertMaterial({ color: BODY_HEX[u.team][1] }),
+    metal: new THREE.MeshLambertMaterial({ color: 0x2b2b27 }), tire: new THREE.MeshLambertMaterial({ color: 0x1c1b19 }), glass: new THREE.MeshLambertMaterial({ color: 0x9fb4c0 }),
+    yellow: new THREE.MeshLambertMaterial({ color: 0xe0a812 }), steel: new THREE.MeshLambertMaterial({ color: 0x6a6d70 }), dirt: new THREE.MeshLambertMaterial({ color: 0x6b5238 })
+  };
+  const wheels = [], turret = new THREE.Group(); let extra = null;
+  const type = u.type;
+  if (type === 'jeep') {
+    vbox(tilt, 1.8, 0.55, 3.6, mats.body, 0, 0.78, 0); vbox(tilt, 1.7, 0.22, 1.15, mats.dark, 0, 1.15, 1.15); vbox(tilt, 1.7, 0.45, 0.06, mats.glass, 0, 1.45, 0.55);
+    vbox(tilt, 0.08, 0.7, 0.08, mats.metal, -0.8, 1.4, -0.3); vbox(tilt, 0.08, 0.7, 0.08, mats.metal, 0.8, 1.4, -0.3); vbox(tilt, 1.68, 0.08, 0.08, mats.metal, 0, 1.75, -0.3);
+    for (const [x, z] of [[-0.95, 1.2], [0.95, 1.2], [-0.95, -1.2], [0.95, -1.2]]) wheels.push(vwheel(tilt, 0.4, 0.32, mats.tire, x, 0.4, z));
+    vbox(tilt, 0.12, 0.5, 0.12, mats.metal, 0, 1.15, -0.65); turret.position.set(0, 1.32, -0.65);
+    vbox(turret, 0.1, 0.12, 1.1, mats.metal, 0, 0.05, 0.45); vbox(turret, 0.55, 0.35, 0.05, mats.metal, 0, 0.1, 0.12);
+  } else if (type === 'apc') {
+    vbox(tilt, 2.6, 1.15, 5.4, mats.body, 0, 1.2, -0.1); const nose = vbox(tilt, 2.6, 0.9, 1.1, mats.dark, 0, 1.05, 2.75); nose.rotation.x = -0.5; vbox(tilt, 2.62, 0.18, 5.42, mats.dark, 0, 1.55, -0.1);
+    for (const z of [2.0, 0.7, -0.7, -2.0]) for (const x of [-1.32, 1.32]) wheels.push(vwheel(tilt, 0.52, 0.42, mats.tire, x, 0.52, z));
+    vbox(tilt, 1.0, 0.7, 0.06, mats.dark, 0, 1.2, -2.83); turret.position.set(0, 1.85, 0.5);
+    vbox(turret, 1.1, 0.42, 1.3, mats.dark, 0, 0.2, 0); vbox(turret, 0.13, 0.13, 1.5, mats.metal, 0, 0.22, 1.2);
+  } else if (type === 'tank') {
+    for (const x of [-1.25, 1.25]) vbox(tilt, 0.75, 0.9, 6.2, mats.tire, x, 0.48, 0);
+    vbox(tilt, 3.2, 0.5, 5.8, mats.body, 0, 1.05, 0); const gl = vbox(tilt, 3.0, 0.5, 0.9, mats.dark, 0, 0.95, 3.0); gl.rotation.x = 0.55;
+    for (const z of [-2.4, -1.2, 0, 1.2, 2.4]) for (const x of [-1.25, 1.25]) wheels.push(vwheel(tilt, 0.32, 0.8, mats.metal, x, 0.42, z));
+    turret.position.set(0, 1.3, -0.3); vbox(turret, 2.1, 0.7, 2.6, mats.dark, 0, 0.35, 0); vbox(turret, 0.6, 0.45, 0.45, mats.metal, 0, 0.38, 1.4);
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 3.2, 8), mats.metal); barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.38, 3.0); turret.add(barrel);
+    const hatch = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.15, 10), mats.body); hatch.position.set(-0.45, 0.75, -0.4); turret.add(hatch);
+  } else if (type === 'harvester') {
+    vbox(tilt, 3.0, 0.6, 5.4, mats.dark, 0, 0.85, 0); vbox(tilt, 2.6, 1.3, 1.5, mats.body, 0, 1.6, 1.8); vbox(tilt, 2.4, 0.5, 0.06, mats.glass, 0, 1.95, 2.56);
+    const bin = vbox(tilt, 2.9, 1.5, 3.2, mats.yellow, 0, 1.75, -0.9); bin.scale.set(1, 1, 1);
+    for (const z of [2.0, 0.4, -1.2, -2.4]) for (const x of [-1.5, 1.5]) wheels.push(vwheel(tilt, 0.55, 0.5, mats.tire, x, 0.55, z));
+    const scoop = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 2.6, 10), mats.steel); scoop.rotation.z = Math.PI / 2; scoop.position.set(0, 0.7, 3.0); tilt.add(scoop);
+    extra = { load: vbox(tilt, 2.6, 0.3, 2.8, new THREE.MeshLambertMaterial({ color: 0xffc247 }), 0, 2.55, -0.9) }; extra.load.visible = false;
+  } else if (type === 'cmv') {
+    vbox(tilt, 3.0, 0.6, 6.0, mats.dark, 0, 0.85, 0); vbox(tilt, 2.7, 1.5, 1.7, mats.body, 0, 1.75, 2.0); vbox(tilt, 2.5, 0.55, 0.06, mats.glass, 0, 2.15, 2.86);
+    vbox(tilt, 3.0, 1.9, 3.5, mats.steel, 0, 2.0, -1.2); vbox(tilt, 3.0, 0.2, 3.5, mats.yellow, 0, 3.05, -1.2);
+    const crane = vbox(tilt, 0.25, 0.25, 2.8, mats.yellow, 0.9, 3.35, -1.2); crane.rotation.x = 0.15;
+    for (const z of [2.2, 0.6, -1.0, -2.6]) for (const x of [-1.5, 1.5]) wheels.push(vwheel(tilt, 0.55, 0.5, mats.tire, x, 0.55, z));
+    vbox(tilt, 3.02, 0.25, 0.4, new THREE.MeshLambertMaterial({ color: TEAM_HEX[u.team] }), 0, 1.3, -3.0);
+  } else if (type === 'excavator') {
+    for (const x of [-1.15, 1.15]) vbox(tilt, 0.85, 0.85, 4.4, mats.tire, x, 0.45, 0);
+    vbox(tilt, 2.2, 0.35, 3.8, mats.dark, 0, 0.95, 0);
+    const swing = new THREE.Group(); swing.position.set(0, 1.15, 0); tilt.add(swing);
+    vbox(swing, 2.5, 1.1, 2.9, mats.yellow, 0, 0.6, -0.2); vbox(swing, 1.5, 1.3, 1.5, mats.yellow, -0.35, 1.5, 0.45); vbox(swing, 1.3, 0.8, 0.06, mats.glass, -0.35, 1.6, 1.22);
+    vbox(swing, 2.3, 0.9, 1.1, mats.dark, 0, 0.7, -1.7);
+    const boom = new THREE.Group(); boom.position.set(0.5, 0.9, 1.1); swing.add(boom);
+    vbox(boom, 0.4, 0.45, 3.6, mats.yellow, 0, 0, 1.7); const stick = new THREE.Group(); stick.position.set(0, 0, 3.4); boom.add(stick);
+    vbox(stick, 0.3, 0.35, 2.4, mats.yellow, 0, 0, 1.1); const bucket = new THREE.Group(); bucket.position.set(0, 0, 2.3); stick.add(bucket);
+    vbox(bucket, 1.1, 0.12, 0.8, mats.metal, 0, -0.3, 0.3); vbox(bucket, 1.1, 0.7, 0.12, mats.metal, 0, 0.02, 0.7); vbox(bucket, 0.1, 0.6, 0.8, mats.metal, 0.5, 0, 0.3); vbox(bucket, 0.1, 0.6, 0.8, mats.metal, -0.5, 0, 0.3);
+    const load = vbox(bucket, 0.9, 0.45, 0.6, mats.dirt, 0, -0.05, 0.3); load.visible = false;
+    extra = { swing, boom, stick, bucket, load };
+  } else if (type === 'heli') {
+    vbox(tilt, 1.7, 1.5, 3.8, mats.body, 0, 1.0, 0); const nose = vbox(tilt, 1.5, 1.1, 1.6, mats.dark, 0, 0.95, 2.2); nose.rotation.x = -0.25; vbox(tilt, 1.2, 0.7, 0.06, mats.glass, 0, 1.4, 2.35);
+    vbox(tilt, 0.5, 0.5, 3.6, mats.body, 0, 1.2, -3.2); vbox(tilt, 0.08, 1.2, 0.8, mats.dark, 0, 1.7, -4.8);
+    for (const x of [-0.7, 0.7]) vbox(tilt, 0.09, 0.09, 3.0, mats.metal, x, 0.1, 0.2);
+    for (const x of [-1.0, 1.0]) vbox(tilt, 0.5, 0.35, 1.5, mats.metal, x * 1.2, 0.85, 0.6);
+    const rot = new THREE.Group(); rot.position.set(0, 2.0, 0); tilt.add(rot); vbox(tilt, 0.2, 0.5, 0.2, mats.metal, 0, 1.9, 0);
+    vbox(rot, 6.4, 0.07, 0.3, mats.metal, 0, 0, 0); vbox(rot, 0.3, 0.07, 6.4, mats.metal, 0, 0, 0);
+    extra = { rot };
+  }
+  tilt.add(turret);
+  if (type !== 'excavator' && type !== 'heli') { const T = u.T; const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 2.2, 4), mats.metal); ant.position.set(T.hw * 0.7, T.h + 0.9, -T.hl * 0.8); tilt.add(ant);
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.5), new THREE.MeshLambertMaterial({ color: TEAM_HEX[u.team], side: THREE.DoubleSide })); flag.rotation.y = Math.PI / 2; flag.position.set(T.hw * 0.7, T.h + 1.75, -T.hl * 0.8 - 0.4); tilt.add(flag); }
+  else { const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.5), new THREE.MeshLambertMaterial({ color: TEAM_HEX[u.team], side: THREE.DoubleSide })); flag.position.set(0, u.T.h + 1.2, -1.2); tilt.add(flag); }
+  root.userData.uid = u.id; vehGroup.add(root);
+  u.mesh = { root, tilt, turret, wheels, mats, extra, orig: { body: mats.body.color.getHex(), dark: mats.dark.color.getHex() } };
+}
+
+/* ---------- selection helpers ---------- */
+let sel = [], selB = null;           // selected units, selected building
+let groups = {};                     // control groups: 1-9 -> unit ids
+const unitById = id => units.find(u => u.id === id);
+
+/* ---------- spatial hash ---------- */
+const GC = 4, GWc = Math.ceil(W / GC), GDc = Math.ceil(D / GC);
+const gHead = new Int32Array(GWc * GDc), gNext = new Int32Array(4000);
+function hashBuild() {
+  gHead.fill(-1);
+  for (let i = 0; i < units.length; i++) {
+    const u = units[i]; if (!u.alive || u.kind === 'air') continue;
+    const c = clamp((u.z / GC) | 0, 0, GDc - 1) * GWc + clamp((u.x / GC) | 0, 0, GWc - 1);
+    gNext[i] = gHead[c]; gHead[c] = i;
+  }
+}
+function nearUnits(x, z, r, fn) {
+  const x0 = clamp(((x - r) / GC) | 0, 0, GWc - 1), x1 = clamp(((x + r) / GC) | 0, 0, GWc - 1), z0 = clamp(((z - r) / GC) | 0, 0, GDc - 1), z1 = clamp(((z + r) / GC) | 0, 0, GDc - 1);
+  for (let gz = z0; gz <= z1; gz++) for (let gx = x0; gx <= x1; gx++) for (let i = gHead[gz * GWc + gx]; i >= 0; i = gNext[i]) fn(units[i]);
+}
+
+/* ---------- orders ---------- */
+const _fd = { x: 0, z: 0 };
+function orderMove(us, x, z, queueType) {
+  if (!us.length) return;
+  const slots = formationSlots(us, x, z);
+  for (let k = 0; k < us.length; k++) {
+    const u = us[k], s = slots[k];
+    u.order = { type: queueType || 'move', x: s[0], z: s[1], gx: x, gz: z, field: null, fv: -1 }; u.target = null; u.harv = null; u.exc = null;
+  }
+}
+function formationSlots(us, x, z) {
+  const out = [], n = us.length, big = us.some(u => u.kind !== 'inf'), sp = big ? 3.6 : 1.5, cols = Math.max(1, Math.ceil(Math.sqrt(n)));
+  const cx = us.reduce((a, u) => a + u.x, 0) / n, cz = us.reduce((a, u) => a + u.z, 0) / n, ang = Math.atan2(x - cx, z - cz), sa = Math.sin(ang), ca = Math.cos(ang);
+  for (let k = 0; k < n; k++) {
+    const row = (k / cols) | 0, col = k % cols, lx = (col - (cols - 1) / 2) * sp, lz = -row * sp;
+    out.push([clamp(x + lx * ca + lz * sa, 2, W - 2), clamp(z - lx * sa + lz * ca, 2, D - 2)]);
+  }
+  return out;
+}
+function orderAttack(us, t) { for (const u of us) { if (!u.T.wpn) continue; u.order = { type: 'attack', target: t }; u.target = t; } }
+function orderStop(us) { for (const u of us) { u.order = null; u.target = null; u.harv = null; u.exc = null; } }
+function targetAlive(t) { return t && (t.alive !== false) && (t.hp > 0); }
+
+/* ---------- per-unit update ---------- */
+const _o2 = { x: 0, z: 0 };
+function updateUnit(u, dt) {
+  u.fireCd -= dt; u.flash -= dt; u.sup = Math.max(0, u.sup - 0.25 * dt);
+  const T = u.T;
+  // find something to shoot
+  if (T.wpn) {
+    u.scanAt -= dt;
+    if (u.scanAt <= 0) {
+      u.scanAt = 0.3 + Math.random() * 0.15;
+      if (!targetAlive(u.target) || (u.order && u.order.type === 'attack' ? false : !inRange(u, u.target, 1.25))) u.target = null;
+      if (!u.target || (u.order && u.order.type === 'attackmove')) { const t = acquire(u); if (t) u.target = t; }
+    }
+  }
+  const o = u.order, wp = T.wpn ? WP[T.wpn] : null;
+  let wantX = 0, wantZ = 0, moving = false, spd = T.speed;
+  // chasing a specific target out of range
+  if (o && o.type === 'attack' && targetAlive(o.target)) {
+    const t = o.target, d = Math.hypot(t.x - u.x, t.z - u.z), reach = wp.range * 0.8 + (t.T ? 0 : tHalf(t));
+    if (d > reach || !losOK(u, t)) { moveToward(u, t.x, t.z, dt, true); moving = true; }
+  } else if (o && o.type === 'attack') { u.order = null; }
+  else if (o && (o.type === 'move' || o.type === 'attackmove')) {
+    if (o.type === 'attackmove' && u.target && targetAlive(u.target) && inRange(u, u.target, 0.95) && losOK(u, u.target)) { /* stop and fight */ }
+    else { moving = true; if (stepOrder(u, o, dt)) { u.order = null; moving = false; } }
+  } else if (o && o.type === 'custom') { moving = o.run(u, dt) || false; }
+  // vehicles may rotate the turret and shoot while moving; infantry stand and shoot
+  if (T.wpn && u.target && targetAlive(u.target)) {
+    const t = u.target, dx = t.x - u.x, dz = t.z - u.z, d = Math.hypot(dx, dz), ty = Math.atan2(dx, dz);
+    if (u.kind === 'inf') { if (!moving || (o && o.type === 'attackmove')) u.yaw += clamp(angDiff(u.yaw, ty), -9 * dt, 9 * dt); }
+    else if (u.kind === 'air') { /* flies at it */ }
+    else u.tyaw += clamp(angDiff(u.tyaw, ty - u.yaw), -3.2 * dt, 3.2 * dt);
+    const aligned = u.kind === 'inf' ? Math.abs(angDiff(u.yaw, ty)) < 0.3 : u.kind === 'air' ? true : Math.abs(angDiff(u.tyaw, ty - u.yaw)) < 0.18;
+    if (d <= wp.range + (t.bw ? tHalf(t) : 0) && aligned && u.fireCd <= 0 && !(u.kind === 'inf' && moving && !(o && o.type === 'attackmove'))) {
+      if (losOK(u, t)) fireAt(u, t, wp); else u.target = null;
+    }
+    if (u.kind === 'air' && d > wp.range * 0.75) { moveToward(u, t.x, t.z, dt, false); moving = true; }
+    else if (u.kind === 'air') { u.yaw += clamp(angDiff(u.yaw, ty), -2.5 * dt, 2.5 * dt); }
+  } else if (u.kind !== 'inf' && u.kind !== 'air') u.tyaw += clamp(angDiff(u.tyaw, 0), -2 * dt, 2 * dt);
+  // idle infantry with a target that's out of reach: shuffle closer only if told to attack-move
+  if (!moving) { u.speed = Math.max(0, u.speed - 14 * dt); u.vx *= 0.7; u.vz *= 0.7; }
+  if (u.kind === 'inf' && !(u.order && u.order.type === 'custom')) { const dug = u.dug = inTrench(u); u.crouch = !moving && (u.target ? u.sup > (dug ? 0.75 : 0.35) : (u.sup > 0.3 || dug)); }   // dug-in soldiers pop up to fire and duck when pinned
+}
+const tHalf = t => t.bw ? Math.max(t.bw, t.bd) * 0.5 : 0;
+function inTrench(u) { const c = cellOf(u.x, u.z); return H0[((c / W) | 0) * VW + (c % W)] - hAt(u.x, u.z) > 0.55; }
+function inRange(u, t, k) { const wp = WP[u.T.wpn]; return Math.hypot(t.x - u.x, t.z - u.z) <= wp.range * (k || 1) + tHalf(t); }
+let peekShot = false;   // set by losOK: the chest was covered but a standing head is showing
+function losOK(u, t) {
+  peekShot = false;
+  const ey = u.kind === 'inf' ? u.y + (u.crouch && !u.dug ? 0.9 : 1.3) : u.y + (u.T.h || 1.5) + 0.2;   // dug-in soldiers stand up to look and fire
+  const ty = t.bw ? t.y + 1.2 : aimHt(t);
+  if (u.kind === 'air') return true;
+  if (losClear(u.x, ey, u.z, t.x, ty, t.z, 1.2, t.bw ? tHalf(t) + 0.6 : 0.8)) return true;
+  if (t.kind === 'inf' && !t.crouch && losClear(u.x, ey, u.z, t.x, t.y + 1.68, t.z, 1.2, 0.8)) { peekShot = true; return true; }   // head and shoulders over the lip
+  return false;
+}
+// choose the best enemy in reach
+function acquire(u) {
+  const wp = WP[u.T.wpn], R = wp.range + 1.5; let best = null, bs = 1e9;
+  for (const e of units) {
+    if (!e.alive || e.team === u.team) continue;
+    const d = Math.hypot(e.x - u.x, e.z - u.z); if (d > R) continue;
+    if (e.kind === 'air' && !(wp.vs.air > 0)) continue;
+    let sc = d - (e.T.wpn ? 4 : 0) - (e.lastHit > G.time - 3 && e.target === u ? 3 : 0);
+    if (sc < bs && losOK(u, e)) { bs = sc; best = e; }
+  }
+  if (!best || bs > R * 0.9) for (const b of bldgs) {
+    if (!b.alive || b.team === u.team) continue;
+    const d = Math.hypot(b.x - u.x, b.z - u.z) - tHalf(b); if (d > R) continue;
+    const sc = d + 8; if (sc < bs && losOK(u, b)) { bs = sc; best = b; }
+  }
+  return best;
+}
+function moveToward(u, tx, tz, dt, useField) {
+  const T = u.T, dx = tx - u.x, dz = tz - u.z, d = Math.hypot(dx, dz) || 1;
+  let dirx = dx / d, dirz = dz / d;
+  if (useField && u.kind !== 'air' && d > 3) {
+    const cls = u.kind === 'inf' ? 'inf' : 'veh';
+    if (!u.chase || u.chase.v !== navVer || u.chase.dc !== (clamp(tz | 0, 0, D - 1) * W + clamp(tx | 0, 0, W - 1)) || G.time - u.chase.t > 2) {
+      const e = getField(cls, tx, tz); u.chase = { v: navVer, e, t: G.time, dc: clamp(tz | 0, 0, D - 1) * W + clamp(tx | 0, 0, W - 1) };
+    }
+    if (flowDir(u.chase.e, u.x, u.z, _fd) && !(d < 6 && losClear(u.x, u.y + 1, u.z, tx, hAt(tx, tz) + 1, tz, 0.5, 0.5))) { dirx = _fd.x; dirz = _fd.z; }
+  }
+  driveDir(u, dirx, dirz, T.speed, dt);
+}
+// order types that follow a flow field to (o.x,o.z)
+function stepOrder(u, o, dt) {
+  const T = u.T, dx = o.x - u.x, dz = o.z - u.z, d = Math.hypot(dx, dz), tol = u.kind === 'inf' ? 0.9 : 2.0;
+  if (d < tol) return true;
+  let dirx = dx / d, dirz = dz / d;
+  if (u.kind !== 'air') {
+    const cls = u.kind === 'inf' ? 'inf' : 'veh';
+    if (!o.field || o.fv !== navVer) { o.field = getField(cls, o.gx, o.gz); o.fv = navVer; if (!reachable(o.field, u.x, u.z) && d > 12) { o.field = null; } }
+    const near = d < 5 && losClear(u.x, u.y + 1, u.z, o.x, hAt(o.x, o.z) + 1, o.z, 0.5, 0.5);
+    if (o.field && !near && flowDir(o.field, u.x, u.z, _fd)) { dirx = _fd.x; dirz = _fd.z; }
+  }
+  driveDir(u, dirx, dirz, T.speed, dt);
+  // stuck?
+  u.stuckT += dt;
+  if (u.stuckT > 1.4) { const m = Math.hypot(u.x - u.lx, u.z - u.lz); u.lx = u.x; u.lz = u.z; u.stuckT = 0; if (m < 0.6) { o.stuck = (o.stuck || 0) + 1; o.fv = -1; if (o.stuck > 4) return true; } else o.stuck = 0; }
+  return false;
+}
+function driveDir(u, dirx, dirz, spd, dt) {
+  const T = u.T;
+  if (u.kind === 'inf') {
+    const k = 1 - Math.exp(-10 * dt), sl = clamp(1 - Math.max(0, hAt(u.x + dirx, u.z + dirz) - u.y) * 0.25, 0.5, 1), s = spd * sl * (1 - u.sup * 0.3) * (u.crouch ? 0.7 : 1);
+    u.vx += (dirx * s - u.vx) * k; u.vz += (dirz * s - u.vz) * k;
+    const ty = Math.atan2(u.vx, u.vz); if (Math.hypot(u.vx, u.vz) > 0.4 && !(u.target && (!u.order || u.order.type === 'attackmove'))) u.yaw += clamp(angDiff(u.yaw, ty), -10 * dt, 10 * dt);
+    u.legPh += Math.hypot(u.vx, u.vz) * dt * 3.1;
+  } else if (u.kind === 'air') {
+    const want = Math.atan2(dirx, dirz); u.yaw += clamp(angDiff(u.yaw, want), -T.turn * dt, T.turn * dt);
+    const al = Math.max(0, Math.cos(angDiff(u.yaw, want))), s = spd * (0.3 + 0.7 * al);
+    u.speed += (s - u.speed) * Math.min(1, 2.5 * dt); u.vx = Math.sin(u.yaw) * u.speed; u.vz = Math.cos(u.yaw) * u.speed;
+  } else {
+    const want = Math.atan2(dirx, dirz), err = angDiff(u.yaw, want);
+    u.yaw += clamp(err, -T.turn * dt, T.turn * dt);
+    const al = Math.max(0, Math.cos(err)); const s = spd * (Math.abs(err) > 1.3 ? 0 : al * al) * clamp(1 - Math.max(0, hAt(u.x + Math.sin(u.yaw) * 2, u.z + Math.cos(u.yaw) * 2) - u.y) * 0.18, 0.4, 1);
+    u.speed += (s - u.speed) * Math.min(1, 3 * dt); u.vx = Math.sin(u.yaw) * u.speed; u.vz = Math.cos(u.yaw) * u.speed; u.wheelRot += u.speed * dt / 0.5;
+  }
+}
+function clearOrderIfDone(u) { if (u.order && u.order.type === 'move') { const d = Math.hypot(u.order.x - u.x, u.order.z - u.z); if (d < 1) u.order = null; } }
+
+/* ---------- movement integration, collisions ---------- */
+function integrate(u, dt) {
+  if (u.kind === 'air') {
+    u.x = clamp(u.x + u.vx * dt, 2, W - 2); u.z = clamp(u.z + u.vz * dt, 2, D - 2);
+    const gy = hAt(u.x, u.z) + u.T.fly; u.fy += (gy - u.fy) * Math.min(1, 2 * dt); u.y = u.fy; return;
+  }
+  _o2.x = u.x + u.vx * dt; _o2.z = u.z + u.vz * dt;
+  if (u.kind === 'veh') {   // wheels and tracks can't climb a trench wall or a berm: only gentle ground is drivable
+    navBuild(); const cNow = cellOf(u.x, u.z), cNew = cellOf(_o2.x, _o2.z);
+    if (cNew !== cNow && navSteep[cNew] > 1.15 && !(navSteep[cNow] > 1.15)) {
+      if (!(navSteep[cellOf(_o2.x, u.z)] > 1.15)) _o2.z = u.z; else if (!(navSteep[cellOf(u.x, _o2.z)] > 1.15)) _o2.x = u.x; else { _o2.x = u.x; _o2.z = u.z; u.speed *= 0.4; }
+    }
+  }
+  collide(_o2, u.r);
+  // push out of other ground units (heavier ones win)
+  nearUnits(_o2.x, _o2.z, u.r + 2.2, o => {
+    if (o === u || !o.alive || o.kind === 'air') return;
+    const dx = _o2.x - o.x, dz = _o2.z - o.z, d = Math.hypot(dx, dz) || 0.01, m = u.r + o.r - 0.1;
+    if (d < m) { const w = (u.r < o.r ? 0.9 : u.r > o.r ? 0.15 : 0.5) * (m - d) / d; _o2.x += dx * w; _o2.z += dz * w; if (u.r >= o.r) { o.x -= dx * (m - d) / d * 0.25; o.z -= dz * (m - d) / d * 0.25; } }
+  });
+  for (const b of bldgs) { if (!b.alive || Math.abs(_o2.x - b.x) > b.bw / 2 + u.r + 1 || Math.abs(_o2.z - b.z) > b.bd / 2 + u.r + 1) continue; /* cells are solid already */ }
+  u.x = _o2.x; u.z = _o2.z;
+  const gy = hAt(u.x, u.z);
+  if (u.kind === 'inf') u.y += (gy - u.y) * Math.min(1, 14 * dt);
+  else {
+    const T = u.T, f = { x: Math.sin(u.yaw), z: Math.cos(u.yaw) }, rx = f.z, rz = -f.x;
+    const hF = hAt(u.x + f.x * T.hl * 0.8, u.z + f.z * T.hl * 0.8), hB = hAt(u.x - f.x * T.hl * 0.8, u.z - f.z * T.hl * 0.8);
+    const hR = hAt(u.x + rx * T.hw * 0.8, u.z + rz * T.hw * 0.8), hL = hAt(u.x - rx * T.hw * 0.8, u.z - rz * T.hw * 0.8);
+    const y = Math.max((hF + hB) / 2, (hL + hR) / 2, gy - 0.2);
+    u.y += (y - u.y) * Math.min(1, 12 * dt); u.pitch += (Math.atan2(hF - hB, T.hl * 1.6) - u.pitch) * Math.min(1, 8 * dt); u.roll += (Math.atan2(hR - hL, T.hw * 1.6) - u.roll) * Math.min(1, 8 * dt);
+  }
+}
+
+/* ---------- shooting and damage ---------- */
+const projs = [];
+const projMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.1, 0.1, 0.8, 6).rotateX(Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x6a6f55, emissive: 0x442200 }), 80);
+projMesh.frustumCulled = false; projMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); for (let i = 0; i < 80; i++) projMesh.setMatrixAt(i, ZERO_M); scene.add(projMesh);
+function muzzleOf(u) {
+  if (u.kind === 'inf') return { x: u.x + Math.sin(u.yaw) * 0.55, y: u.y + (u.crouch ? 0.95 : 1.3), z: u.z + Math.cos(u.yaw) * 0.55 };
+  if (u.kind === 'air') return { x: u.x + Math.sin(u.yaw) * 2.4, y: u.y + 0.7, z: u.z + Math.cos(u.yaw) * 2.4 };
+  const T = u.T, a = u.yaw + u.tyaw, len = u.type === 'tank' ? 4.4 : u.type === 'apc' ? 2.4 : 1.4, h = u.y + (u.type === 'tank' ? 1.7 : u.type === 'apc' ? 2.1 : 1.45);
+  return { x: u.x + Math.sin(a) * len, y: h, z: u.z + Math.cos(a) * len };
+}
+function dmgMul(u) { return u.team === 0 ? 1 * (up[0].dmg) : 1 * (up[1].dmg); }
+function fireAt(u, t, wp) {
+  u.fireCd = wp.rate * (0.9 + Math.random() * 0.2); u.flash = 0.06;
+  const m = muzzleOf(u), tx = t.x, tz = t.z, ty = t.bw ? t.y + 1.2 : aimHt(t);
+  if (wp.proj) {
+    const d = Math.hypot(tx - m.x, ty - m.y, tz - m.z) || 1, sp = wp.speed, ar = wp.proj === 'shell' ? 0.0 : 0;
+    const dx = tx + (Math.random() - 0.5) * 1.2 - m.x, dy = ty - m.y, dz = tz + (Math.random() - 0.5) * 1.2 - m.z, L = Math.hypot(dx, dy, dz) || 1;
+    projs.push({ x: m.x, y: m.y, z: m.z, vx: dx / L * sp, vy: dy / L * sp, vz: dz / L * sp, life: 3, kind: wp.proj, team: u.team, owner: u.id, dmg: wp.dmg * dmgMul(u), vs: wp.vs, tgt: t });
+    fxMuzzle(m.x, m.y, m.z, true); Snd.shot(wp.snd, m.x, m.z, false);
+    return;
+  }
+  // hitscan: obstructions come from terrain / lining / walls; the accuracy roll comes from distance
+  const d = Math.hypot(tx - m.x, tz - m.z), acc = clamp(0.95 - d / wp.range * 0.4 - u.sup * 0.3 - (t.crouch ? 0.15 : 0) - (t.kind === 'inf' ? 0 : -0.1), 0.3, 0.97);
+  const hit = Math.random() < acc * (peekShot ? 0.45 : 1);
+  const dx = tx - m.x, dy = ty - m.y, dz = tz - m.z, L = Math.hypot(dx, dy, dz) || 1;
+  let ex = tx, ey = ty, ez = tz;
+  if (!hit) { const j = (Math.random() - 0.5) * wp.spr * L * 6; ex += -dz / L * j; ez += dx / L * j; ey += (Math.random() - 0.3) * wp.spr * L * 3; }
+  addTracer(m.x, m.y, m.z, ex + dx / L * 0, ey, ez, u.kind !== 'inf'); fxMuzzle(m.x, m.y, m.z, u.kind !== 'inf'); Snd.shot(wp.snd, m.x, m.z, false);
+  if (hit) hurt(t, wp.dmg * (wp.vs[t.bw ? 'bld' : clsOf(t)] || 0.1) * dmgMul(u), u);
+  else { if (t.kind === 'inf' || t.bw) fxDirtPuff(ex, hAt(ex, ez) + 0.1, ez); }
+  if (t.sup !== undefined && wp.sup) t.sup = Math.min(1, t.sup + wp.sup);
+}
+function hurt(t, dmg, by) {
+  if (!(dmg > 0) || t.hp <= 0) return;
+  if (t.bw) { hurtBuilding(t, dmg, by); return; }
+  if (!t.alive) return;
+  const arm = t.team === 0 ? up[0].arm : up[1].arm;
+  t.hp -= dmg / arm; t.lastHit = G.time; t.flash = 0.1;
+  if (by && !t.target && t.T.wpn && by.team !== t.team && (!t.order || t.order.type === 'attackmove' || t.order.type === 'harvest')) t.target = by;
+  if (t.hp <= 0) killUnit(t, by);
+}
+function killUnit(u, by, boomV) {
+  u.alive = false; u.hp = 0; u.order = null; u.target = null;
+  sel = sel.filter(x => x !== u);
+  if (u.kind === 'inf') {
+    const v = boomV || [0, 0, 0]; addCorpse({ x: u.x, y: u.y, z: u.z, yaw: u.yaw, wpn: u.wpn === 'pistol' ? 'rifle' : u.wpn, team: u.team }, v[0], v[1], v[2]);
+    for (const p of PARTS) p.setMatrixAt(u.slot, ZERO_M); freeSlots.push(u.slot); u.slot = -1;
+  } else {
+    explodeAt(u.x, u.y + 1, u.z, u.kind === 'air' ? 'rocket' : 'vboom', u.id, u.team);
+    if (u.mesh) { const m = u.mesh; m.mats.body.color.setHex(0x2c2925); m.mats.dark.color.setHex(0x1d1b19); m.mats.glass.color.setHex(0x222222); u.wreckT = u.kind === 'air' ? 0.5 : 18; if (u.kind === 'air') { u.crashing = true; } }
+  }
+  if (by && by.team !== undefined) by.kills = (by.kills || 0) + 1;
+}
+
+/* ---------- projectiles and explosions ---------- */
+const BOOM = {
+  rocket: { r: 4.5, dmg: 1, crater: 1.7, depth: 0.55, blk: 2.2, bdmg: 230 },
+  shell: { r: 5.2, dmg: 1, crater: 2.1, depth: 0.8, blk: 2.5, bdmg: 260 },
+  vboom: { r: 5.5, dmg: 0, crater: 1.9, depth: 0.5, blk: 1.6, bdmg: 130, raw: 110 },
+  bboom: { r: 9, dmg: 0, crater: 4.2, depth: 1.0, blk: 4, bdmg: 300, raw: 160 }
+};
+function updateProjs(dt) {
+  for (let i = projs.length - 1; i >= 0; i--) {
+    const p = projs[i]; p.life -= dt;
+    const steps = Math.ceil(Math.hypot(p.vx, p.vy, p.vz) * dt / 0.8); let dead = false;
+    for (let s = 0; s < steps && !dead; s++) {
+      const k = dt / steps; p.x += p.vx * k; p.y += p.vy * k; p.z += p.vz * k;
+      if (!inMap(p.x, p.z)) { dead = true; break; }
+      if (p.y < hAt(p.x, p.z) + liningTopAt(p.x, p.z) * 0 + 0.02) { dead = true; break; }
+      if (blockAt(p.x, p.y, p.z) >= 0) { dead = true; break; }
+      const bi = bldgIdx[cellOf(p.x, p.z)]; if (bi >= 0) { const b = bldgs[bi]; if (b.alive && b.team !== p.team && p.y < b.y + b.hgt) { dead = true; break; } }
+      for (const u of units) { if (!u.alive || u.team === p.team) continue; const dx = u.x - p.x, dz = u.z - p.z; if (dx * dx + dz * dz > (u.r + 0.3) * (u.r + 0.3)) continue; if (p.y < u.y + (u.T.h || 1.8) + (u.kind === 'air' ? 1 : 0) && p.y > u.y - 0.3) { dead = true; break; } }
+    }
+    if (dead || p.life <= 0) { explodeAt(p.x, p.y, p.z, p.kind, p.owner, p.team, p.dmg, p.vs); projs.splice(i, 1); }
+  }
+  for (let i = 0; i < 80; i++) {
+    const p = projs[i]; if (!p) { projMesh.setMatrixAt(i, ZERO_M); continue; }
+    _q.setFromUnitVectors(_v.set(0, 0, 1), _s.set(p.vx, p.vy, p.vz).normalize()); _m.compose(_v.set(p.x, p.y, p.z), _q, _s.set(1, 1, 1)); projMesh.setMatrixAt(i, _m);
+    if (G.time % 0.05 < dt) spawnP(partSmoke, p.x, p.y, p.z, rnd(-0.2, 0.2), 0.2, rnd(-0.2, 0.2), 0.28, 0xaaa090, 0.5, { grow: 1.5 });
+  }
+  projMesh.instanceMatrix.needsUpdate = true;
+}
+function explodeAt(x, y, z, kind, ownerId, team, dmg, vs) {
+  if (!isFinite(x) || !isFinite(y) || !isFinite(z)) return;
+  const C = BOOM[kind]; fxBoom(x, y, z, kind === 'bboom' ? 'vboom' : kind);
+  const owner = unitById(ownerId), raw = C.raw || 0;
+  const vv = vs || { inf: 1, veh: 1, bld: 1, air: 0.5 }, base = dmg != null ? dmg : raw;
+  for (const u of units) {
+    if (!u.alive) continue;
+    if (kind === 'vboom' && u.team === team && false) continue;
+    const dx = u.x - x, dz = u.z - z, dy = (u.y + 0.9) - y, d = Math.hypot(dx, dy, dz); if (d >= C.r) continue;
+    const fall = Math.pow(1 - d / C.r, 1.2); let dm = base * fall * (vv[clsOf(u)] || 0.5) * (kind === 'vboom' || kind === 'bboom' ? 0.6 : 1);
+    if (u.team === team) dm *= 0.4;
+    if (u.kind === 'inf' && !losClear(x, y + 0.35, z, u.x, u.y + (u.crouch ? 0.5 : 0.9), u.z, 0.5, 0.3)) dm *= 0.25;      // dug in or behind a wall
+    if (dm > 0) { const hd = Math.hypot(dx, dz) || 1; hurtBlast(u, dm, owner, [dx / hd * (8 * fall + 2), 3 + 6 * fall, dz / hd * (8 * fall + 2)]); }
+  }
+  for (const b of bldgs) {
+    if (!b.alive) continue;
+    const ddx = Math.max(0, Math.abs(x - b.x) - b.bw / 2), ddz = Math.max(0, Math.abs(z - b.z) - b.bd / 2), d = Math.hypot(ddx, ddz);
+    if (d >= C.r) continue;
+    const dm = base * Math.pow(1 - d / C.r, 1.1) * (vv.bld || 1) * (kind === 'vboom' || kind === 'bboom' ? 0.5 : 1);
+    if (b.team === team) { hurtBuilding(b, dm * 0.3, owner); } else hurtBuilding(b, dm, owner);
+  }
+  const out = [];
+  for (let cz = Math.floor(z - C.blk); cz <= Math.floor(z + C.blk); cz++) for (let cx = Math.floor(x - C.blk); cx <= Math.floor(x + C.blk); cx++) {
+    if (!inMap(cx, cz)) continue;
+    for (let lv = 0; lv < LV; lv++) {
+      const id = blkIdx[(cz * W + cx) * LV + lv]; if (id < 0) continue;
+      const b = blocks[id], d = Math.hypot(cx + 0.5 - x, (b.y0 + b.y1) / 2 - y, cz + 0.5 - z); if (d > C.blk + 0.5) continue;
+      b.hp -= C.bdmg * (1 - d / (C.blk + 0.6)); if (b.hp <= 0) killBlock(id, out);
+    }
+  }
+  for (const t of trees) if (t.alive && Math.abs(t.x - x) < 3 && Math.abs(t.z - z) < 3 && Math.hypot(t.x - x, t.z - z) < 3) fellTree(t);
+  if (y - hAt(x, z) < 1.6) { terrainOp(x, z, C.crater, C.depth, 0.32, 0.9); markNav(); }
+}
+function hurtBlast(u, dm, owner, v) {
+  if (u.hp <= 0 || !u.alive) return;
+  const arm = u.team === 0 ? up[0].arm : up[1].arm; u.hp -= dm / arm; u.lastHit = G.time; u.flash = 0.1;
+  if (u.hp <= 0) killUnit(u, owner, v);
+}
+// craters change the ground: keep the "original ground" baseline in step so the dig cap works from the new surface
+function H0clampUpdate(x, z, r) { /* baseline stays: craters are capped relative to the baseline, terraforming moves the baseline */ }
+
+/* ---------- unit visuals ---------- */
+function drawUnits(dt) {
+  for (const u of units) {
+    if (u.kind === 'inf') {
+      if (!u.alive || u.slot < 0) continue;
+      poseSlot(u.slot, u.x, u.y, u.z, u.yaw, u.crouch, u.legPh, 0, u.wpn === 'pistol' ? 'shovel' : u.wpn);
+    } else if (u.mesh) {
+      const m = u.mesh, r = m.root;
+      if (!u.alive) { u.wreckT -= dt; if (u.crashing) { u.y = Math.max(hAt(u.x, u.z), u.y - 8 * dt); } if (u.wreckT <= 0) { disposeMesh(r); u.mesh = null; } else if (u.kind === 'air') { m.extra.rot.rotation.y += 0; } continue; }
+      r.position.set(u.x, u.y, u.z); r.rotation.y = u.yaw; m.tilt.rotation.x = -u.pitch; m.tilt.rotation.z = u.roll;
+      if (u.kind === 'veh' && u.type !== 'excavator') m.turret.rotation.y = (u.type === 'harvester' || u.type === 'cmv') ? 0 : u.tyaw;
+      for (const w of m.wheels) w.rotation.x = u.wheelRot;
+      if (u.kind === 'air') { m.extra.rot.rotation.y += dt * 30; m.tilt.rotation.x = -u.pitch + clamp(u.speed * 0.02, 0, 0.2); u.pitch = 0; }
+      if (u.type === 'harvester') m.extra.load.visible = u.cargo > 5;
+      if (u.type === 'excavator') { const ex = m.extra, A = u.armT || [0, -0.5, 0.9, 0.9], k = Math.min(1, 12 * dt); u.arm = u.arm || A.slice(); for (let i = 1; i < 4; i++) u.arm[i] += (A[i] - u.arm[i]) * k; ex.swing.rotation.y = u.armSw || 0; ex.boom.rotation.x = u.arm[1]; ex.stick.rotation.x = u.arm[2]; ex.bucket.rotation.x = u.arm[3]; ex.stick.scale.z = 1 + 0.55 * (u.armExt || 0); ex.load.visible = (u.bucket || 0) > 0.15; ex.load.scale.setScalar(clamp((u.bucket || 0) / BUCKET_CAP, 0.3, 1)); }
+    }
+  }
+}
+
+
+/* =========================================================
+   Bases: structures, power, production, upgrades, harvesting
+   ========================================================= */
+const angDiff = (a, b) => ((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+const BT = {
+  cyard:    { name: 'Construction Yard', w: 3, d: 3, hp: 2200, cost: 0, power: 0, time: 0, h: 3.6, desc: 'Builds structures.' },
+  power:    { name: 'Power Plant', w: 2, d: 2, hp: 900, cost: 300, power: 100, time: 8, h: 3.4, needs: 'cyard', desc: '+100 power.' },
+  refinery: { name: 'Ore Refinery', w: 3, d: 2, hp: 1300, cost: 600, power: -30, time: 12, h: 3.4, needs: 'power', desc: 'Harvesters unload here.' },
+  barracks: { name: 'Barracks', w: 3, d: 2, hp: 1000, cost: 400, power: -20, time: 9, h: 2.8, needs: 'power', desc: 'Trains infantry.' },
+  depot:    { name: 'Vehicle Depot', w: 3, d: 3, hp: 1500, cost: 800, power: -30, time: 14, h: 3.6, needs: 'refinery', desc: 'Builds vehicles.' },
+  armory:   { name: 'Armory', w: 2, d: 2, hp: 1000, cost: 900, power: -30, time: 14, h: 3.0, needs: 'barracks', desc: 'Upgrades and rockets.' },
+  airfield: { name: 'Airfield', w: 3, d: 3, hp: 1400, cost: 1000, power: -50, time: 16, h: 2.6, needs: 'depot', desc: 'Builds gunships.' }
+};
+const BUILD_LIST = ['power', 'refinery', 'barracks', 'depot', 'armory', 'airfield'];
+const TRAIN_LIST = ['rifle', 'mg', 'rocket', 'engineer', 'jeep', 'apc', 'tank', 'harvester', 'excavator', 'cmv', 'heli'];
+const UPG = {
+  rounds: { name: 'AP Rounds', cost: 1000, time: 24, desc: '+25% weapon damage.', apply: t => { up[t].dmg = 1.25; } },
+  armor:  { name: 'Hardened Armor', cost: 1000, time: 24, desc: '+30% toughness.', apply: t => { up[t].arm = 1.3; } }
+};
+const UPG_LIST = ['rounds', 'armor'];
+const STARTING_CREDITS = 2000;
+let bldgs = [], bldgId = 0;
+const up = [{ dmg: 1, arm: 1, done: {} }, { dmg: 1, arm: 1, done: {} }];
+const TS = [newTeamState(), newTeamState()];
+function newTeamState() { return { credits: STARTING_CREDITS, power: 0, use: 0, build: null, ai: false, kills: 0, lost: 0, spent: 0 }; }
+const bldgGroup = new THREE.Group(); scene.add(bldgGroup);
+function rtsWorldInit() {
+  for (const b of bldgs) if (b.mesh) disposeMesh(b.mesh.root);
+  bldgs = []; bldgId = 0; resetUnits();
+  TS[0] = newTeamState(); TS[1] = newTeamState(); TS[1].ai = true; for (const t of [0, 1]) { up[t].dmg = 1; up[t].arm = 1; up[t].done = {}; }
+  navVer++; fieldCache.clear(); sel = []; selB = null; groups = {}; projs.length = 0; jobs.length = 0;
+}
+const has = (team, type) => bldgs.some(b => b.alive && b.ready && b.team === team && b.type === type);
+const countB = (team, type) => bldgs.filter(b => b.alive && b.team === team && b.type === type).length;
+function recomputePower(team) {
+  let p = 0, use = 0;
+  for (const b of bldgs) if (b.alive && b.ready && b.team === team) { const w = b.T.power; if (w > 0) p += w; else use -= w; }
+  TS[team].power = p; TS[team].use = use;
+}
+const powerFactor = team => { const s = TS[team]; return s.power >= s.use ? 1 : 0.5; };
+
+/* ---------- placing structures ---------- */
+function placeOK(team, type, cx, cz, free) {
+  navBuild(); const T = BT[type];
+  for (let z = cz - 1; z <= cz + T.d; z++) for (let x = cx - 1; x <= cx + T.w; x++) {
+    const inside = x >= cx && x < cx + T.w && z >= cz && z < cz + T.d;
+    if (!inMap(x, z)) return 'Off the map';
+    if (x < 2 || z < 2 || x > W - 3 || z > D - 3) return 'Too close to the edge';
+    const c = z * W + x;
+    if (inside) {
+      if (solid[c]) return 'Something is in the way';
+      if (bldgIdx[c] >= 0) return 'Something is in the way';
+      if (oreAmt[c] > 1) return 'Can\'t build on ore';
+      if (H[z * VW + x] - H0[z * VW + x] > 1.0) return 'Can\'t build on a dirt pile';
+      if (navSteep && navSteep[c] > 2.6) return 'Too steep';
+    } else if (bldgIdx[c] >= 0 && !free) {   // leave a one-cell lane between structures
+      return 'Leave a gap between buildings';
+    }
+  }
+  if (!free) {
+    let near = false;
+    for (const b of bldgs) if (b.alive && b.team === team && b.type !== 'cyard' ? Math.hypot(b.x - (cx + T.w / 2), b.z - (cz + T.d / 2)) < 22 : b.alive && b.team === team && Math.hypot(b.x - (cx + T.w / 2), b.z - (cz + T.d / 2)) < 26) { near = true; break; }
+    if (!near) return 'Build near your base';
+    for (const b of bldgs) if (b.alive && b.team !== team && Math.hypot(b.x - (cx + T.w / 2), b.z - (cz + T.d / 2)) < 20) return 'Too close to the enemy';
+  }
+  return null;
+}
+function levelPad(cx, cz, w, d) {
+  let sum = 0, n = 0;
+  for (let z = cz; z <= cz + d; z++) for (let x = cx; x <= cx + w; x++) { sum += H[z * VW + x]; n++; }
+  const t = sum / n;
+  for (let z = cz - 2; z <= cz + d + 2; z++) for (let x = cx - 2; x <= cx + w + 2; x++) {
+    if (x < 0 || z < 0 || x > W || z > D) continue; const v = z * VW + x;
+    const inside = x >= cx && x <= cx + w && z >= cz && z <= cz + d, edge = inside ? 1 : 0.55 - 0.2 * (Math.max(cx - x, x - (cx + w), cz - z, z - (cz + d)) - 1);
+    if (edge > 0) { H[v] = lerp(H[v], t, edge); H0[v] = H[v]; bare[v] = Math.min(1, bare[v] + 0.6 * edge); sandA[v] *= 1 - 0.7 * edge; }
+  }
+  refreshTerrain(cx - 3, cz - 3, cx + w + 3, cz + d + 3);
+}
+function addBuilding(team, type, cx, cz, instant) {
+  const T = BT[type], b = { id: bldgId++, type, T, team, cx, cz, w: T.w, d: T.d, x: cx + T.w / 2, z: cz + T.d / 2, bw: T.w, bd: T.d, hgt: T.h, hp: T.hp, maxhp: T.hp, alive: true, ready: false, cons: instant ? 1 : 0,
+    queue: [], prodT: 0, rally: null, flash: 0, smokeT: 0, kills: 0, lastHit: -99 };
+  levelPad(cx, cz, T.w, T.d); b.y = hAt(b.x, b.z);
+  for (const t of trees) if (t.alive && t.x >= cx - 1 && t.x <= cx + T.w + 1 && t.z >= cz - 1 && t.z <= cz + T.d + 1) fellTree(t);
+  for (let z = cz; z < cz + T.d; z++) for (let x = cx; x < cx + T.w; x++) { solid[z * W + x] = 3; bldgIdx[z * W + x] = b.id; }
+  liningBlast(b.x, b.z, Math.max(T.w, T.d));
+  bldgs.push(b); makeBldgMesh(b); navVer++;
+  if (instant) { b.ready = true; recomputePower(team); }
+  return b;
+}
+function startConstruction(b) { b.cons = 0; b.ready = false; }
+function destroyBuilding(b, by) {
+  if (!b.alive) return; b.alive = false; b.hp = 0;
+  for (let z = b.cz; z < b.cz + b.d; z++) for (let x = b.cx; x < b.cx + b.w; x++) { if (bldgIdx[z * W + x] === b.id) { bldgIdx[z * W + x] = -1; if (solid[z * W + x] === 3) solid[z * W + x] = 0; } }
+  navVer++; recomputePower(b.team); TS[b.team].lost++;
+  explodeAt(b.x, b.y + 1.5, b.z, 'bboom', by ? by.id : -1, b.team);
+  for (let i = 0; i < 14; i++) spawnP(partSolid, b.x + rnd(-b.bw / 2, b.bw / 2), b.y + rnd(0.5, 3), b.z + rnd(-b.bd / 2, b.bd / 2), rnd(-6, 6), rnd(4, 11), rnd(-6, 6), rnd(0.25, 0.6), pick([0x7b756a, 0x5e5a52, 0x8a8478, 0x4a4742]), rnd(4, 8), { grav: 20 });
+  for (let i = 0; i < 6; i++) spawnP(partSmoke, b.x + rnd(-1.5, 1.5), b.y + 1 + rnd(0, 2), b.z + rnd(-1.5, 1.5), rnd(-0.6, 0.6), rnd(1, 2.5), rnd(-0.6, 0.6), rnd(1.2, 2), 0x302c28, rnd(3, 6), { grow: 2.4 });
+  if (b.mesh) { b.mesh.wreck = 14; for (const k of Object.values(b.mesh.mats)) k.color.setHex(0x2a2724); b.mesh.root.scale.y = 0.35; }
+  if (selB === b) selB = null;
+  if (b.type === 'cyard' && TS[b.team].build) { TS[b.team].credits += TS[b.team].build.paid; TS[b.team].build = null; }
+  checkEnd();
+}
+function hurtBuilding(b, dmg, by) {
+  if (!b.alive || !(dmg > 0)) return;
+  b.hp -= dmg; b.lastHit = G.time; b.flash = 0.1;
+  if (by && by.team !== undefined && by.team !== b.team) { /* threat response handled by AI */ }
+  if (b.hp <= 0) destroyBuilding(b, by);
+}
+
+/* ---------- structure production (one at a time, then place it) ---------- */
+function canBuildItem(team, type) { const T = BT[type]; if (!T.needs) return true; return has(team, T.needs) && (type !== 'refinery' || has(team, 'cyard')); }
+function startBuild(team, type) {
+  const s = TS[team], T = BT[type];
+  if (!has(team, 'cyard')) return 'Deploy a construction vehicle first';
+  if (s.build) return s.build.state === 'ready' ? 'Place the finished structure first' : 'Already building something';
+  if (!canBuildItem(team, type)) return 'Needs a ' + BT[T.needs].name;
+  if (s.credits < T.cost) return 'Not enough credits';
+  s.credits -= T.cost; s.spent += T.cost; s.build = { type, p: 0, state: 'building', paid: T.cost };
+  return null;
+}
+function cancelBuild(team) { const s = TS[team]; if (!s.build) return; s.credits += s.build.paid; s.build = null; }
+function placeBuilt(team, cx, cz) {
+  const s = TS[team], bp = s.build; if (!bp || bp.state !== 'ready') return 'Nothing to place';
+  const err = placeOK(team, bp.type, cx, cz, false); if (err) return err;
+  const b = addBuilding(team, bp.type, cx, cz, false); startConstruction(b); s.build = null; Snd.tick();
+  return null;
+}
+
+/* ---------- unit production (per building) ---------- */
+function canTrain(team, type) { const T = UT[type]; return has(team, T.needs) && (!T.req2 || has(team, T.req2)); }
+function queueUnit(team, type) {
+  const s = TS[team], T = UT[type];
+  if (!canTrain(team, type)) return 'Needs a ' + BT[T.needs].name + (T.req2 && !has(team, T.req2) ? ' and an ' + BT[T.req2].name : '');
+  if (s.credits < T.cost) return 'Not enough credits';
+  let best = null; for (const b of bldgs) if (b.alive && b.ready && b.team === team && b.type === T.needs && b.queue.length < 5 && (!best || b.queue.length < best.queue.length)) best = b;
+  if (!best) return 'Production queue is full';
+  s.credits -= T.cost; s.spent += T.cost; best.queue.push({ type, p: 0, paid: T.cost }); return null;
+}
+function cancelUnit(team, type) {
+  for (const b of bldgs) if (b.alive && b.team === team) for (let i = b.queue.length - 1; i >= 0; i--) if (b.queue[i].type === type) { TS[team].credits += b.queue[i].paid; b.queue.splice(i, 1); return true; }
+  return false;
+}
+function queueUpgrade(team, key) {
+  const s = TS[team], U = UPG[key];
+  if (up[team].done[key]) return 'Already researched';
+  const a = bldgs.find(b => b.alive && b.ready && b.team === team && b.type === 'armory'); if (!a) return 'Needs an Armory';
+  if (a.queue.some(q => q.upg === key)) return 'Already researching';
+  if (s.credits < U.cost) return 'Not enough credits';
+  s.credits -= U.cost; a.queue.push({ type: 'upg', upg: key, p: 0, paid: U.cost }); return null;
+}
+function exitSpot(b, kind) {
+  const base = b.type === 'airfield' && kind === 'air' ? { x: b.x, z: b.z } : { x: b.x, z: b.z + b.bd / 2 + 2.6 };
+  if (kind === 'air') return base;
+  for (let r = 0; r < 12; r += 1.6) for (let a = 0; a < 6.3; a += 0.8) {
+    const x = base.x + Math.cos(a) * r, z = base.z + Math.sin(a) * r;
+    if (inMap(x, z) && !solid[cellOf(x, z)] && (kind === 'inf' || !navBlkVeh || !navBlkVeh[cellOf(x, z)] || true)) { let free = true; nearUnits(x, z, 2.2, o => { if (o.alive && Math.hypot(o.x - x, o.z - z) < o.r + 1.4) free = false; }); if (free) return { x, z }; }
+  }
+  return base;
+}
+function finishUnit(b, type) {
+  const T = UT[type], p = exitSpot(b, T.kind), u = spawnUnit(type, b.team, p.x, p.z, Math.PI * 0.0); if (!u) return;
+  if (T.kind === 'air') { u.y = u.fy = b.y + 2; }
+  const rally = b.rally || { x: p.x + (b.team === 0 ? 5 : -5), z: p.z + 3 };
+  if (type === 'harvester') u.harv = { state: 'seek' };
+  else if (type === 'excavator' || type === 'engineer' || type === 'cmv') { /* waits for orders */ }
+  else orderMove([u], rally.x, rally.z);
+  if (b.team === myTeam) announce(T.name + ' ready');
+}
+function updateProduction(dt) {
+  for (const team of [0, 1]) {
+    const s = TS[team], pf = powerFactor(team);
+    recomputePower(team);
+    if (s.build && s.build.state === 'building') {
+      s.build.p += dt * pf / BT[s.build.type].time * (has(team, 'cyard') ? 1 : 0);
+      if (s.build.p >= 1) { s.build.p = 1; s.build.state = 'ready'; if (team === myTeam) announce(BT[s.build.type].name + ' ready to place'); }
+    }
+  }
+  for (const b of bldgs) {
+    if (!b.alive) continue;
+    if (!b.ready) { b.cons += dt / 3; if (b.cons >= 1) { b.cons = 1; b.ready = true; recomputePower(b.team); if (b.team === myTeam) Snd.tick(); } continue; }
+    if (!b.queue.length) continue;
+    const q = b.queue[0], pf = powerFactor(b.team), tm = q.type === 'upg' ? UPG[q.upg].time : UT[q.type].time;
+    q.p += dt * pf / tm;
+    if (q.p >= 1) {
+      b.queue.shift();
+      if (q.type === 'upg') { UPG[q.upg].apply(b.team); up[b.team].done[q.upg] = true; if (b.team === myTeam) announce(UPG[q.upg].name + ' complete'); }
+      else finishUnit(b, q.type);
+    }
+  }
+  for (const b of bldgs) if (b.alive && b.hp < b.maxhp * 0.5) { b.smokeT -= dt; if (b.smokeT <= 0) { b.smokeT = b.hp < b.maxhp * 0.25 ? 0.12 : 0.35; spawnP(partSmoke, b.x + rnd(-b.bw / 3, b.bw / 3), b.y + b.hgt, b.z + rnd(-b.bd / 3, b.bd / 3), rnd(-0.3, 0.3), rnd(1.2, 2.2), rnd(-0.3, 0.3), rnd(0.7, 1.1), b.hp < b.maxhp * 0.25 ? 0x2b2825 : 0x6b665e, rnd(1.5, 2.6), { grow: 2 }); if (b.hp < b.maxhp * 0.25) spawnP(partGlow, b.x + rnd(-b.bw / 3, b.bw / 3), b.y + b.hgt - 0.4, b.z + rnd(-b.bd / 3, b.bd / 3), 0, 0.5, 0, 0.5, 0xff8a30, 0.3); } }
+}
+
+/* ---------- deploying a construction vehicle ---------- */
+function deployCMV(u) {
+  const cx = Math.floor(u.x - 1.5 + 0.5), cz = Math.floor(u.z - 1.5 + 0.5), err = placeOK(u.team, 'cyard', cx, cz, true);
+  if (err) { if (u.team === myTeam) toast(err === 'Something is in the way' ? 'Not enough room to deploy here' : err); return false; }
+  u.alive = false; sel = sel.filter(x => x !== u); disposeMesh(u.mesh.root); u.mesh = null;
+  const b = addBuilding(u.team, 'cyard', cx, cz, false); startConstruction(b); b.cons = 0; return true;
+}
+
+/* ---------- harvesting ---------- */
+const HARV_CAP = 700, HARV_RATE = 55, UNLOAD_RATE = 220;
+function nearestOre(u, maxD) {
+  let best = -1, bd = 1e9;
+  for (const key in oreCells) {
+    const c = +key; if (oreAmt[c] < 4) continue;
+    const x = (c % W) + 0.5, z = ((c / W) | 0) + 0.5, d = Math.hypot(x - u.x, z - u.z) + (navBlkVeh && navBlkVeh[c] ? 30 : 0);
+    let crowd = 0; for (const o of units) if (o !== u && o.alive && o.type === 'harvester' && o.harv && o.harv.cell === c) crowd++;
+    const sc = d + crowd * 14; if (sc < bd && d < (maxD || 1e9)) { bd = sc; best = c; }
+  }
+  return best;
+}
+function myRefinery(u) {
+  let best = null, bd = 1e9; for (const b of bldgs) if (b.alive && b.ready && b.team === u.team && b.type === 'refinery') { const d = Math.hypot(b.x - u.x, b.z - u.z); if (d < bd) { bd = d; best = b; } } return best;
+}
+function updateHarvester(u, dt) {
+  const h = u.harv; if (!h) return false;
+  const T = u.T;
+  if (h.state === 'seek') {
+    if (u.cargo >= HARV_CAP * 0.95) { h.state = 'return'; return true; }
+    const c = nearestOre(u); if (c < 0) { if (u.cargo > 10) h.state = 'return'; return false; }
+    h.cell = c; h.state = 'goto';
+  }
+  if (h.state === 'goto') {
+    const c = h.cell; if (oreAmt[c] < 4) { h.state = 'seek'; return true; }
+    const tx = (c % W) + 0.5, tz = ((c / W) | 0) + 0.5, d = Math.hypot(tx - u.x, tz - u.z);
+    if (d < 2.4) { h.state = 'load'; return true; }
+    moveToward(u, tx, tz, dt, true); return true;
+  }
+  if (h.state === 'load') {
+    const c = h.cell; u.speed *= 0.9;
+    if (oreAmt[c] < 4 || u.cargo >= HARV_CAP) { h.state = u.cargo >= HARV_CAP * 0.9 || !(nearestOre(u, 14) >= 0) ? 'return' : 'seek'; return true; }
+    const take = Math.min(oreAmt[c], HARV_RATE * dt, HARV_CAP - u.cargo); oreAmt[c] -= take; u.cargo += take;
+    if (oreAmt[c] < 4) { oreAmt[c] = 0; oreCellPlace(c); refreshTerrain((c % W) - 1, ((c / W) | 0) - 1, (c % W) + 2, ((c / W) | 0) + 2); } else if (G.time % 0.3 < dt) oreCellPlace(c);
+    if (Math.random() < dt * 8) spawnP(partSolid, u.x + Math.sin(u.yaw) * 2.8, u.y + 0.5, u.z + Math.cos(u.yaw) * 2.8, rnd(-1, 1), rnd(1, 3), rnd(-1, 1), 0.14, 0xffc247, 0.7, { grav: 14 });
+    return true;
+  }
+  if (h.state === 'return') {
+    const r = myRefinery(u); if (!r) { return false; }
+    const dock = { x: r.x, z: r.z + r.bd / 2 + 2.2 }, d = Math.hypot(dock.x - u.x, dock.z - u.z);
+    if (d < 3.2) { h.state = 'unload'; return true; }
+    moveToward(u, dock.x, dock.z, dt, true); return true;
+  }
+  if (h.state === 'unload') {
+    const r = myRefinery(u); if (!r) { return false; }
+    const give = Math.min(u.cargo, UNLOAD_RATE * dt); u.cargo -= give; TS[u.team].credits += give; TS[u.team].income = (TS[u.team].income || 0) + give;
+    u.speed *= 0.9;
+    if (u.cargo <= 0.5) { u.cargo = 0; h.state = 'seek'; }
+    return true;
+  }
+  return false;
+}
+
+/* ---------- building meshes ---------- */
+function makeBldgMesh(b) {
+  const T = b.T, root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+  const L = c => new THREE.MeshLambertMaterial({ color: c });
+  const mats = { wall: L(0x9a9488), dark: L(0x4a4742), roof: L(BODY_HEX[b.team][1]), team: L(TEAM_HEX[b.team]), metal: L(0x3a3a38), glass: L(0x7e98a6), conc: L(0xb0aba0), yellow: L(0xe0a812), steel: L(0x77797c) };
+  const w = b.bw, d = b.bd, hh = T.h;
+  vbox(body, w - 0.1, 0.25, d - 0.1, mats.conc, 0, 0.12, 0);
+  if (b.type === 'cyard') {
+    vbox(body, w - 0.8, 2.2, d - 0.8, mats.wall, 0, 1.35, 0); vbox(body, w - 0.5, 0.3, d - 0.5, mats.roof, 0, 2.6, 0);
+    vbox(body, 1.4, 1.0, 1.4, mats.dark, -0.6, 3.2, -0.5); vbox(body, 0.18, 0.18, 3.8, mats.yellow, 0.7, 3.6, 0.2); vbox(body, 0.18, 1.6, 0.18, mats.yellow, 0.7, 3.1, -1.5);
+    vbox(body, 0.8, 0.9, 0.06, mats.glass, 0.4, 1.7, d / 2 - 0.4); vbox(body, w - 0.5, 0.18, 0.2, mats.team, 0, 2.2, d / 2 - 0.3);
+  } else if (b.type === 'power') {
+    vbox(body, w - 0.4, 0.9, d - 0.4, mats.wall, 0, 0.7, 0);
+    for (const x of [-0.5, 0.5]) { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.62, 2.9, 12), mats.conc); t.position.set(x, 2.0, 0); body.add(t); const rim = new THREE.Mesh(new THREE.TorusGeometry(0.43, 0.06, 6, 12), mats.dark); rim.rotation.x = Math.PI / 2; rim.position.set(x, 3.45, 0); body.add(rim); }
+    vbox(body, w - 0.3, 0.14, 0.2, mats.team, 0, 1.0, d / 2 - 0.15);
+    b.steam = [-0.5, 0.5];
+  } else if (b.type === 'refinery') {
+    vbox(body, w - 0.4, 1.0, d - 0.4, mats.wall, 0, 0.7, 0);
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 2.4, 14), mats.steel); tank.position.set(-0.7, 1.9, 0); body.add(tank);
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.95, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2), mats.steel); dome.position.set(-0.7, 3.1, 0); body.add(dome);
+    const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.28, 3.2, 8), mats.dark); ch.position.set(0.9, 2.4, -0.3); body.add(ch);
+    vbox(body, 1.2, 1.1, 1.2, mats.roof, 0.8, 1.35, 0.4); vbox(body, w - 0.3, 0.14, 0.2, mats.team, 0, 1.15, d / 2 - 0.12);
+    vbox(body, 1.8, 0.1, 1.0, mats.yellow, 0, 0.3, d / 2 + 1.0);
+  } else if (b.type === 'barracks') {
+    vbox(body, w - 0.4, 1.4, d - 0.4, mats.wall, 0, 0.95, 0);
+    const r1 = vbox(body, w, 0.18, d / 2 + 0.3, mats.roof, 0, 2.05, -d / 4 + 0.05), r2 = vbox(body, w, 0.18, d / 2 + 0.3, mats.roof, 0, 2.05, d / 4 - 0.05); r1.rotation.x = 0.4; r2.rotation.x = -0.4;
+    vbox(body, 0.9, 1.1, 0.08, mats.dark, 0, 0.8, d / 2 - 0.18); vbox(body, w - 0.3, 0.12, 0.16, mats.team, 0, 1.55, d / 2 - 0.15);
+    const flag = vbox(body, 0.05, 2.0, 0.05, mats.metal, w / 2 - 0.3, 2.3, -d / 2 + 0.3); vbox(body, 0.7, 0.45, 0.04, mats.team, w / 2 - 0.0, 3.0, -d / 2 + 0.3);
+  } else if (b.type === 'depot') {
+    vbox(body, w - 0.3, 2.2, d - 0.3, mats.wall, 0, 1.35, 0); vbox(body, w - 0.1, 0.3, d - 0.1, mats.roof, 0, 2.6, 0);
+    vbox(body, 2.0, 1.7, 0.08, mats.dark, 0, 1.1, d / 2 - 0.1); for (let k = 0; k < 4; k++) vbox(body, 2.0, 0.05, 0.1, mats.metal, 0, 0.5 + k * 0.4, d / 2 - 0.06);
+    vbox(body, 0.9, 0.5, 0.9, mats.dark, -0.9, 3.0, -0.6); vbox(body, 0.9, 0.5, 0.9, mats.dark, 0.9, 3.0, 0.6); vbox(body, w - 0.4, 0.16, 0.2, mats.team, 0, 2.35, d / 2 - 0.1);
+  } else if (b.type === 'armory') {
+    vbox(body, w - 0.3, 1.5, d - 0.3, mats.dark, 0, 1.0, 0); vbox(body, w - 0.1, 0.25, d - 0.1, mats.roof, 0, 1.85, 0);
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 0.35, 12), mats.metal); ring.position.set(0, 2.15, 0); body.add(ring);
+    const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 1.4, 8), mats.metal); gun.rotation.x = Math.PI / 2; gun.position.set(0, 2.3, 0.8); body.add(gun);
+    vbox(body, 0.9, 0.9, 0.08, mats.metal, 0, 0.8, d / 2 - 0.12); vbox(body, w - 0.2, 0.12, 0.16, mats.team, 0, 1.45, d / 2 - 0.1);
+    for (const x of [-0.7, 0.7]) vbox(body, 0.5, 0.35, 0.4, L(0x9c8a62), x, 0.45, d / 2 + 0.4);
+  } else if (b.type === 'airfield') {
+    vbox(body, w - 0.1, 0.12, d - 0.1, L(0x55575a), 0, 0.2, 0);
+    const mk = (x, z, ww, dd) => vbox(body, ww, 0.05, dd, mats.yellow, x, 0.27, z); mk(-0.5, 0, 0.18, 1.3); mk(0.5, 0, 0.18, 1.3); mk(0, 0, 1.0, 0.18);
+    vbox(body, w - 0.4, 1.6, 0.9, mats.wall, 0, 1.0, -d / 2 + 0.55); vbox(body, w - 0.3, 0.2, 1.1, mats.roof, 0, 1.9, -d / 2 + 0.55);
+    vbox(body, 0.06, 2.4, 0.06, mats.metal, w / 2 - 0.3, 1.2, d / 2 - 0.3); const sock = vbox(body, 0.7, 0.18, 0.18, L(0xff6b1a), w / 2 - 0.65, 2.3, d / 2 - 0.3);
+    vbox(body, w - 0.4, 0.12, 0.16, mats.team, 0, 1.1, -d / 2 + 1.0);
+  }
+  root.position.set(b.x, b.y, b.z); root.userData.bid = b.id; bldgGroup.add(root);
+  b.mesh = { root, body, mats, wreck: 0 };
+}
+function updateBldgMeshes(dt) {
+  for (const b of bldgs) {
+    const m = b.mesh; if (!m) continue;
+    if (!b.alive) { m.wreck -= dt; if (m.wreck <= 0) { disposeMesh(m.root); b.mesh = null; } continue; }
+    const k = b.ready ? 1 : 0.18 + 0.82 * b.cons; m.body.scale.y = k; m.body.position.y = 0;
+    if (!b.ready && Math.random() < dt * 14) spawnP(partSmoke, b.x + rnd(-b.bw / 2, b.bw / 2), b.y + 0.3, b.z + rnd(-b.bd / 2, b.bd / 2), rnd(-0.5, 0.5), rnd(0.5, 1.2), rnd(-0.5, 0.5), rnd(0.5, 0.9), 0xb09a78, 1.2, { grow: 1.8 });
+    if (b.steam && b.ready && Math.random() < dt * 3) spawnP(partSmoke, b.x + pick(b.steam), b.y + 3.6, b.z, 0, rnd(1, 1.8), 0, 0.7, 0xdddddd, 2.2, { grow: 1.6 });
+    if (b.flash > 0) b.flash -= dt;
+  }
+}
+
+
+/* =========================================================
+   Free-form terraforming: the excavator moves real, conserved dirt.
+   Dig takes it out of the ground and into the bucket, the bucket dumps it somewhere else.
+   Trenches stop tanks, berms give cover, piles can be carried across the map.
+   ========================================================= */
+const BUCKET_CAP = 2.2, SCOOP_T = 0.85, SWING_T = 0.45, DUMP_T = 0.5, STAND = 3.7, DIG_DEPTH = 2.0, DIG_R = 1.9, FILL_H = 1.5, DEEP_MAX = 6, HIGH_MAX = 8;
+let navDirty = false, navClock = 0;
+function markNav() { navDirty = true; }
+function terraformTick(dt) { navClock += dt; if (navDirty && navClock > 1) { navVer++; navDirty = false; navClock = 0; } }
+const CUYD = 1.308;
+
+function treesNear(x, z, r) { for (const t of trees) if (t.alive && Math.hypot(t.x - x, t.z - z) < r) { fellTree(t); } }
+// lower the ground around (x,z), weighted toward the middle. floor: rel (relative to the original ground) or abs (absolute height)
+function terraRemove(x, z, r, vol, rel, abs) {
+  const x0 = Math.max(1, Math.floor(x - r)), x1 = Math.min(W - 1, Math.ceil(x + r)), z0 = Math.max(1, Math.floor(z - r)), z1 = Math.min(D - 1, Math.ceil(z + r));
+  const cells = []; let wsum = 0;
+  for (let i = z0; i <= z1; i++) for (let j = x0; j <= x1; j++) {
+    const v = i * VW + j; if (vNoDig[v] || bldgIdx[Math.min(D - 1, i) * W + Math.min(W - 1, j)] >= 0) continue;
+    const d = Math.hypot(j - x, i - z); if (d >= r) continue;
+    const fl = abs != null ? abs : H0[v] + rel, room = H[v] - Math.max(fl, H0[v] - DEEP_MAX); if (room <= 0.01) continue;
+    const w = 1 - d / r; cells.push(v, w, room); wsum += w;
+  }
+  if (!cells.length) return 0;
+  let got = 0, left = vol;
+  for (let pass = 0; pass < 3 && left > 0.02; pass++) {
+    let ws = 0; for (let k = 0; k < cells.length; k += 3) if (cells[k + 2] > 0.005) ws += cells[k + 1];
+    if (ws <= 0) break; const a = left / ws; left = 0;
+    for (let k = 0; k < cells.length; k += 3) { const room = cells[k + 2]; if (room <= 0.005) continue; const take = Math.min(room, a * cells[k + 1]); H[cells[k]] -= take; cells[k + 2] -= take; got += take; left += a * cells[k + 1] - take; }
+  }
+  if (got > 0) { refreshTerrain(x0 - 1, z0 - 1, x1 + 1, z1 + 1); markNav(); treesNear(x, z, 1.4); }
+  return got;
+}
+// raise it: a mound around (x,z); returns the volume actually placed
+function terraAdd(x, z, r, vol, cap) {
+  const x0 = Math.max(1, Math.floor(x - r)), x1 = Math.min(W - 1, Math.ceil(x + r)), z0 = Math.max(1, Math.floor(z - r)), z1 = Math.min(D - 1, Math.ceil(z + r));
+  const cells = []; for (let i = z0; i <= z1; i++) for (let j = x0; j <= x1; j++) {
+    const v = i * VW + j; if (vNoDig[v] || bldgIdx[Math.min(D - 1, i) * W + Math.min(W - 1, j)] >= 0) continue;
+    const d = Math.hypot(j - x, i - z); if (d >= r) continue;
+    const room = H0[v] + cap - H[v]; if (room <= 0.01) continue; cells.push(v, Math.pow(1 - d / r, 1.4), room);
+  }
+  if (!cells.length) return 0;
+  let put = 0, left = vol;
+  for (let pass = 0; pass < 3 && left > 0.02; pass++) {
+    let ws = 0; for (let k = 0; k < cells.length; k += 3) if (cells[k + 2] > 0.005) ws += cells[k + 1];
+    if (ws <= 0) break; const a = left / ws; left = 0;
+    for (let k = 0; k < cells.length; k += 3) { const room = cells[k + 2]; if (room <= 0.005) continue; const give = Math.min(room, a * cells[k + 1]); H[cells[k]] += give; cells[k + 2] -= give; put += give; left += a * cells[k + 1] - give; }
+  }
+  if (put > 0) { refreshTerrain(x0 - 1, z0 - 1, x1 + 1, z1 + 1); markNav(); for (const t of trees) if (t.alive && Math.hypot(t.x - x, t.z - z) < r + 1) placeTree(t); liningBlast(x, z, r * 0.6); }
+  return put;
+}
+function sfxDirt(x, z, k) { if (!Snd.ctx || !Snd.on) return; const v = Snd.vol(x, z); if (v > 0.08) Snd.burst(0.34 * v * (k || 1), 0.22, 650, 140, 0.7, 'lowpass'); }
+
+/* ---------- node geometry ---------- */
+function nodeDir(nodes, i) { const a = nodes[Math.max(0, i - 1)], b = nodes[Math.min(nodes.length - 1, i + 1)]; const dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1; return { x: dx / l, z: dz / l }; }
+function nodeNormal(e, i) { const d = nodeDir(e.nodes, i); return { x: d.z * e.side, z: -d.x * e.side }; }
+const nodeDepthAt = (x, z) => { const j = Math.round(x), i = Math.round(z); return H0[i * VW + j] - H[i * VW + j]; };
+const nodeRise = (x, z) => { const j = Math.round(x), i = Math.round(z); return H[i * VW + j] - H0[i * VW + j]; };
+const heightAt = (x, z) => hAt(x, z);
+// somewhere an excavator can actually sit (gentle ground) within arm's reach of a work point
+function findStand(wx, wz, px, pz) {
+  navBuild(); let best = null, bd = 1e9;
+  for (const r of [3.4, 4.1, 4.8, 5.5]) for (let k = 0; k < 14; k++) {
+    const a = k * 0.449, x = wx + Math.sin(a) * r, z = wz + Math.cos(a) * r; if (x < 3 || z < 3 || x > W - 3 || z > D - 3) continue;
+    const c = cellOf(x, z); if (navBlkVeh[c] || solid[c]) continue;
+    const d = Math.hypot(x - px, z - pz) + r * 0.5; if (d < bd) { bd = d; best = { x, z }; }
+  }
+  return best;
+}
+function standFor(u, work, ideal) {
+  navBuild(); if (inMap(ideal.x, ideal.z) && !navBlkVeh[cellOf(ideal.x, ideal.z)] && !solid[cellOf(ideal.x, ideal.z)]) return ideal;
+  return findStand(work.x, work.z, u.x, u.z);
+}
+// the best heap of loose dirt (pile or spoil above the original ground) that the machine can get next to
+function findLoose(u, fromX, fromZ) {
+  const cand = [];
+  for (let i = 3; i < D - 3; i++) for (let j = 3; j < W - 3; j++) { const v = i * VW + j, ex = H[v] - H0[v]; if (ex < 0.7) continue; const d = Math.hypot(j - fromX, i - fromZ); if (d > 70) continue; cand.push([ex * 6 - d * 0.35, j, i, ex]); }
+  cand.sort((a, b) => b[0] - a[0]);
+  for (let k = 0; k < Math.min(cand.length, 70); k++) { const c = cand[k], st = findStand(c[1], c[2], u.x, u.z); if (st) return { x: c[1], z: c[2], ex: c[3], stand: st }; }
+  return null;
+}
+
+/* ---------- arm poses [swing, boom, stick, bucket] ---------- */
+const ARM_IDLE = [0, -0.5, 0.9, 0.9];
+function armDig(p) { return [0, lerp(-0.1, 0.35, Math.min(1, p * 1.5)), lerp(0.5, 1.05, Math.min(1, p * 1.4)), p < 0.55 ? lerp(0.6, 0.6, 0) : lerp(0.6, -0.95, (p - 0.55) / 0.45)]; }
+const armCarry = [0, -0.55, 0.7, -0.95], armDump = p => [0, -0.45, 0.6, lerp(-0.95, 1.5, Math.min(1, p * 1.3))];
+
+/* ---------- the excavator brain ---------- */
+function updateExcavator(u, dt) {
+  const e = u.exc;
+  if (!e) { u.armT = ARM_IDLE; u.armSw = 0; return false; }
+  if (u.bucket === undefined) u.bucket = 0;
+  e.t += dt; e.age = (e.age || 0) + dt;
+  if (e.age > 1500) { u.exc = null; u.armT = ARM_IDLE; return false; }
+  const nodes = e.nodes;
+  if (e.st === 'plan') {
+    while (e.i < nodes.length) {
+      const P = nodes[e.i]; let done = false;
+      if (e.mode === 'dig') done = nodeDepthAt(P.x, P.z) >= DIG_DEPTH - 0.12 || e.scoops >= 8;
+      else if (e.mode === 'fill') done = nodeRise(P.x, P.z) >= FILL_H - 0.15 || e.scoops >= 10;
+      else done = Math.abs(hAt(P.x, P.z) - e.target) < 0.3 || e.scoops >= 8;
+      if (done && !u.bucket) { e.i++; e.scoops = 0; continue; }
+      if (done) { e.i++; e.scoops = 0; if (e.i >= nodes.length) break; continue; }
+      break;
+    }
+    if (e.i >= nodes.length && u.bucket < 0.15) { u.exc = null; u.armT = ARM_IDLE; if (u.team === myTeam) announce('Terraforming complete'); return false; }
+    const ni = Math.min(e.i, nodes.length - 1), P = nodes[ni], N = nodeNormal(e, ni), h = hAt(P.x, P.z);
+    const ideal = { x: P.x + N.x * STAND, z: P.z + N.z * STAND };
+    if (u.bucket > 0.15) {
+      e.act = 'dump'; e.work = (e.kind === 'cut') ? { x: P.x - N.x * 3.0, z: P.z - N.z * 3.0 } : { x: P.x, z: P.z };
+      e.dest = standFor(u, e.kind === 'cut' ? P : e.work, ideal);
+      if (!e.dest) { e.dest = { x: u.x, z: u.z }; e.work = { x: u.x + Math.sin(u.yaw) * 3.4, z: u.z + Math.cos(u.yaw) * 3.4 }; }   // can't get there: drop it right here
+    } else if (e.mode === 'dig' || (e.mode === 'level' && h > e.target)) {
+      e.act = 'cut'; e.work = { x: P.x, z: P.z }; e.dest = standFor(u, e.work, ideal);
+      if (!e.dest) { e.i++; e.scoops = 0; return true; }
+    } else {
+      const src = findLoose(u, P.x, P.z);
+      if (!src) { u.exc = null; u.armT = ARM_IDLE; if (u.team === myTeam) toast('No loose dirt nearby to fill with (dig some first)', 3); return false; }
+      e.act = 'fetch'; e.work = { x: src.x, z: src.z }; e.dest = src.stand; e.src = src;
+    }
+    e.st = 'goto'; e.t = 0; e.stuck = 0; e.sx = u.x; e.sz = u.z; e.sT = 0;
+  }
+  if (e.st === 'goto') {
+    u.armT = (u.bucket > 0.15) ? armCarry : ARM_IDLE; u.armSw = 0;
+    const d = Math.hypot(e.dest.x - u.x, e.dest.z - u.z);
+    if (d < 1.4) { e.st = e.act === 'dump' ? 'swing' : 'work'; e.t = 0; u.speed = 0; return true; }
+    moveToward(u, e.dest.x, e.dest.z, dt, true);
+    e.sT += dt; if (e.sT > 2.5) { if (Math.hypot(u.x - e.sx, u.z - e.sz) < 0.8) { e.stuck++; if (e.stuck > 2) { if (e.act === 'dump') { e.dest = { x: u.x, z: u.z }; e.work = { x: u.x + Math.sin(u.yaw) * 3.4, z: u.z + Math.cos(u.yaw) * 3.4 }; e.st = 'swing'; e.t = 0; } else { e.i++; e.st = 'plan'; e.scoops = 0; } return true; } } e.sx = u.x; e.sz = u.z; e.sT = 0; }
+    return true;
+  }
+  // working: aim the cab at the work point, keep the chassis roughly parallel to the path
+  const wx = e.work.x - u.x, wz = e.work.z - u.z, wa = Math.atan2(wx, wz), nd = nodeDir(nodes, Math.min(e.i, nodes.length - 1));
+  const chassis = Math.atan2(nd.x, nd.z), flip = Math.abs(angDiff(chassis, u.yaw)) > Math.PI / 2 ? Math.PI : 0;
+  u.yaw += clamp(angDiff(u.yaw, chassis + flip), -1.4 * dt, 1.4 * dt); u.speed = 0; u.vx = u.vz = 0;
+  const swTarget = clamp(angDiff(u.yaw, wa), -2.6, 2.6); u.armSw += (swTarget - (u.armSw || 0)) * Math.min(1, 9 * dt);
+  u.armExt = clamp((Math.hypot(wx, wz) - 3.6) / 3.2, 0, 1);
+  if (e.st === 'work') {
+    const p = Math.min(1, e.t / SCOOP_T); u.armT = armDig(p);
+    if (Math.random() < dt * 12) spawnP(partSolid, e.work.x, hAt(e.work.x, e.work.z) + 0.2, e.work.z, rnd(-1.5, 1.5), rnd(1.5, 3.5), rnd(-1.5, 1.5), 0.13, 0x6b5238, 0.7, { grav: 16 });
+    if (e.t >= SCOOP_T) {
+      let got = 0;
+      if (e.act === 'cut') got = terraRemove(e.work.x, e.work.z, DIG_R, BUCKET_CAP - u.bucket, e.mode === 'dig' ? -DIG_DEPTH : 0, e.mode === 'level' ? e.target : null);
+      else got = terraRemove(e.work.x, e.work.z, 2.3, BUCKET_CAP - u.bucket, 0);
+      sfxDirt(e.work.x, e.work.z); e.scoops++;
+      u.bucket += got; e.kind = e.act === 'cut' ? 'cut' : 'fetch';
+      if (got < 0.2 && e.act === 'cut') { e.i++; e.scoops = 0; }
+      e.st = 'plan'; e.t = 0;
+    }
+    return true;
+  }
+  if (e.st === 'swing') {
+    const p = Math.min(1, e.t / SWING_T); u.armT = armCarry;
+    if (e.t >= SWING_T) { e.st = 'dumpw'; e.t = 0; }
+    return true;
+  }
+  if (e.st === 'dumpw') {
+    const p = Math.min(1, e.t / DUMP_T); u.armT = armDump(p);
+    if (e.t >= DUMP_T) {
+      const put = terraAdd(e.work.x, e.work.z, e.kind === 'cut' ? 1.7 : 1.9, u.bucket, e.kind === 'cut' ? HIGH_MAX : FILL_H + 0.4);
+      for (let i = 0; i < 7; i++) spawnP(partSolid, e.work.x + rnd(-0.8, 0.8), hAt(e.work.x, e.work.z) + 1.2, e.work.z + rnd(-0.8, 0.8), rnd(-1.5, 1.5), rnd(0, 2), rnd(-1.5, 1.5), 0.16, 0x6b5238, 0.9, { grav: 16 });
+      spawnP(partSmoke, e.work.x, hAt(e.work.x, e.work.z) + 0.6, e.work.z, 0, 0.5, 0, 0.7, 0xa59272, 0.9, { grow: 1.6 }); sfxDirt(e.work.x, e.work.z, 1.2);
+      u.bucket = Math.max(0, u.bucket - put);
+      if (u.bucket > 0.15) { e.fail = (e.fail || 0) + 1; if (e.fail > 2) { u.bucket = 0; e.fail = 0; } } else { u.bucket = 0; e.fail = 0; }
+      e.st = 'plan'; e.t = 0;
+    }
+    return true;
+  }
+  return true;
+}
+
+/* ---------- ordering ---------- */
+function terraformDraw(mode, flat) {
+  const ex = sel.filter(u => u.type === 'excavator' && u.alive);
+  if (!ex.length) { toast('Select an excavator first'); return; }
+  const nodes = []; for (let i = 0; i + 1 < flat.length; i += 2) nodes.push({ x: flat[i], z: flat[i + 1] });
+  if (nodes.length < 3) { toast('Draw a longer line'); return; }
+  let target = 0; for (const n of nodes) target += hAt(n.x, n.z); target /= nodes.length;
+  const per = Math.max(3, Math.ceil(nodes.length / ex.length));
+  ex.forEach((u, k) => {
+    const seg = nodes.slice(k * per, (k + 1) * per + 1); if (seg.length < 2) return;
+    const a = seg[0], b = seg[Math.min(1, seg.length - 1)], dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1;
+    const side = ((u.x - a.x) * (dz / l) + (u.z - a.z) * (-dx / l)) >= 0 ? 1 : -1;
+    u.order = null; u.target = null; u.harv = null; u.bucket = u.bucket || 0;
+    u.exc = { mode, nodes: seg, i: 0, st: 'plan', t: 0, side, scoops: 0, act: 'cut', kind: 'cut', target, fail: 0 };
+  });
+  toast(mode === 'dig' ? 'Digging' : mode === 'fill' ? 'Filling from nearby dirt' : 'Leveling');
+}
+// the path the selected excavators still have to work
+const NEXL = 700, excGeo = new THREE.BufferGeometry(); excGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NEXL * 6), 3)); excGeo.setDrawRange(0, 0);
+const excLines = new THREE.LineSegments(excGeo, new THREE.LineBasicMaterial({ color: 0xffd36a, depthTest: false, transparent: true, opacity: 0.85 })); excLines.renderOrder = 16; excLines.frustumCulled = false; uiGroup.add(excLines);
+function updateExcLines() {
+  let n = 0; const a = excGeo.attributes.position.array;
+  for (const u of sel) { const e = u.exc; if (!e || !u.alive) continue; for (let i = e.i; i + 1 < e.nodes.length && n < NEXL; i++) { const p = e.nodes[i], q = e.nodes[i + 1]; a[n * 6] = p.x; a[n * 6 + 1] = hAt(p.x, p.z) + 0.4; a[n * 6 + 2] = p.z; a[n * 6 + 3] = q.x; a[n * 6 + 4] = hAt(q.x, q.z) + 0.4; a[n * 6 + 5] = q.z; n++; } }
+  excGeo.attributes.position.needsUpdate = true; excGeo.setDrawRange(0, n * 2);
+}
+
+
+/* =========================================================
+   Game flow: setup, trench orders for engineers, sim step, win/lose
+   ========================================================= */
+let myTeam = 0, objT = 0;
+const jobs = []; let jobIdN = 1;
+const jobGhosts = new Map();
+function toast(t, sec) { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { el.hidden = true; }, (sec || 2.4) * 1000); }
+function announce(t) { toast(t, 2.2); Snd.tick(); }
+const sayMsg = t => { $('msg').textContent = t || ''; };
+
+/* ---------- trenches: engineers dig a drawn line node by node ---------- */
+function newJob(team, flat) {
+  const nodes = []; for (let i = 0; i + 1 < flat.length; i += 2) nodes.push({ x: flat[i], z: flat[i + 1], st: 0, f: 0, by: -1 });
+  const job = { id: jobIdN++, team, nodes, done: false }; jobs.push(job); jobGhost(job); return job;
+}
+function jobGhost(job) {
+  const old = jobGhosts.get(job.id); if (old) { worldGroup.remove(old); old.geometry.dispose(); old.material.dispose(); jobGhosts.delete(job.id); }
+  if (job.done) return;
+  const pos = [], n = job.nodes;
+  for (let i = 0; i + 1 < n.length; i++) { if (n[i].st === 2 && n[i + 1].st === 2) continue; for (const q of [n[i], n[i + 1]]) pos.push(q.x, hAt(q.x, q.z) + 0.3, q.z); }
+  if (!pos.length) return;
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  const m = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: job.team ? 0x6fa0ff : 0xff7a66, depthTest: false, transparent: true, opacity: 0.9 }));
+  m.renderOrder = 15; m.frustumCulled = false; worldGroup.add(m); jobGhosts.set(job.id, m);
+}
+function orderDig(us, flat) {
+  const eng = us.filter(u => u.T.digger && u.alive); if (!eng.length) return false;
+  const job = newJob(eng[0].team, flat);
+  for (const u of eng) { u.order = { type: 'custom', job, run: digRun }; u.target = null; u.harv = null; }
+  return true;
+}
+function digRun(u, dt) {
+  const job = u.order.job; if (job.done) { u.order = null; u.node = -1; return false; }
+  let n = u.node >= 0 ? job.nodes[u.node] : null;
+  if (!n || n.st !== 1 || n.by !== u.id) {
+    n = null; u.node = -1;
+    for (let i = 0; i < job.nodes.length; i++) { const q = job.nodes[i]; if (q.st !== 0) continue; if (solid[cellOf(q.x, q.z)] === 1 || solid[cellOf(q.x, q.z)] === 3) { q.st = 2; continue; } q.st = 1; q.by = u.id; u.node = i; n = q; break; }
+    if (!n) { u.order = null; checkJobDone(job); return false; }
+  }
+  const dx = n.x - u.x, dz = n.z - u.z, d = Math.hypot(dx, dz);
+  if (d > 0.9) { u.crouch = false; u.tdT = 0; u.dirx = dx / d; u.dirz = dz / d; moveToward(u, n.x, n.z, dt, true); return true; }
+  const nb = job.nodes[u.node + 1] || job.nodes[u.node - 1] || n;
+  u.yaw += clamp(angDiff(u.yaw, nb === n ? u.yaw : Math.atan2(nb.x - n.x, nb.z - n.z)), -8 * dt, 8 * dt); u.crouch = true; u.vx *= 0.6; u.vz *= 0.6;
+  u.tdT = (u.tdT || 0) + dt;
+  if (u.tdT > 0.55) {
+    u.tdT = 0; n.f++;
+    if (n.f === 1) for (const t of trees) if (t.alive && Math.hypot(t.x - n.x, t.z - n.z) < 1.6) fellTree(t);
+    trenchGrade(job, u.node, n.f / TR_STEPS);
+    for (let i = 0; i < 3; i++) spawnP(partSolid, n.x, hAt(n.x, n.z) + 0.3, n.z, rnd(-2, 2), rnd(3, 5), rnd(-2, 2), 0.14, 0x6b5238, 1, { grav: 18 });
+    if (n.f >= TR_STEPS) { const k = u.node; n.st = 2; n.by = -1; u.node = -1; trenchLine(job, k); navVer++; jobGhost(job); checkJobDone(job); }
+  }
+  return true;
+}
+function checkJobDone(job) { if (!job.done && job.nodes.every(q => q.st === 2)) { job.done = true; jobGhost(job); if (job.team === myTeam) announce('Trench complete'); } }
+function jobWatch() {   // nodes claimed by an engineer that died or was reassigned go back in the pool
+  for (const job of jobs) { if (job.done) continue; for (const n of job.nodes) if (n.st === 1) { const e = unitById(n.by); if (!e || !e.alive || !e.order || e.order.job !== job) { n.st = 0; n.by = -1; } } }
+}
+
+/* ---------- starting a match ---------- */
+function startMatch(seed) {
+  newGame(seed);
+  const a = BASE[0], b = BASE[1];
+  const c0 = spawnUnit('cmv', 0, a.x, a.z, Math.PI / 2), h0 = spawnUnit('harvester', 0, a.x + 7, a.z + 8, Math.PI / 2);
+  const c1 = spawnUnit('cmv', 1, b.x, b.z, -Math.PI / 2), h1 = spawnUnit('harvester', 1, b.x - 7, b.z + 8, -Math.PI / 2);
+  h0.harv = { state: 'seek' }; h1.harv = { state: 'seek' };
+  for (let i = 0; i < 3; i++) { spawnUnit('rifle', 0, a.x + 4 + i * 1.4, a.z - 6, Math.PI / 2); spawnUnit('rifle', 1, b.x - 4 - i * 1.4, b.z - 6, -Math.PI / 2); }
+  cam.x = a.x + 4; cam.z = a.z; cam.tdist = 52; cam.dist = 52; cam.yaw = cam.tyaw = -Math.PI / 4;
+  selectUnits([c0]);
+  aiInit(); G.state = 'play'; G.over = false; G.speed = 1;
+  $('menu').hidden = true; $('end').hidden = true; $('hud').hidden = false; $('loading').hidden = true;
+  tab = 'build'; renderTabs(); rebuildCmds(); objT = 0;
+  toast('Deploy your construction vehicle to start a base', 4);
+}
+function teamAlive(t) { return bldgs.some(b => b.alive && b.team === t) || units.some(u => u.alive && u.team === t && u.type === 'cmv'); }
+let endCheckT = 0;
+function checkEnd() {
+  if (G.over || G.state !== 'play') return;
+  const mine = teamAlive(myTeam), theirs = teamAlive(1 - myTeam);
+  if (!mine || !theirs) {
+    G.over = true; G.winner = mine ? myTeam : 1 - myTeam;
+    const win = G.winner === myTeam;
+    $('endLbl').textContent = win ? 'Enemy base destroyed' : 'Your base is gone';
+    $('endTitle').textContent = win ? 'Victory' : 'Defeat';
+    const s = TS[myTeam];
+    $('endSub').textContent = 'Time ' + fmtTime(G.time) + ' · credits spent ' + Math.round(s.spent) + ' · structures lost ' + s.lost + ' · enemy structures destroyed ' + TS[1 - myTeam].lost;
+    setTimeout(() => { $('end').hidden = false; }, 1500);
+  }
+}
+const fmtTime = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+
+/* ---------- the sim step ---------- */
+const _fall = { x: 0, z: 0 };
+function simStep(dt) {
+  G.time += dt;
+  hashBuild();
+  updateProduction(dt);
+  for (const u of units) {
+    if (!u.alive) continue;
+    if (u.type === 'harvester' && !u.order) { u.target = null; if (u.harv && updateHarvester(u, dt)) { /* driving */ } else { u.speed *= 0.9; u.vx *= 0.8; u.vz *= 0.8; } }
+    else if (u.type === 'excavator' && typeof updateExcavator === 'function' && updateExcavator(u, dt)) { /* terraforming */ }
+    else updateUnit(u, dt);
+    integrate(u, dt);
+  }
+  for (let i = units.length - 1; i >= 0; i--) { const u = units[i]; if (!u.alive && !u.mesh && u.kind !== 'inf') units.splice(i, 1); else if (!u.alive && u.kind === 'inf') units.splice(i, 1); }
+  updateProjs(dt); updateCorpses(dt);
+  if ((endCheckT -= dt) < 0) { endCheckT = 1; jobWatch(); checkEnd(); }
+  aiTick(dt);
+  if (typeof terraformTick === 'function') terraformTick(dt);
+}
+
+function objective() {
+  const t = myTeam;
+  if (!has(t, 'cyard')) return units.some(u => u.alive && u.team === t && u.type === 'cmv') ? 'Select the Construction Vehicle and deploy it (D)' : '';
+  if (!has(t, 'power')) return 'Build a Power Plant (Build tab)';
+  if (!has(t, 'refinery')) return 'Build an Ore Refinery: your harvester will unload there';
+  if (!has(t, 'barracks')) return 'Build a Barracks to train soldiers';
+  if (!has(t, 'depot')) return 'Build a Vehicle Depot for tanks, harvesters and excavators';
+  if (!units.some(u => u.alive && u.team === t && u.type === 'excavator') && G.time < 600) return 'Train an Excavator: dig trenches, pile berms, move the sand';
+  return '';
+}
+
+
+/* =========================================================
+   Interface: input, selection, commands, sidebar, minimap
+   ========================================================= */
+let tab = 'build', tool = null, placing = null, boxMode = false;
+const keys = new Set(), mouse = { x: 0, y: 0, down: false, sx: 0, sy: 0, drag: false, inside: false, pid: -1, shift: false };
+const hover = { x: 0, z: 0, cx: 0, cz: 0, ok: false, err: '', on: false };
+const ray = new THREE.Raycaster(), _ndc = new THREE.Vector2(), _plane = new THREE.Plane(), _hit = new THREE.Vector3();
+const isTouchDev = matchMedia('(pointer: coarse)').matches;
+
+function groundPick(cx, cy) {
+  _ndc.set(cx / innerWidth * 2 - 1, -(cy / innerHeight) * 2 + 1); ray.setFromCamera(_ndc, camera);
+  let y = 0, x = 0, z = 0;
+  for (let it = 0; it < 3; it++) { _plane.set(_v.set(0, 1, 0), -y); if (!ray.ray.intersectPlane(_plane, _hit)) return null; x = _hit.x; z = _hit.z; y = hAt(clamp(x, 0, W - 0.01), clamp(z, 0, D - 0.01)); }
+  return { x, z, y };
+}
+const _p3 = new THREE.Vector3();
+function toScreen(x, y, z, out) { _p3.set(x, y, z).project(camera); out.x = (_p3.x * 0.5 + 0.5) * innerWidth; out.y = (-_p3.y * 0.5 + 0.5) * innerHeight; out.v = _p3.z < 1; return out; }
+
+/* ---------- selection ---------- */
+function selectUnits(list, add) {
+  if (!add) { for (const u of sel) u.sel = false; sel = []; }
+  for (const u of list) if (u.alive && !sel.includes(u)) { sel.push(u); u.sel = true; }
+  selB = null; rebuildCmds(); updateInfo();
+}
+function selectBldg(b) { for (const u of sel) u.sel = false; sel = []; selB = b; rebuildCmds(); updateInfo(); }
+function clearSel() { for (const u of sel) u.sel = false; sel = []; selB = null; rebuildCmds(); updateInfo(); }
+function pickUnitAt(x, z, filter) {
+  let best = null, bd = 1e9;
+  for (const u of units) { if (!u.alive || (filter && !filter(u))) continue; const d = Math.hypot(u.x - x, u.z - z) - u.r; if (d < 0.9 && d < bd) { bd = d; best = u; } }
+  return best;
+}
+function pickBldgAt(x, z) { if (!inMap(x, z)) return null; const i = bldgIdx[cellOf(x, z)]; return i >= 0 && bldgs[i] && bldgs[i].alive ? bldgs[i] : null; }
+const _sc = { x: 0, y: 0, v: true };
+function boxSelect(x0, y0, x1, y1, add) {
+  const lx = Math.min(x0, x1), hx = Math.max(x0, x1), ly = Math.min(y0, y1), hy = Math.max(y0, y1), pick_ = [];
+  for (const u of units) { if (!u.alive || u.team !== myTeam) continue; toScreen(u.x, u.y + 1, u.z, _sc); if (_sc.v && _sc.x >= lx && _sc.x <= hx && _sc.y >= ly && _sc.y <= hy) pick_.push(u); }
+  const army = pick_.filter(u => u.T.wpn || u.T.digger), chosen = army.length ? army : pick_;
+  if (chosen.length) selectUnits(chosen, add); else if (!add) clearSel();
+}
+function selectAllArmy() { const l = units.filter(u => u.alive && u.team === myTeam && u.T.wpn); if (l.length) { selectUnits(l); toast(l.length + ' units selected'); } else toast('No combat units'); }
+
+/* ---------- commands ---------- */
+function ping(x, z, color) { spawnP(partGlow, x, hAt(x, z) + 0.25, z, 0, 0, 0, 1.3, color || 0x86d46e, 0.4); }
+function commandAt(x, z, qshift) {
+  if (selB && selB.team === myTeam && !sel.length) { if (['barracks', 'depot', 'airfield'].includes(selB.type)) { selB.rally = { x, z }; ping(x, z, 0xf5b800); toast('Rally point set'); } return; }
+  if (!sel.length) return;
+  const tu = pickUnitAt(x, z, u => u.team !== myTeam), tb = pickBldgAt(x, z), enemyB = tb && tb.team !== myTeam ? tb : null;
+  const target = tu || enemyB;
+  const armed = sel.filter(u => u.T.wpn), others = sel.filter(u => !u.T.wpn);
+  if (target && armed.length) { orderAttack(armed, target); ping(target.x, target.z, 0xef5a45); if (others.length) orderMove(others, x, z); return; }
+  // own refinery with harvesters selected
+  if (tb && tb.team === myTeam && tb.type === 'refinery') { let any = false; for (const u of sel) if (u.type === 'harvester') { u.order = null; u.harv = { state: u.cargo > 5 ? 'return' : 'seek' }; any = true; } if (any) { ping(tb.x, tb.z); return; } }
+  const hv = sel.filter(u => u.type === 'harvester');
+  if (hv.length && inMap(x, z) && oreAmt[cellOf(x, z)] > 4) { for (const u of hv) { u.order = null; u.harv = { state: 'goto', cell: cellOf(x, z) }; } ping(x, z, 0xffc247); const rest = sel.filter(u => u.type !== 'harvester'); if (rest.length) orderMove(rest, x, z); return; }
+  orderMove(sel, x, z); ping(x, z);
+}
+function deploySel() {
+  const c = sel.find(u => u.type === 'cmv' && u.alive); if (!c) return;
+  if (deployCMV(c)) { rebuildCmds(); updateInfo(); sayMsg('Build a Power Plant first, then a Refinery'); }
+}
+function toolOn(name) { tool = tool === name ? null : name; placing = null; cancelDraw(); updateCmdStates(); updateHint(); }
+function endTool() { tool = null; cancelDraw(); updateCmdStates(); updateHint(); }
+
+/* ---------- drawing paths for the trench / terraform tools ---------- */
+let draw = null;
+const previewLine = new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 120), 3)), new THREE.LineBasicMaterial({ color: 0xf5b800, depthTest: false, transparent: true, opacity: 0.95 }));
+previewLine.geometry.setDrawRange(0, 0); previewLine.renderOrder = 20; previewLine.frustumCulled = false; uiGroup.add(previewLine);
+function drawBegin(pid, x, z) { draw = { pid, pts: [[x, z]] }; drawPreview(); }
+function drawPush(x, z) {
+  if (!draw) return; let last = draw.pts[draw.pts.length - 1];
+  for (let g = 0; g < 40; g++) { const dx = x - last[0], dz = z - last[1], L = Math.hypot(dx, dz); if (L < TR_STEP || draw.pts.length >= 100) break; last = [last[0] + dx / L * TR_STEP, last[1] + dz / L * TR_STEP]; draw.pts.push(last); }
+  drawPreview();
+}
+function drawPreview() {
+  if (!draw) return; const a = previewLine.geometry.attributes.position.array, n = draw.pts.length;
+  for (let i = 0; i < n; i++) { const q = draw.pts[i]; a[i * 3] = q[0]; a[i * 3 + 1] = hAt(q[0], q[1]) + 0.3; a[i * 3 + 2] = q[1]; }
+  previewLine.geometry.attributes.position.needsUpdate = true; previewLine.geometry.setDrawRange(0, n);
+}
+function cancelDraw() { draw = null; previewLine.geometry.setDrawRange(0, 0); }
+function drawEnd(ok) {
+  const d = draw; cancelDraw(); if (!d || !ok) return;
+  if (d.pts.length < 3) { toast('Draw a longer line', 1.8); return; }
+  const flat = []; for (const q of d.pts) flat.push(+clamp(q[0], 3, W - 3).toFixed(1), +clamp(q[1], 3, D - 3).toFixed(1));
+  if (tool === 'trench') { if (orderDig(sel, flat)) { toast('Engineers are digging'); endTool(); } else toast('Select engineers first'); }
+  else if (typeof terraformDraw === 'function' && (tool === 'dig' || tool === 'fill' || tool === 'level')) { terraformDraw(tool, flat); endTool(); }
+}
+
+/* ---------- placement ghost ---------- */
+const ghost = new THREE.Group(); uiGroup.add(ghost); ghost.visible = false;
+const ghostBox = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0x86d46e, transparent: true, opacity: 0.4, depthWrite: false }));
+const ghostEdge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0xffffff }));
+ghost.add(ghostBox, ghostEdge);
+function updateGhost() {
+  if (!placing || !hover.on) { ghost.visible = false; return; }
+  const T = BT[placing], err = placeOK(myTeam, placing, hover.cx, hover.cz, false); hover.err = err || ''; hover.ok = !err;
+  ghost.visible = true; ghost.position.set(hover.cx + T.w / 2, hAt(hover.cx + T.w / 2, hover.cz + T.d / 2) + T.h / 2, hover.cz + T.d / 2); ghost.scale.set(T.w, T.h, T.d);
+  ghostBox.material.color.setHex(err ? 0xef5a45 : 0x86d46e);
+}
+function setPlacing(type) { placing = type; tool = null; cancelDraw(); updateCmdStates(); updateHint(); if (isTouchDev) { hover.on = true; hover.cx = Math.round(cam.x - BT[type].w / 2); hover.cz = Math.round(cam.z - BT[type].d / 2); } rebuildCmds(); }
+function tryPlace() {
+  const err = placeBuilt(myTeam, hover.cx, hover.cz); if (err) { toast(err); return false; }
+  placing = null; ghost.visible = false; updateHint(); rebuildCmds(); return true;
+}
+function hoverAt(x, z) {
+  hover.x = x; hover.z = z; hover.on = true;
+  if (placing) { const T = BT[placing]; hover.cx = Math.floor(x - T.w / 2 + 0.5); hover.cz = Math.floor(z - T.d / 2 + 0.5); }
+}
+
+/* ---------- selection rings ---------- */
+const NRING = 320;
+const ringMesh = new THREE.InstancedMesh(new THREE.RingGeometry(0.78, 1, 20).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x86d46e, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide }), NRING);
+ringMesh.frustumCulled = false; ringMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); uiGroup.add(ringMesh);
+const bsel = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0x86d46e, depthTest: false })); bsel.renderOrder = 18; bsel.visible = false; uiGroup.add(bsel);
+function updateRings() {
+  let n = 0;
+  for (const u of sel) { if (!u.alive || n >= NRING) continue; const r = u.kind === 'inf' ? 0.65 : (u.T.hl || 1.5) * 0.75; _m.compose(_v.set(u.x, u.y + 0.1, u.z), _q.identity(), _s.set(r, 1, r)); ringMesh.setMatrixAt(n++, _m); }
+  for (let i = n; i < NRING; i++) ringMesh.setMatrixAt(i, ZERO_M);
+  ringMesh.instanceMatrix.needsUpdate = true;
+  if (selB && selB.alive) { bsel.visible = true; bsel.position.set(selB.x, selB.y + selB.hgt / 2, selB.z); bsel.scale.set(selB.bw + 0.3, selB.hgt + 0.3, selB.bd + 0.3); } else bsel.visible = false;
+}
+
+/* ---------- pointer input ---------- */
+const pointers = new Map(); let pinch = null, panning = null, lastClick = { t: 0, id: -1 };
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('pointerdown', e => {
+  Snd.init(); if (G.state !== 'play') return;
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now(), moved: false, type: e.pointerType, button: e.button });
+  if (e.pointerType === 'mouse') {
+    mouse.x = e.clientX; mouse.y = e.clientY; mouse.inside = true; mouse.shift = e.shiftKey;
+    const g = groundPick(e.clientX, e.clientY);
+    if (e.button === 2) { if (placing) { placing = null; updateHint(); rebuildCmds(); } else if (tool) endTool(); else if (g) commandAt(g.x, g.z); return; }
+    if (e.button !== 0) return;
+    if (placing) { if (g) { hoverAt(g.x, g.z); tryPlace(); } return; }
+    if (tool && g) { if (tool === 'atkmove') { orderMove(sel.filter(u => u.T.wpn), g.x, g.z, 'attackmove'); ping(g.x, g.z, 0xef5a45); endTool(); } else drawBegin(e.pointerId, g.x, g.z); return; }
+    mouse.down = true; mouse.sx = e.clientX; mouse.sy = e.clientY; mouse.drag = false; mouse.pid = e.pointerId;
+    return;
+  }
+  // touch
+  if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), dist: cam.tdist }; cancelDraw(); panning = null; return; }
+  const g = groundPick(e.clientX, e.clientY);
+  if (placing && g) { hoverAt(g.x, g.z); return; }
+  if (tool && tool !== 'atkmove' && g) { drawBegin(e.pointerId, g.x, g.z); return; }
+  panning = { id: e.pointerId, g0: g };
+});
+canvas.addEventListener('pointermove', e => {
+  const p = pointers.get(e.pointerId);
+  if (e.pointerType === 'mouse') { mouse.x = e.clientX; mouse.y = e.clientY; mouse.inside = true; const g = groundPick(e.clientX, e.clientY); if (g) hoverAt(g.x, g.z); if (draw && draw.pid === e.pointerId && g) drawPush(g.x, g.z); }
+  if (!p) return;
+  const moved = Math.hypot(e.clientX - p.sx, e.clientY - p.sy); if (moved > 9) p.moved = true;
+  if (e.pointerType === 'mouse') { if (mouse.down && e.pointerId === mouse.pid && moved > 6) { mouse.drag = true; showSelBox(); } p.x = e.clientX; p.y = e.clientY; return; }
+  // touch
+  if (pointers.size === 2 && pinch) {
+    p.x = e.clientX; p.y = e.clientY; const [a, b] = [...pointers.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
+    cam.tdist = clamp(pinch.dist * pinch.d / Math.max(20, d), 22, 110); cam.dist = cam.tdist; return;
+  }
+  if (draw && draw.pid === e.pointerId) { const g = groundPick(e.clientX, e.clientY); if (g) drawPush(g.x, g.z); p.x = e.clientX; p.y = e.clientY; return; }
+  if (placing) { const g = groundPick(e.clientX, e.clientY); if (g) hoverAt(g.x, g.z); p.x = e.clientX; p.y = e.clientY; return; }
+  if (boxMode && p.moved) { mouse.sx = p.sx; mouse.sy = p.sy; mouse.x = e.clientX; mouse.y = e.clientY; mouse.drag = true; showSelBox(); p.x = e.clientX; p.y = e.clientY; return; }
+  if (panning && panning.id === e.pointerId && p.moved) {
+    const g1 = groundPick(p.x, p.y), g2 = groundPick(e.clientX, e.clientY);
+    if (g1 && g2) { cam.x = clamp(cam.x + (g1.x - g2.x), 4, W - 4); cam.z = clamp(cam.z + (g1.z - g2.z), 4, D - 4); }
+  }
+  p.x = e.clientX; p.y = e.clientY;
+});
+function pointerEnd(e) {
+  const p = pointers.get(e.pointerId); pointers.delete(e.pointerId);
+  if (pointers.size < 2) pinch = null;
+  if (!p) return;
+  if (draw && draw.pid === e.pointerId) { drawEnd(e.type === 'pointerup'); return; }
+  if (e.pointerType === 'mouse') {
+    if (e.button !== 0 || !mouse.down || e.pointerId !== mouse.pid) return;
+    mouse.down = false; hideSelBox();
+    if (mouse.drag) { boxSelect(mouse.sx, mouse.sy, e.clientX, e.clientY, e.shiftKey); mouse.drag = false; return; }
+    const g = groundPick(e.clientX, e.clientY); if (!g) return;
+    clickSelect(g.x, g.z, e.shiftKey, true); return;
+  }
+  // touch release
+  if (e.type !== 'pointerup') { panning = null; mouse.drag = false; hideSelBox(); return; }
+  if (boxMode && mouse.drag) { hideSelBox(); boxSelect(mouse.sx, mouse.sy, e.clientX, e.clientY, false); mouse.drag = false; return; }
+  if (!p.moved && !placing && !tool && pointers.size === 0) { const g = groundPick(e.clientX, e.clientY); if (g) tapAt(g.x, g.z); }
+  if (!p.moved && tool === 'atkmove') { const g = groundPick(e.clientX, e.clientY); if (g) { orderMove(sel.filter(u => u.T.wpn), g.x, g.z, 'attackmove'); ping(g.x, g.z, 0xef5a45); endTool(); } }
+  panning = null;
+}
+canvas.addEventListener('pointerup', pointerEnd); canvas.addEventListener('pointercancel', pointerEnd);
+canvas.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') mouse.inside = false; });
+canvas.addEventListener('wheel', e => { e.preventDefault(); cam.tdist = clamp(cam.tdist * (e.deltaY > 0 ? 1.1 : 0.9), 22, 110); }, { passive: false });
+function clickSelect(x, z, add, dbl) {
+  const u = pickUnitAt(x, z, q => q.team === myTeam);
+  if (u) {
+    if (dbl && performance.now() - lastClick.t < 380 && lastClick.id === u.id) { const same = units.filter(q => q.alive && q.team === myTeam && q.type === u.type); selectUnits(same, add); lastClick = { t: 0, id: -1 }; return; }
+    lastClick = { t: performance.now(), id: u.id };
+    if (add && sel.includes(u)) { u.sel = false; sel = sel.filter(q => q !== u); rebuildCmds(); updateInfo(); } else selectUnits([u], add);
+    return;
+  }
+  const b = pickBldgAt(x, z); if (b) { if (b.team === myTeam) selectBldg(b); else { selectBldg(b); } return; }
+  if (!add) clearSel();
+}
+function tapAt(x, z) {   // phones: tap selects what's under the finger, otherwise commands the ground
+  const own = pickUnitAt(x, z, q => q.team === myTeam);
+  if (own) { selectUnits([own], false); return; }
+  const b = pickBldgAt(x, z);
+  if (b && b.team === myTeam) { selectBldg(b); return; }
+  if (sel.length || (selB && selB.team === myTeam)) { commandAt(x, z); return; }
+  if (b) selectBldg(b); else clearSel();
+}
+const selBoxEl = $('selbox');
+function showSelBox() { const l = Math.min(mouse.sx, mouse.x), t = Math.min(mouse.sy, mouse.y); Object.assign(selBoxEl.style, { display: 'block', left: l + 'px', top: t + 'px', width: Math.abs(mouse.x - mouse.sx) + 'px', height: Math.abs(mouse.y - mouse.sy) + 'px' }); }
+function hideSelBox() { selBoxEl.style.display = 'none'; }
+
+/* ---------- keyboard ---------- */
+addEventListener('keydown', e => {
+  if (e.target && e.target.tagName === 'INPUT') return;
+  keys.add(e.code); Snd.init(); if (G.state !== 'play') return;
+  if (e.repeat) return;
+  const c = e.code;
+  if (c === 'Escape') { if (placing) { placing = null; updateHint(); rebuildCmds(); } else if (tool) endTool(); else if (sel.length || selB) clearSel(); else togglePause(); }
+  else if (c === 'KeyA') toolOn('atkmove'); else if (c === 'KeyS') { orderStop(sel); toast('Stop', 0.8); } else if (c === 'KeyD') deploySel();
+  else if (c === 'KeyT') { if (sel.some(u => u.T.digger)) toolOn('trench'); }
+  else if (c === 'KeyZ') { if (sel.some(u => u.type === 'excavator')) toolOn('dig'); } else if (c === 'KeyX') { if (sel.some(u => u.type === 'excavator')) toolOn('fill'); } else if (c === 'KeyC') { if (sel.some(u => u.type === 'excavator')) toolOn('level'); }
+  else if (c === 'KeyH') { const cy = bldgs.find(b => b.alive && b.team === myTeam && b.type === 'cyard'); if (cy) { cam.x = cy.x; cam.z = cy.z; } }
+  else if (c === 'Space') { e.preventDefault(); const l = sel.length ? sel[0] : null; if (l) { cam.x = l.x; cam.z = l.z; } }
+  else if (c.startsWith('Digit')) { const n = +c.slice(5); if (e.ctrlKey || e.metaKey) { e.preventDefault(); groups[n] = sel.map(u => u.id); toast('Group ' + n + ' set', 1.2); } else if (groups[n]) { const l = groups[n].map(unitById).filter(u => u && u.alive); if (l.length) { selectUnits(l); if (performance.now() - (groups._t || 0) < 400 && groups._n === n) { cam.x = l[0].x; cam.z = l[0].z; } groups._t = performance.now(); groups._n = n; } } }
+  if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(c)) e.preventDefault();
+});
+addEventListener('keyup', e => keys.delete(e.code));
+addEventListener('blur', () => { keys.clear(); mouse.down = false; hideSelBox(); });
+function togglePause() { G.paused = !G.paused; toast(G.paused ? 'Paused' : 'Resumed', 1.2); $('bPause').textContent = G.paused ? '>' : 'II'; }
+
+/* ---------- camera control ---------- */
+function controlCamera(dt) {
+  let fw = (keys.has('ArrowUp') ? 1 : 0) - (keys.has('ArrowDown') ? 1 : 0), rt = (keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0);
+  if (mouse.inside && !mouse.down && !draw && !isTouchDev) {
+    const m = 10, side = document.body.classList.contains('noside') ? 0 : $('side').offsetWidth;
+    if (mouse.x < m) rt -= 1; if (mouse.x > innerWidth - side - m && mouse.x < innerWidth - side + 6) rt += 1; if (mouse.y < m) fw += 1; if (mouse.y > innerHeight - m) fw -= 1;
+  }
+  const s = 32 * (cam.dist / 46), sy = Math.sin(cam.yaw), cy = Math.cos(cam.yaw);
+  cam.x = clamp(cam.x + (-sy * fw + cy * rt) * s * dt, 4, W - 4); cam.z = clamp(cam.z + (-cy * fw - sy * rt) * s * dt, 4, D - 4);
+  if (keys.has('KeyQ')) cam.tyaw += 1.6 * dt; if (keys.has('KeyE')) cam.tyaw -= 1.6 * dt;
+}
+
+/* ---------- sidebar ---------- */
+let itemEls = {};
+function renderTabs() {
+  const hasArm = has(myTeam, 'armory');
+  document.querySelectorAll('.tab').forEach(t => { t.classList.toggle('on', t.dataset.tab === tab); });
+  let tu = document.querySelector('.tab[data-tab="upg"]');
+  if (hasArm && !tu) { tu = document.createElement('button'); tu.className = 'tab'; tu.dataset.tab = 'upg'; tu.textContent = 'Upgrades'; tu.addEventListener('click', () => { tab = 'upg'; renderTabs(); }); document.querySelector('.tabs').appendChild(tu); }
+  if (!hasArm && tu) { tu.remove(); if (tab === 'upg') tab = 'build'; }
+  const list = tab === 'build' ? BUILD_LIST : tab === 'train' ? TRAIN_LIST : UPG_LIST;
+  const box = $('items'); box.innerHTML = ''; itemEls = {};
+  for (const key of list) {
+    const T = tab === 'build' ? BT[key] : tab === 'train' ? UT[key] : UPG[key];
+    const el = document.createElement('button'); el.className = 'it';
+    el.innerHTML = '<b>' + T.name + '</b><span>$' + T.cost + '</span><small>' + (T.desc || '') + '</small><i class="pg"></i><em class="q" style="font-style:normal"></em>';
+    let lp = null;
+    el.addEventListener('click', ev => { if (lp === 'fired') { lp = null; return; } itemClick(key); });
+    el.addEventListener('contextmenu', ev => { ev.preventDefault(); itemCancel(key); });
+    el.addEventListener('pointerdown', ev => { if (ev.pointerType === 'touch') lp = setTimeout(() => { lp = 'fired'; itemCancel(key); }, 550); });
+    el.addEventListener('pointerup', () => { if (lp && lp !== 'fired') clearTimeout(lp); });
+    el.addEventListener('pointerleave', () => { if (lp && lp !== 'fired') { clearTimeout(lp); lp = null; } });
+    box.appendChild(el); itemEls[key] = el;
+  }
+  updateItems();
+}
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { tab = t.dataset.tab; renderTabs(); }));
+function itemClick(key) {
+  Snd.init();
+  if (tab === 'build') {
+    const b = TS[myTeam].build;
+    if (b && b.type === key && b.state === 'ready') { setPlacing(key); return; }
+    if (b && b.type === key) { toast('Press and hold (or right-click) to cancel'); return; }
+    const err = startBuild(myTeam, key); if (err) toast(err); else Snd.click();
+  } else if (tab === 'train') { const err = queueUnit(myTeam, key); if (err) toast(err); else Snd.click(); }
+  else { const err = queueUpgrade(myTeam, key); if (err) toast(err); else Snd.click(); }
+  updateItems();
+}
+function itemCancel(key) {
+  if (tab === 'build') { const b = TS[myTeam].build; if (b && b.type === key) { cancelBuild(myTeam); toast('Cancelled · refunded', 1.4); if (placing) { placing = null; updateHint(); } } }
+  else if (tab === 'train') { if (cancelUnit(myTeam, key)) toast('Cancelled · refunded', 1.4); }
+  updateItems();
+}
+function updateItems() {
+  const s = TS[myTeam];
+  for (const key in itemEls) {
+    const el = itemEls[key]; let dis = false, act = false, rdy = false, p = 0, q = 0;
+    if (tab === 'build') { const b = s.build; dis = !has(myTeam, 'cyard') || !canBuildItem(myTeam, key) || (b && b.type !== key); if (b && b.type === key) { act = true; p = b.p; rdy = b.state === 'ready'; dis = false; } }
+    else if (tab === 'train') { dis = !canTrain(myTeam, key); for (const b of bldgs) if (b.alive && b.team === myTeam) b.queue.forEach((it, i) => { if (it.type === key) { q++; if (!p || i === 0) p = Math.max(p, it.p); } }); act = q > 0; }
+    else { dis = !!up[myTeam].done[key]; for (const b of bldgs) if (b.alive && b.team === myTeam) b.queue.forEach(it => { if (it.upg === key) { act = true; p = it.p; q = 1; } }); if (up[myTeam].done[key]) el.querySelector('span').textContent = 'DONE'; }
+    el.classList.toggle('dis', !!dis && !act); el.classList.toggle('act', act && !rdy); el.classList.toggle('rdy', rdy);
+    el.querySelector('.pg').style.width = (p * 100).toFixed(0) + '%'; el.querySelector('.q').textContent = q > 1 ? q : (q === 1 && tab === 'train' ? '1' : '');
+    el.style.opacity = '';
+    if (dis && !act && s.credits < (tab === 'build' ? BT[key].cost : tab === 'train' ? UT[key].cost : UPG[key].cost)) el.style.opacity = 0.4;
+  }
+}
+
+/* ---------- command bar + info ---------- */
+let cmdDefs = [];
+function cmdList() {
+  const L = [];
+  if (selB && selB.team === myTeam) {
+    if (['barracks', 'depot', 'airfield'].includes(selB.type)) L.push({ k: 'rally', label: 'Rally', sub: 'tap ground', fn: () => { toast('Right-click or tap the ground to set the rally point'); } });
+    if (selB.type !== 'cyard' || bldgs.filter(b => b.alive && b.team === myTeam && b.type === 'cyard').length > 1) L.push({ k: 'sell', label: 'Sell', sub: '50%', fn: () => { const b = selB; if (b) { TS[myTeam].credits += b.T.cost * 0.5; destroyBuilding(b, null); toast('Sold'); } } });
+  }
+  if (placing) {
+    L.push({ k: 'ok', label: 'Place', sub: '', fn: () => { tryPlace(); } }); L.push({ k: 'no', label: 'Cancel', sub: 'Esc', fn: () => { placing = null; updateHint(); rebuildCmds(); } });
+    return L;
+  }
+  if (sel.length) {
+    const any = f => sel.some(f);
+    if (any(u => u.type === 'cmv')) L.push({ k: 'deploy', label: 'Deploy', sub: 'D', fn: deploySel });
+    if (any(u => u.T.wpn)) { L.push({ k: 'stop', label: 'Stop', sub: 'S', fn: () => { orderStop(sel); } }); L.push({ k: 'atkmove', label: 'Atk-Move', sub: 'A', tool: 'atkmove' }); }
+    if (any(u => u.type === 'harvester')) { L.push({ k: 'harvest', label: 'Harvest', sub: '', fn: () => { for (const u of sel) if (u.type === 'harvester') { u.order = null; u.harv = { state: u.cargo > 5 ? 'return' : 'seek' }; } } }); }
+    if (any(u => u.T.digger)) L.push({ k: 'trench', label: 'Trench', sub: 'T', tool: 'trench' });
+    if (any(u => u.type === 'excavator')) { L.push({ k: 'dig', label: 'Dig', sub: 'Z', tool: 'dig' }); L.push({ k: 'fill', label: 'Fill', sub: 'X', tool: 'fill' }); L.push({ k: 'level', label: 'Level', sub: 'C', tool: 'level' }); }
+    L.push({ k: 'none', label: 'None', sub: 'Esc', fn: clearSel });
+  }
+  L.push({ k: 'all', label: 'All', sub: 'army', fn: selectAllArmy });
+  if (isTouchDev) L.push({ k: 'box', label: 'Box', sub: 'select', fn: () => { boxMode = !boxMode; updateCmdStates(); toast(boxMode ? 'Drag to box-select' : 'Drag scrolls the map', 1.2); } });
+  return L;
+}
+function rebuildCmds() {
+  cmdDefs = cmdList(); const box = $('cmds'); box.innerHTML = '';
+  for (const c of cmdDefs) {
+    const b = document.createElement('button'); b.className = 'cb'; b.dataset.k = c.k; b.innerHTML = c.label + (c.sub ? '<small>' + c.sub + '</small>' : '');
+    b.addEventListener('click', ev => { Snd.init(); if (c.tool) toolOn(c.tool); else c.fn(); updateCmdStates(); });
+    box.appendChild(b);
+  }
+  updateCmdStates();
+}
+function updateCmdStates() { document.querySelectorAll('#cmds .cb').forEach(b => { const c = cmdDefs.find(d => d.k === b.dataset.k); b.classList.toggle('on', !!c && ((c.tool && tool === c.tool) || (c.k === 'box' && boxMode))); }); }
+function updateHint() {
+  const el = $('hint'); let t = '';
+  if (placing) t = isTouchDev ? 'Drag to position · tap PLACE' : 'Click to place · right-click cancels' + (hover.err ? ' · ' + hover.err : '');
+  else if (tool === 'trench') t = 'Draw the trench line · engineers will dig it';
+  else if (tool === 'dig') t = 'Draw where the excavator should dig';
+  else if (tool === 'fill') t = 'Draw where the excavator should dump dirt';
+  else if (tool === 'level') t = 'Draw a path: the excavator levels along it';
+  else if (tool === 'atkmove') t = 'Click where to attack-move';
+  el.hidden = !t; el.textContent = t;
+}
+function updateInfo() {
+  const info = $('info');
+  if (selB) {
+    info.hidden = false; $('iname').textContent = selB.T.name + (selB.ready ? '' : ' (building)'); $('ihp').style.width = (selB.hp / selB.maxhp * 100) + '%';
+    const q = selB.queue.length ? ' · queue ' + selB.queue.length : '';
+    $('isub').textContent = selB.team === myTeam ? (selB.T.power > 0 ? '+' + selB.T.power + ' power' : selB.T.power < 0 ? Math.abs(selB.T.power) + ' power used' : '') + q : 'Enemy structure';
+    return;
+  }
+  if (!sel.length) { info.hidden = true; return; }
+  info.hidden = false;
+  if (sel.length === 1) { const u = sel[0]; $('iname').textContent = u.T.name; $('ihp').style.width = (u.hp / u.maxhp * 100) + '%'; $('isub').textContent = u.type === 'harvester' ? 'Load ' + Math.round(u.cargo) + ' / ' + HARV_CAP : u.type === 'excavator' ? 'Bucket ' + ((u.bucket || 0) * CUYD).toFixed(1) + ' / ' + (BUCKET_CAP * CUYD).toFixed(1) + ' cu yd' + (u.exc ? ' · ' + (u.exc.mode === 'dig' ? 'digging' : u.exc.mode === 'fill' ? 'filling' : 'leveling') : '') : u.T.desc; }
+  else { const t = {}; for (const u of sel) t[u.T.name] = (t[u.T.name] || 0) + 1; $('iname').textContent = sel.length + ' selected'; $('ihp').style.width = (sel.reduce((a, u) => a + u.hp / u.maxhp, 0) / sel.length * 100) + '%'; $('isub').textContent = Object.entries(t).map(([k, v]) => v + ' ' + k).join(' · '); }
+}
+
+/* ---------- minimap ---------- */
+const miniC = $('mini'), miniCtx = miniC.getContext('2d'); let miniDrag = false;
+function miniTo(e) { const r = miniC.getBoundingClientRect(); cam.x = clamp((e.clientX - r.left) / r.width * W, 4, W - 4); cam.z = clamp((e.clientY - r.top) / r.height * D, 4, D - 4); }
+miniC.addEventListener('pointerdown', e => { miniDrag = true; miniC.setPointerCapture(e.pointerId); if (e.button === 2 || (tool === null && e.shiftKey && sel.length)) { const r = miniC.getBoundingClientRect(); commandAt((e.clientX - r.left) / r.width * W, (e.clientY - r.top) / r.height * D); } else miniTo(e); });
+miniC.addEventListener('pointermove', e => { if (miniDrag) miniTo(e); }); miniC.addEventListener('pointerup', () => { miniDrag = false; }); miniC.addEventListener('contextmenu', e => e.preventDefault());
+function drawMini() {
+  if (!miniBase) return; if (miniDirty) redrawMiniBase();
+  const c = miniCtx, sx = miniC.width / W, sz = miniC.height / D;
+  c.imageSmoothingEnabled = false; c.drawImage(miniBase, 0, 0, miniC.width, miniC.height);
+  for (const key in oreCells) { const k = +key; if (oreAmt[k] > 4) { c.fillStyle = 'rgba(255,190,60,.85)'; c.fillRect((k % W) * sx, ((k / W) | 0) * sz, sx + 0.5, sz + 0.5); } }
+  for (const b of bldgs) { if (!b.alive) continue; c.fillStyle = TEAM_CSS[b.team]; c.fillRect((b.cx) * sx, b.cz * sz, b.w * sx, b.d * sz); c.strokeStyle = '#111'; c.lineWidth = 1; c.strokeRect(b.cx * sx, b.cz * sz, b.w * sx, b.d * sz); }
+  for (const u of units) { if (!u.alive) continue; c.fillStyle = TEAM_CSS[u.team]; const s = u.kind === 'inf' ? 2.6 : 4.2; c.fillRect(u.x * sx - s / 2, u.z * sz - s / 2, s, s); if (u.sel) { c.strokeStyle = '#86d46e'; c.lineWidth = 1; c.strokeRect(u.x * sx - s / 2 - 1, u.z * sz - s / 2 - 1, s + 2, s + 2); } }
+  // camera footprint
+  const pts = [[0, 0], [innerWidth, 0], [innerWidth, innerHeight], [0, innerHeight]].map(([x, y]) => groundPick(x, y));
+  if (pts.every(Boolean)) { c.strokeStyle = 'rgba(255,255,255,.8)'; c.lineWidth = 1.2; c.beginPath(); pts.forEach((p, i) => { const mx = clamp(p.x, 0, W) * sx, mz = clamp(p.z, 0, D) * sz; if (i) c.lineTo(mx, mz); else c.moveTo(mx, mz); }); c.closePath(); c.stroke(); }
+}
+
+/* ---------- health bars ---------- */
+const hplEls = []; const _hp = { x: 0, y: 0, v: true };
+function updateLabels() {
+  let n = 0;
+  const put = (x, y, z, frac, w) => {
+    toScreen(x, y, z, _hp); if (!_hp.v || _hp.x < -30 || _hp.x > innerWidth + 30 || _hp.y < -30 || _hp.y > innerHeight + 30) return;
+    let el = hplEls[n]; if (!el) { el = document.createElement('div'); el.className = 'hpl'; el.innerHTML = '<i></i>'; $('labels').appendChild(el); hplEls[n] = el; }
+    el.style.display = 'block'; el.style.left = _hp.x + 'px'; el.style.top = _hp.y + 'px'; el.style.width = (w || 34) + 'px'; const i = el.firstChild; i.style.width = (frac * 100) + '%'; i.style.background = frac > 0.55 ? '#86d46e' : frac > 0.25 ? '#f0b13a' : '#ef5a45'; n++;
+  };
+  for (const u of units) { if (!u.alive || n > 150) continue; if (u.sel || (u.hp < u.maxhp && G.time - u.lastHit < 6)) put(u.x, u.y + (u.kind === 'inf' ? 2.0 : (u.T.h || 2) + 0.9), u.z, u.hp / u.maxhp, u.kind === 'inf' ? 26 : 44); }
+  for (const b of bldgs) { if (!b.alive) continue; if (b === selB || (b.hp < b.maxhp && G.time - b.lastHit < 8) || (!b.ready)) put(b.x, b.y + b.hgt + 1, b.z, b.ready ? b.hp / b.maxhp : b.cons, 60); }
+  for (let i = n; i < hplEls.length; i++) hplEls[i].style.display = 'none';
+}
+
+/* ---------- top bar ---------- */
+let shownCr = 0;
+function updateHud(dt) {
+  const s = TS[myTeam]; shownCr += (s.credits - shownCr) * Math.min(1, dt * 8); if (Math.abs(shownCr - s.credits) < 1) shownCr = s.credits;
+  $('crv').textContent = Math.floor(shownCr);
+  objT -= dt; if (objT <= 0) { objT = 1; sayMsg(objective()); }
+  const pw = s.power, use = s.use; $('pwv').textContent = pw - use >= 0 ? '+' + (pw - use) : String(pw - use); $('pw').classList.toggle('low', pw < use);
+  $('pwb').style.width = (pw ? clamp(use / pw, 0, 1) * 100 : (use ? 100 : 0)) + '%';
+}
+$('bSound').addEventListener('click', () => { Snd.init(); Snd.on = !Snd.on; $('bSound').textContent = Snd.on ? 'Sound' : 'Muted'; });
+$('bPause').addEventListener('click', () => togglePause());
+$('bStart').addEventListener('click', () => { Snd.init(); $('loading').hidden = false; setTimeout(() => startMatch((Math.random() * 1e9) | 0), 30); });
+$('bAgain').addEventListener('click', () => { $('end').hidden = true; $('loading').hidden = false; setTimeout(() => startMatch((Math.random() * 1e9) | 0), 30); });
+$('bMenu').addEventListener('click', () => { G.state = 'menu'; $('end').hidden = true; $('hud').hidden = true; $('menu').hidden = false; });
+$('bSide').addEventListener('click', () => { document.body.classList.toggle('noside'); $('bSide').textContent = document.body.classList.contains('noside') ? 'Build' : 'Hide'; });
+if (matchMedia('(max-width:760px) and (orientation:portrait)').matches) $('bSide').textContent = 'Hide';
+
+
+/* =========================================================
+   The computer opponent: builds a base the same way you do, then sends waves
+   ========================================================= */
+const AI = { t: 0, wave: 0, nextWave: 150, size: 6, defT: 0, team: 1 };
+function aiInit() { AI.t = 0; AI.wave = 0; AI.nextWave = 200; AI.size = 6; AI.defT = 0; }
+function aiNextStructure(T) {
+  const s = TS[T], n = type => countB(T, type), low = s.power - s.use < 30;
+  if (n('power') === 0) return 'power';
+  if (n('refinery') === 0) return 'refinery';
+  if (low) return 'power';
+  if (n('barracks') === 0) return 'barracks';
+  if (n('depot') === 0) return 'depot';
+  if (n('refinery') < 2 && G.time > 140) return 'refinery';
+  if (n('armory') === 0 && G.time > 190) return 'armory';
+  if (n('barracks') < 2 && G.time > 240) return 'barracks';
+  if (n('airfield') === 0 && G.time > 320) return 'airfield';
+  if (n('depot') < 2 && G.time > 400) return 'depot';
+  return null;
+}
+function aiPlace(T, cy) {
+  const type = TS[T].build.type, B = BT[type], dirx = T === 0 ? 1 : -1;
+  for (let r = 6; r < 22; r += 1) {
+    const tries = 14;
+    for (let k = 0; k < tries; k++) {
+      const a = Math.random() * Math.PI * 2, x = cy.x + Math.cos(a) * r + dirx * -2, z = cy.z + Math.sin(a) * r * 1.1;
+      const cx = Math.floor(x - B.w / 2 + 0.5), cz = Math.floor(z - B.d / 2 + 0.5);
+      if (!placeOK(T, type, cx, cz, false)) { placeBuilt(T, cx, cz); return true; }
+    }
+  }
+  return false;
+}
+function aiTrain(T) {
+  const s = TS[T], mine = u => u.alive && u.team === T;
+  const cnt = type => units.filter(u => mine(u) && u.type === type).length + bldgs.reduce((a, b) => a + (b.alive && b.team === T ? b.queue.filter(q => q.type === type).length : 0), 0);
+  const reserve = !s.build && aiNextStructure(T) ? BT[aiNextStructure(T)].cost * 0.7 : 0;
+  const can = c => s.credits - reserve >= c;
+  if (has(T, 'refinery') && has(T, 'depot')) {
+    const wantH = G.time < 200 ? 1 : G.time < 420 ? 2 : 3;
+    if (cnt('harvester') < wantH && s.credits >= UT.harvester.cost) queueUnit(T, 'harvester');
+  }
+  if (has(T, 'depot') && G.time > 100) {
+    const r = Math.random(); const pickT = r < 0.6 ? 'tank' : r < 0.85 ? 'apc' : 'jeep';
+    for (const b of bldgs) if (b.alive && b.ready && b.team === T && b.type === 'depot' && b.queue.length < 2 && can(UT[pickT].cost)) { queueUnit(T, pickT); break; }
+  }
+  if (has(T, 'barracks')) {
+    for (const b of bldgs) if (b.alive && b.ready && b.team === T && b.type === 'barracks' && b.queue.length < 2) {
+      const r = Math.random(), t = r < 0.5 ? 'rifle' : r < 0.75 ? 'mg' : has(T, 'armory') ? 'rocket' : 'rifle';
+      if (can(UT[t].cost)) queueUnit(T, t);
+    }
+  }
+  if (has(T, 'airfield') && cnt('heli') < 3 && can(UT.heli.cost + 400)) queueUnit(T, 'heli');
+  if (has(T, 'armory')) for (const k of UPG_LIST) if (!up[T].done[k] && s.credits > UPG[k].cost + 600) { queueUpgrade(T, k); break; }
+}
+function aiArmy(T) {
+  const army = units.filter(u => u.alive && u.team === T && u.T.wpn && !u.T.digger), mine = bldgs.filter(b => b.alive && b.team === T);
+  if (!mine.length) return;
+  const base = mine.find(b => b.type === 'cyard') || mine[0];
+  AI.defT -= 0.8;
+  if (AI.defT <= 0) {
+    AI.defT = 3; let threat = null;
+    for (const e of units) if (e.alive && e.team !== T && mine.some(b => Math.hypot(b.x - e.x, b.z - e.z) < 30)) { threat = e; break; }
+    if (threat) { const idle = army.filter(u => !u.order || u.order.type === 'move'); if (idle.length) orderMove(idle, threat.x, threat.z, 'attackmove'); }
+  }
+  // rally at the front of the base
+  const rally = { x: base.x + (T === 0 ? 14 : -14), z: base.z + rnd(-6, 6) };
+  for (const u of army) if (!u.order && !u.target && Math.hypot(u.x - rally.x, u.z - rally.z) > 16) orderMove([u], rally.x + rnd(-4, 4), rally.z + rnd(-4, 4));
+  if (G.time > AI.nextWave && army.length >= AI.size) {
+    const foes = bldgs.filter(b => b.alive && b.team !== T);
+    if (foes.length) {
+      foes.sort((a, b) => Math.hypot(a.x - base.x, a.z - base.z) - Math.hypot(b.x - base.x, b.z - base.z));
+      const tg = foes[Math.min(foes.length - 1, (Math.random() * 3) | 0)];
+      orderMove(army, tg.x - (T === 0 ? 6 : -6), tg.z, 'attackmove'); AI.wave++; AI.size = Math.min(34, AI.size + 3); AI.nextWave = G.time + 85;
+    }
+  }
+}
+function aiTick(dt) {
+  AI.t -= dt; if (AI.t > 0 || G.over) return; AI.t = 0.8;
+  const T = AI.team, s = TS[T];
+  for (const u of units) if (u.alive && u.team === T && u.type === 'cmv' && !bldgs.some(b => b.alive && b.team === T && b.type === 'cyard')) { if (!u.order) deployCMV(u); }
+  const cy = bldgs.find(b => b.alive && b.team === T && b.type === 'cyard');
+  if (cy && cy.ready) {
+    if (s.build && s.build.state === 'ready') aiPlace(T, cy);
+    else if (!s.build) { const nx = aiNextStructure(T); if (nx && s.credits >= BT[nx].cost && canBuildItem(T, nx)) startBuild(T, nx); }
+  }
+  aiTrain(T); aiArmy(T);
+}
+
+
+/* ---------- main loop ---------- */
+let last = performance.now(), uiT = 0, miniT = 0;
+function newGame(seed) { G.seed = seed; G.time = 0; G.over = false; G.winner = -1; G.paused = false; buildWorld(seed); }
+function tick(dt) {
+  Snd.budget = G.state === 'play' ? 6 : 2;
+  if (G.state === 'play') {
+    controlCamera(dt);
+    if (!G.paused) simStep(dt * G.speed);
+    drawUnits(dt); updateBldgMeshes(dt);
+    updateRings(); updateExcLines(); updateGhost(); updateLabels(); updateHud(dt);
+    uiT -= dt; if (uiT <= 0) { uiT = 0.25; { const sig = sel.map(u => u.id + (u.alive ? '' : 'x')).join() + '|' + (selB ? selB.id + (selB.alive ? '' : 'x') : '') + '|' + (placing || '') + '|' + (selB && selB.ready); if (sig !== selSig) { selSig = sig; sel = sel.filter(u => u.alive); if (selB && !selB.alive) selB = null; rebuildCmds(); } } updateItems(); updateInfo(); if (tab === 'build' || tab === 'train') { /* tabs refresh for armory */ renderTabsIfNeeded(); } }
+    miniT -= dt; if (miniT <= 0) { miniT = 0.15; drawMini(); }
+  }
+  flushDebris(); updateTracers(dt); updateParticles(dt); updateCamera(dt);
+}
+let _hadArmory = false, selSig = '';
+function renderTabsIfNeeded() { const a = has(myTeam, 'armory'); if (a !== _hadArmory) { _hadArmory = a; renderTabs(); } }
+function frame(now) {
+  requestAnimationFrame(frame);
+  let dt = (now - last) / 1000; last = now;
+  if (!(dt > 0)) dt = 0.016; dt = Math.min(dt, 0.05);
+  tick(dt); renderer.render(scene, camera);
+}
+window.__dnd = {
+  G, cam, units: () => units, get bldgs() { return bldgs; }, TS, up, get H() { return H; }, get H0() { return H0; }, get oreAmt() { return oreAmt; }, get sel() { return sel; },
+  navBlkVeh: () => { navBuild(); return navBlkVeh; }, terraformDraw, startMatch, spawnUnit, simStep, tick, hAt, orderMove, orderAttack, orderDig, queueUnit, startBuild, placeBuilt, placeOK, addBuilding, deployCMV, selectUnits, commandAt, groundPick, has, countB,
+  get jobs() { return jobs; }, getTool: () => tool, setTool: t => { tool = t; }, setPlacing, hover, AI,
+  sim(sec, dt) { dt = dt || 1 / 30; for (let t = 0; t < sec; t += dt) { simStep(dt); } drawUnits(0); updateBldgMeshes(0); },
+  frame() { tick(1 / 30); renderer.render(scene, camera); }
+};
+newGame((Math.random() * 1e9) | 0);
+requestAnimationFrame(frame);
+
+
+</script>
