@@ -123,7 +123,7 @@ body.touch .speed .v{font-size:40px}
       <kbd>← / →</kbd><span>Lean (barrel roll in the air)</span>
       <kbd>C · R · M · 1-4</kbd><span>Camera · reset · sound · sea state</span>
       <kbd>Phone</kbd><span>Left stick steers and shifts weight (pull down to flip), GAS strip, BRAKE</span>
-      <kbd>Controller</kbd><span>Left stick steer / weight, right stick lean, RT gas, LT brake, Y reset, B camera</span>
+      <kbd>Controller</kbd><span>Start or A rides. Left stick steer / weight, right stick lean, RT gas, LT brake, Y reset, B camera</span>
     </div>
     <footer>Water after <a href="https://github.com/Aureliengmz/clearwater" target="_blank" rel="noopener">Clearwater</a> by Aurélien (MIT), rebuilt on three.js. Speeds in mph, air in feet.</footer>
   </div>
@@ -995,6 +995,13 @@ function readInput() {
   thr = Math.max(thr, touch.thr); brk = Math.max(brk, touch.brk); steer += touch.x; pitch += -touch.y;
   inp.thr = clamp(thr, 0, 1); inp.brk = clamp(brk, 0, 1); inp.steer = clamp(steer, -1, 1); inp.pitch = clamp(pitch, -1, 1); inp.lean = clamp(lean, -1, 1);
 }
+let padWas = false;
+function menuPad() { // Start or A on the controller begins the ride from the menu
+  if (noPads || state !== 'menu') return;
+  let hit = false;
+  try { for (const g of navigator.getGamepads ? navigator.getGamepads() : []) if (g && ((g.buttons[9] && g.buttons[9].pressed) || (g.buttons[0] && g.buttons[0].pressed))) hit = true; } catch (e) { noPads = true; }
+  if (hit && !padWas) startRide(); padWas = hit;
+}
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 if (isTouch) document.body.classList.add('touch');
 {
@@ -1130,7 +1137,7 @@ let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  if (state === 'ride') readInput(); else { inp.thr = inp.brk = 0; inp.steer = inp.pitch = inp.lean = 0; }
+  if (state === 'ride') readInput(); else { inp.thr = inp.brk = 0; inp.steer = inp.pitch = inp.lean = 0; menuPad(); }
   simulate(dt);
   syncVisuals(dt);
   updateCamera(dt, false);
