@@ -975,11 +975,13 @@ addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => { keys.clear(); touch.thr = 0; touch.brk = 0; });
 const touch = { thr: 0, brk: 0, x: 0, y: 0 };
 let padCam = false, padReset = false;
+let noPads = false;
 function readInput() {
   const k = c => keys.has(c);
   let thr = k('KeyW') ? 1 : 0, brk = k('KeyS') ? 1 : 0, steer = (k('KeyD') ? 1 : 0) - (k('KeyA') ? 1 : 0);
   let pitch = (k('ArrowDown') ? 1 : 0) - (k('ArrowUp') ? 1 : 0), lean = (k('ArrowRight') ? 1 : 0) - (k('ArrowLeft') ? 1 : 0);
-  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  let pads = [];
+  if (!noPads) { try { pads = navigator.getGamepads ? navigator.getGamepads() : []; } catch (e) { noPads = true; } } // blocked in sandboxed previews
   for (const g of pads) {
     if (!g) continue;
     const dead = v => Math.abs(v) < 0.12 ? 0 : v;
