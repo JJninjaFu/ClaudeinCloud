@@ -157,6 +157,12 @@ p{margin:0;color:var(--muted);line-height:1.45}
       <h1>Diggin' <span class="y">N</span> <span class="r">Destructin'</span></h1>
     </div>
     <p>Deploy your construction vehicle, build a base, harvest ore and march on theirs. Every shovelful of ground is real: trenches, berms and craters change where soldiers hide and where tanks can go.</p>
+    <div class="lbl">Computer</div>
+    <div class="row" id="diffRow">
+      <button class="opt" data-diff="0"><b>Easy</b><span>First attack around 8:00, weaker hits</span></button>
+      <button class="opt sel" data-diff="1"><b>Normal</b><span>First attack around 5:30</span></button>
+      <button class="opt" data-diff="2"><b>Hard</b><span>Attacks early and often</span></button>
+    </div>
     <div class="row">
       <button class="go" id="bStart" style="flex:1">Skirmish vs. computer</button>
     </div>
@@ -895,19 +901,19 @@ function updateCamera(dt) {
 // weapons: range (m), dmg per hit, rate (s between shots), vs = damage multiplier per target class
 const WP = {
   rifle:   { range: 15, dmg: 11, rate: 0.5, spr: 0.05, vs: { inf: 1, veh: 0.3, bld: 0.2, air: 0.5 }, snd: 'rifle', sup: 0.1 },
-  mg:      { range: 17, dmg: 6, rate: 0.11, spr: 0.08, vs: { inf: 1.2, veh: 0.2, bld: 0.15, air: 0.5 }, snd: 'mg', sup: 0.2 },
+  mg:      { range: 17, dmg: 5, rate: 0.13, spr: 0.08, vs: { inf: 1.2, veh: 0.2, bld: 0.15, air: 0.5 }, snd: 'mg', sup: 0.2 },
   rocket:  { range: 21, dmg: 80, rate: 2.6, proj: 'rocket', speed: 34, vs: { inf: 0.7, veh: 1.5, bld: 1.1, air: 1.6 }, snd: 'rocket' },
-  vmg:     { range: 17, dmg: 7, rate: 0.1, spr: 0.07, vs: { inf: 1.2, veh: 0.2, bld: 0.15, air: 0.5 }, snd: 'mg', sup: 0.2 },
-  hmg:     { range: 19, dmg: 15, rate: 0.16, spr: 0.05, vs: { inf: 1.2, veh: 0.5, bld: 0.3, air: 0.8 }, snd: 'hmg', sup: 0.25 },
+  vmg:     { range: 17, dmg: 5, rate: 0.14, spr: 0.07, vs: { inf: 1.2, veh: 0.2, bld: 0.15, air: 0.5 }, snd: 'mg', sup: 0.2 },
+  hmg:     { range: 19, dmg: 12, rate: 0.2, spr: 0.05, vs: { inf: 1.2, veh: 0.5, bld: 0.3, air: 0.8 }, snd: 'hmg', sup: 0.25 },
   cannon:  { range: 27, dmg: 130, rate: 2.8, proj: 'shell', speed: 46, vs: { inf: 0.85, veh: 1, bld: 1.2, air: 0 }, snd: 'cannon' },
   heli:    { range: 19, dmg: 60, rate: 1.6, proj: 'rocket', speed: 38, vs: { inf: 0.9, veh: 1.3, bld: 1, air: 0 }, snd: 'rocket' },
   pistol:  { range: 7, dmg: 5, rate: 0.7, spr: 0.07, vs: { inf: 1, veh: 0.1, bld: 0.05, air: 0 }, snd: 'pistol', sup: 0.05 }
 };
 const UT = {
-  rifle:    { name: 'Rifleman', kind: 'inf', cost: 100, time: 6, hp: 90, speed: 4.3, r: 0.34, sight: 18, wpn: 'rifle', needs: 'barracks', desc: 'Cheap and plentiful.' },
-  mg:       { name: 'Gunner', kind: 'inf', cost: 170, time: 8, hp: 100, speed: 3.9, r: 0.34, sight: 18, wpn: 'mg', needs: 'barracks', desc: 'Shreds infantry.' },
-  rocket:   { name: 'Rocketeer', kind: 'inf', cost: 240, time: 10, hp: 80, speed: 3.8, r: 0.34, sight: 18, wpn: 'rocket', needs: 'barracks', req2: 'armory', desc: 'Breaks tanks and walls.' },
-  engineer: { name: 'Engineer', kind: 'inf', cost: 120, time: 7, hp: 70, speed: 4.0, r: 0.34, sight: 14, wpn: 'pistol', needs: 'barracks', digger: true, desc: 'Digs trenches.' },
+  rifle:    { name: 'Rifleman', kind: 'inf', cost: 100, time: 6, hp: 120, speed: 4.3, r: 0.34, sight: 18, wpn: 'rifle', needs: 'barracks', desc: 'Cheap and plentiful.' },
+  mg:       { name: 'Gunner', kind: 'inf', cost: 170, time: 8, hp: 130, speed: 3.9, r: 0.34, sight: 18, wpn: 'mg', needs: 'barracks', desc: 'Shreds infantry.' },
+  rocket:   { name: 'Rocketeer', kind: 'inf', cost: 240, time: 10, hp: 110, speed: 3.8, r: 0.34, sight: 18, wpn: 'rocket', needs: 'barracks', req2: 'armory', desc: 'Breaks tanks and walls.' },
+  engineer: { name: 'Engineer', kind: 'inf', cost: 120, time: 7, hp: 90, speed: 4.0, r: 0.34, sight: 14, wpn: 'pistol', needs: 'barracks', digger: true, desc: 'Digs trenches.' },
   jeep:     { name: 'Jeep', kind: 'veh', cost: 400, time: 10, hp: 260, speed: 9.5, r: 1.0, hw: 0.95, hl: 1.9, h: 1.4, sight: 22, wpn: 'vmg', needs: 'depot', turn: 2.6, desc: 'Fast scout.' },
   apc:      { name: 'APC', kind: 'veh', cost: 700, time: 14, hp: 640, speed: 6.4, r: 1.4, hw: 1.35, hl: 2.7, h: 2.0, sight: 20, wpn: 'hmg', needs: 'depot', turn: 1.7, desc: 'Armored, heavy MG.' },
   tank:     { name: 'Tank', kind: 'veh', cost: 950, time: 18, hp: 1000, speed: 5.0, r: 1.6, hw: 1.65, hl: 3.0, h: 2.1, sight: 22, wpn: 'cannon', needs: 'depot', turn: 1.3, desc: 'Main battle tank.' },
@@ -1139,6 +1145,17 @@ function updateUnit(u, dt) {
   }
   const o = u.order, wp = T.wpn ? WP[T.wpn] : null;
   let wantX = 0, wantZ = 0, moving = false, spd = T.speed;
+  // guard duty: an idle armed unit holds its spot, goes after anything it sees (on a leash) and walks back after
+  if (o) u.guard = null;
+  else if (T.wpn && !T.digger && u.type !== 'harvester') {
+    if (!u.guard) u.guard = { x: u.x, z: u.z };
+    const g = u.guard, t = u.target;
+    if (t && targetAlive(t)) {
+      const far = Math.hypot(u.x - g.x, u.z - g.z) > LEASH;
+      if (far && Math.hypot(t.x - g.x, t.z - g.z) > LEASH) u.target = null;
+      else if (!inRange(u, t, 0.9) || !losOK(u, t)) { if (u.kind === 'air') moveToward(u, t.x, t.z, dt, false); else moveToward(u, t.x, t.z, dt, true); moving = true; u.chasing = true; }
+    } else if (Math.hypot(u.x - g.x, u.z - g.z) > (u.kind === 'inf' ? 2.5 : 4)) { moveToward(u, g.x, g.z, dt, true); moving = true; }
+  }
   // chasing a specific target out of range
   if (o && o.type === 'attack' && targetAlive(o.target)) {
     const t = o.target, d = Math.hypot(t.x - u.x, t.z - u.z), reach = wp.range * 0.8 + (t.T ? 0 : tHalf(t));
@@ -1155,12 +1172,13 @@ function updateUnit(u, dt) {
     else if (u.kind === 'air') { /* flies at it */ }
     else u.tyaw += clamp(angDiff(u.tyaw, ty - u.yaw), -3.2 * dt, 3.2 * dt);
     const aligned = u.kind === 'inf' ? Math.abs(angDiff(u.yaw, ty)) < 0.3 : u.kind === 'air' ? true : Math.abs(angDiff(u.tyaw, ty - u.yaw)) < 0.18;
-    if (d <= wp.range + (t.bw ? tHalf(t) : 0) && aligned && u.fireCd <= 0 && !(u.kind === 'inf' && moving && !(o && o.type === 'attackmove'))) {
+    if (d <= wp.range + (t.bw ? tHalf(t) : 0) && aligned && u.fireCd <= 0 && !(u.kind === 'inf' && moving && !(o && o.type === 'attackmove') && !u.chasing)) {
       if (losOK(u, t)) fireAt(u, t, wp); else u.target = null;
     }
     if (u.kind === 'air' && d > wp.range * 0.75) { moveToward(u, t.x, t.z, dt, false); moving = true; }
     else if (u.kind === 'air') { u.yaw += clamp(angDiff(u.yaw, ty), -2.5 * dt, 2.5 * dt); }
   } else if (u.kind !== 'inf' && u.kind !== 'air') u.tyaw += clamp(angDiff(u.tyaw, 0), -2 * dt, 2 * dt);
+  u.chasing = false;
   // idle infantry with a target that's out of reach: shuffle closer only if told to attack-move
   if (!moving) { u.speed = Math.max(0, u.speed - 14 * dt); u.vx *= 0.7; u.vz *= 0.7; }
   if (u.kind === 'inf' && !(u.order && u.order.type === 'custom')) { const dug = u.dug = inTrench(u); u.crouch = !moving && (u.target ? u.sup > (dug ? 0.75 : 0.35) : (u.sup > 0.3 || dug)); }   // dug-in soldiers pop up to fire and duck when pinned
@@ -1180,7 +1198,7 @@ function losOK(u, t) {
 }
 // choose the best enemy in reach
 function acquire(u) {
-  const wp = WP[u.T.wpn], R = wp.range + 1.5; let best = null, bs = 1e9;
+  const wp = WP[u.T.wpn], R = !u.order && !u.T.digger ? Math.max(wp.range + 1.5, u.T.sight) : wp.range + 1.5; let best = null, bs = 1e9;
   for (const e of units) {
     if (!e.alive || e.team === u.team) continue;
     const d = Math.hypot(e.x - u.x, e.z - u.z); if (d > R) continue;
@@ -1287,7 +1305,7 @@ function muzzleOf(u) {
   const T = u.T, a = u.yaw + u.tyaw, len = u.type === 'tank' ? 4.4 : u.type === 'apc' ? 2.4 : 1.4, h = u.y + (u.type === 'tank' ? 1.7 : u.type === 'apc' ? 2.1 : 1.45);
   return { x: u.x + Math.sin(a) * len, y: h, z: u.z + Math.cos(a) * len };
 }
-function dmgMul(u) { return u.team === 0 ? 1 * (up[0].dmg) : 1 * (up[1].dmg); }
+function dmgMul(u) { return up[u.team].dmg * (u.team === AI.team ? DIFF[diff].dmg : 1); }
 function fireAt(u, t, wp) {
   u.fireCd = wp.rate * (0.9 + Math.random() * 0.2); u.flash = 0.06;
   const m = muzzleOf(u), tx = t.x, tz = t.z, ty = t.bw ? t.y + 1.2 : aimHt(t);
@@ -1309,8 +1327,16 @@ function fireAt(u, t, wp) {
   else { if (t.kind === 'inf' || t.bw) fxDirtPuff(ex, hAt(ex, ez) + 0.1, ez); }
   if (t.sup !== undefined && wp.sup) t.sup = Math.min(1, t.sup + wp.sup);
 }
+const LEASH = 26, alertAt = [0, 0];
+// someone got shot: idle armed friends nearby turn on the shooter
+function callHelp(team, x, z, by) {
+  if (!by || !by.alive || by.team === team || G.time < alertAt[team]) return;
+  alertAt[team] = G.time + 0.5;
+  nearUnits(x, z, 30, f => { if (f.alive && f.team === team && f.T.wpn && !f.T.digger && !f.order && !targetAlive(f.target) && (by.kind !== 'air' || WP[f.T.wpn].vs.air > 0)) f.target = by; });
+}
 function hurt(t, dmg, by) {
   if (!(dmg > 0) || t.hp <= 0) return;
+  callHelp(t.team, t.x, t.z, by);
   if (t.bw) { hurtBuilding(t, dmg, by); return; }
   if (!t.alive) return;
   const arm = t.team === 0 ? up[0].arm : up[1].arm;
@@ -1402,6 +1428,7 @@ function H0clampUpdate(x, z, r) { /* baseline stays: craters are capped relative
 
 /* ---------- unit visuals ---------- */
 function drawUnits(dt) {
+  for (const p of PARTS) p.instanceMatrix.needsUpdate = true;   // soldiers are instanced: without this they never show up
   for (const u of units) {
     if (u.kind === 'inf') {
       if (!u.alive || u.slot < 0) continue;
@@ -1424,14 +1451,15 @@ function drawUnits(dt) {
    Bases: structures, power, production, upgrades, harvesting
    ========================================================= */
 const angDiff = (a, b) => ((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+const BS = 2, BSY = 1.5;   // structures are modelled small and scaled up
 const BT = {
-  cyard:    { name: 'Construction Yard', w: 3, d: 3, hp: 2200, cost: 0, power: 0, time: 0, h: 3.6, desc: 'Builds structures.' },
-  power:    { name: 'Power Plant', w: 2, d: 2, hp: 900, cost: 300, power: 100, time: 8, h: 3.4, needs: 'cyard', desc: '+100 power.' },
-  refinery: { name: 'Ore Refinery', w: 3, d: 2, hp: 1300, cost: 600, power: -30, time: 12, h: 3.4, needs: 'power', desc: 'Harvesters unload here.' },
-  barracks: { name: 'Barracks', w: 3, d: 2, hp: 1000, cost: 400, power: -20, time: 9, h: 2.8, needs: 'power', desc: 'Trains infantry.' },
-  depot:    { name: 'Vehicle Depot', w: 3, d: 3, hp: 1500, cost: 800, power: -30, time: 14, h: 3.6, needs: 'refinery', desc: 'Builds vehicles.' },
-  armory:   { name: 'Armory', w: 2, d: 2, hp: 1000, cost: 900, power: -30, time: 14, h: 3.0, needs: 'barracks', desc: 'Upgrades and rockets.' },
-  airfield: { name: 'Airfield', w: 3, d: 3, hp: 1400, cost: 1000, power: -50, time: 16, h: 2.6, needs: 'depot', desc: 'Builds gunships.' }
+  cyard:    { name: 'Construction Yard', w: 6, d: 6, hp: 5500, cost: 0, power: 0, time: 0, h: 5.4, desc: 'Builds structures.' },
+  power:    { name: 'Power Plant', w: 4, d: 4, hp: 2250, cost: 300, power: 100, time: 8, h: 5.1, needs: 'cyard', desc: '+100 power.' },
+  refinery: { name: 'Ore Refinery', w: 6, d: 4, hp: 3250, cost: 600, power: -30, time: 12, h: 5.1, needs: 'power', desc: 'Harvesters unload here.' },
+  barracks: { name: 'Barracks', w: 6, d: 4, hp: 2500, cost: 400, power: -20, time: 9, h: 4.2, needs: 'power', desc: 'Trains infantry.' },
+  depot:    { name: 'Vehicle Depot', w: 6, d: 6, hp: 3750, cost: 800, power: -30, time: 14, h: 5.4, needs: 'refinery', desc: 'Builds vehicles.' },
+  armory:   { name: 'Armory', w: 4, d: 4, hp: 2500, cost: 900, power: -30, time: 14, h: 4.5, needs: 'barracks', desc: 'Upgrades and rockets.' },
+  airfield: { name: 'Airfield', w: 6, d: 6, hp: 3500, cost: 1000, power: -50, time: 16, h: 3.9, needs: 'depot', desc: 'Builds gunships.' }
 };
 const BUILD_LIST = ['power', 'refinery', 'barracks', 'depot', 'armory', 'airfield'];
 const TRAIN_LIST = ['rifle', 'mg', 'rocket', 'engineer', 'jeep', 'apc', 'tank', 'harvester', 'excavator', 'cmv', 'heli'];
@@ -1481,9 +1509,9 @@ function placeOK(team, type, cx, cz, free) {
   }
   if (!free) {
     let near = false;
-    for (const b of bldgs) if (b.alive && b.team === team && b.type !== 'cyard' ? Math.hypot(b.x - (cx + T.w / 2), b.z - (cz + T.d / 2)) < 22 : b.alive && b.team === team && Math.hypot(b.x - (cx + T.w / 2), b.z - (cz + T.d / 2)) < 26) { near = true; break; }
+    for (const b of bldgs) if (b.alive && b.team === team && b.type !== 'cyard' ? Math.hypot(b.x - (cx + T.w / 2), b.z - (cz + T.d / 2)) < 34 : b.alive && b.team === team && Math.hypot(b.x - (cx + T.w / 2), b.z - (cz + T.d / 2)) < 38) { near = true; break; }
     if (!near) return 'Build near your base';
-    for (const b of bldgs) if (b.alive && b.team !== team && Math.hypot(b.x - (cx + T.w / 2), b.z - (cz + T.d / 2)) < 20) return 'Too close to the enemy';
+    for (const b of bldgs) if (b.alive && b.team !== team && Math.hypot(b.x - (cx + T.w / 2), b.z - (cz + T.d / 2)) < 30) return 'Too close to the enemy';
   }
   return null;
 }
@@ -1524,6 +1552,7 @@ function destroyBuilding(b, by) {
 }
 function hurtBuilding(b, dmg, by) {
   if (!b.alive || !(dmg > 0)) return;
+  callHelp(b.team, b.x, b.z, by);
   b.hp -= dmg; b.lastHit = G.time; b.flash = 0.1;
   if (by && by.team !== undefined && by.team !== b.team) { /* threat response handled by AI */ }
   if (b.hp <= 0) destroyBuilding(b, by);
@@ -1614,7 +1643,7 @@ function updateProduction(dt) {
 
 /* ---------- deploying a construction vehicle ---------- */
 function deployCMV(u) {
-  const cx = Math.floor(u.x - 1.5 + 0.5), cz = Math.floor(u.z - 1.5 + 0.5), err = placeOK(u.team, 'cyard', cx, cz, true);
+  const cx = Math.floor(u.x - BT.cyard.w / 2 + 0.5), cz = Math.floor(u.z - BT.cyard.d / 2 + 0.5), err = placeOK(u.team, 'cyard', cx, cz, true);
   if (err) { if (u.team === myTeam) toast(err === 'Something is in the way' ? 'Not enough room to deploy here' : err); return false; }
   u.alive = false; sel = sel.filter(x => x !== u); disposeMesh(u.mesh.root); u.mesh = null;
   const b = addBuilding(u.team, 'cyard', cx, cz, false); startConstruction(b); b.cons = 0; return true;
@@ -1678,45 +1707,46 @@ function makeBldgMesh(b) {
   const T = b.T, root = new THREE.Group(), body = new THREE.Group(); root.add(body);
   const L = c => new THREE.MeshLambertMaterial({ color: c });
   const mats = { wall: L(0x9a9488), dark: L(0x4a4742), roof: L(BODY_HEX[b.team][1]), team: L(TEAM_HEX[b.team]), metal: L(0x3a3a38), glass: L(0x7e98a6), conc: L(0xb0aba0), yellow: L(0xe0a812), steel: L(0x77797c) };
-  const w = b.bw, d = b.bd, hh = T.h;
-  vbox(body, w - 0.1, 0.25, d - 0.1, mats.conc, 0, 0.12, 0);
+  const inner = new THREE.Group(); inner.scale.set(BS, BSY, BS); body.add(inner);
+  const w = b.bw / BS, d = b.bd / BS, hh = T.h / BSY;
+  vbox(inner, w - 0.1, 0.25, d - 0.1, mats.conc, 0, 0.12, 0);
   if (b.type === 'cyard') {
-    vbox(body, w - 0.8, 2.2, d - 0.8, mats.wall, 0, 1.35, 0); vbox(body, w - 0.5, 0.3, d - 0.5, mats.roof, 0, 2.6, 0);
-    vbox(body, 1.4, 1.0, 1.4, mats.dark, -0.6, 3.2, -0.5); vbox(body, 0.18, 0.18, 3.8, mats.yellow, 0.7, 3.6, 0.2); vbox(body, 0.18, 1.6, 0.18, mats.yellow, 0.7, 3.1, -1.5);
-    vbox(body, 0.8, 0.9, 0.06, mats.glass, 0.4, 1.7, d / 2 - 0.4); vbox(body, w - 0.5, 0.18, 0.2, mats.team, 0, 2.2, d / 2 - 0.3);
+    vbox(inner, w - 0.8, 2.2, d - 0.8, mats.wall, 0, 1.35, 0); vbox(inner, w - 0.5, 0.3, d - 0.5, mats.roof, 0, 2.6, 0);
+    vbox(inner, 1.4, 1.0, 1.4, mats.dark, -0.6, 3.2, -0.5); vbox(inner, 0.18, 0.18, 3.8, mats.yellow, 0.7, 3.6, 0.2); vbox(inner, 0.18, 1.6, 0.18, mats.yellow, 0.7, 3.1, -1.5);
+    vbox(inner, 0.8, 0.9, 0.06, mats.glass, 0.4, 1.7, d / 2 - 0.4); vbox(inner, w - 0.5, 0.18, 0.2, mats.team, 0, 2.2, d / 2 - 0.3);
   } else if (b.type === 'power') {
-    vbox(body, w - 0.4, 0.9, d - 0.4, mats.wall, 0, 0.7, 0);
-    for (const x of [-0.5, 0.5]) { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.62, 2.9, 12), mats.conc); t.position.set(x, 2.0, 0); body.add(t); const rim = new THREE.Mesh(new THREE.TorusGeometry(0.43, 0.06, 6, 12), mats.dark); rim.rotation.x = Math.PI / 2; rim.position.set(x, 3.45, 0); body.add(rim); }
-    vbox(body, w - 0.3, 0.14, 0.2, mats.team, 0, 1.0, d / 2 - 0.15);
+    vbox(inner, w - 0.4, 0.9, d - 0.4, mats.wall, 0, 0.7, 0);
+    for (const x of [-0.5, 0.5]) { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.62, 2.9, 12), mats.conc); t.position.set(x, 2.0, 0); inner.add(t); const rim = new THREE.Mesh(new THREE.TorusGeometry(0.43, 0.06, 6, 12), mats.dark); rim.rotation.x = Math.PI / 2; rim.position.set(x, 3.45, 0); inner.add(rim); }
+    vbox(inner, w - 0.3, 0.14, 0.2, mats.team, 0, 1.0, d / 2 - 0.15);
     b.steam = [-0.5, 0.5];
   } else if (b.type === 'refinery') {
-    vbox(body, w - 0.4, 1.0, d - 0.4, mats.wall, 0, 0.7, 0);
-    const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 2.4, 14), mats.steel); tank.position.set(-0.7, 1.9, 0); body.add(tank);
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.95, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2), mats.steel); dome.position.set(-0.7, 3.1, 0); body.add(dome);
-    const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.28, 3.2, 8), mats.dark); ch.position.set(0.9, 2.4, -0.3); body.add(ch);
-    vbox(body, 1.2, 1.1, 1.2, mats.roof, 0.8, 1.35, 0.4); vbox(body, w - 0.3, 0.14, 0.2, mats.team, 0, 1.15, d / 2 - 0.12);
-    vbox(body, 1.8, 0.1, 1.0, mats.yellow, 0, 0.3, d / 2 + 1.0);
+    vbox(inner, w - 0.4, 1.0, d - 0.4, mats.wall, 0, 0.7, 0);
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 2.4, 14), mats.steel); tank.position.set(-0.7, 1.9, 0); inner.add(tank);
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.95, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2), mats.steel); dome.position.set(-0.7, 3.1, 0); inner.add(dome);
+    const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.28, 3.2, 8), mats.dark); ch.position.set(0.9, 2.4, -0.3); inner.add(ch);
+    vbox(inner, 1.2, 1.1, 1.2, mats.roof, 0.8, 1.35, 0.4); vbox(inner, w - 0.3, 0.14, 0.2, mats.team, 0, 1.15, d / 2 - 0.12);
+    vbox(inner, 1.8, 0.1, 1.0, mats.yellow, 0, 0.3, d / 2 + 1.0);
   } else if (b.type === 'barracks') {
-    vbox(body, w - 0.4, 1.4, d - 0.4, mats.wall, 0, 0.95, 0);
-    const r1 = vbox(body, w, 0.18, d / 2 + 0.3, mats.roof, 0, 2.05, -d / 4 + 0.05), r2 = vbox(body, w, 0.18, d / 2 + 0.3, mats.roof, 0, 2.05, d / 4 - 0.05); r1.rotation.x = 0.4; r2.rotation.x = -0.4;
-    vbox(body, 0.9, 1.1, 0.08, mats.dark, 0, 0.8, d / 2 - 0.18); vbox(body, w - 0.3, 0.12, 0.16, mats.team, 0, 1.55, d / 2 - 0.15);
-    const flag = vbox(body, 0.05, 2.0, 0.05, mats.metal, w / 2 - 0.3, 2.3, -d / 2 + 0.3); vbox(body, 0.7, 0.45, 0.04, mats.team, w / 2 - 0.0, 3.0, -d / 2 + 0.3);
+    vbox(inner, w - 0.4, 1.4, d - 0.4, mats.wall, 0, 0.95, 0);
+    const r1 = vbox(inner, w, 0.18, d / 2 + 0.3, mats.roof, 0, 2.05, -d / 4 + 0.05), r2 = vbox(inner, w, 0.18, d / 2 + 0.3, mats.roof, 0, 2.05, d / 4 - 0.05); r1.rotation.x = 0.4; r2.rotation.x = -0.4;
+    vbox(inner, 0.9, 1.1, 0.08, mats.dark, 0, 0.8, d / 2 - 0.18); vbox(inner, w - 0.3, 0.12, 0.16, mats.team, 0, 1.55, d / 2 - 0.15);
+    const flag = vbox(inner, 0.05, 2.0, 0.05, mats.metal, w / 2 - 0.3, 2.3, -d / 2 + 0.3); vbox(inner, 0.7, 0.45, 0.04, mats.team, w / 2 - 0.0, 3.0, -d / 2 + 0.3);
   } else if (b.type === 'depot') {
-    vbox(body, w - 0.3, 2.2, d - 0.3, mats.wall, 0, 1.35, 0); vbox(body, w - 0.1, 0.3, d - 0.1, mats.roof, 0, 2.6, 0);
-    vbox(body, 2.0, 1.7, 0.08, mats.dark, 0, 1.1, d / 2 - 0.1); for (let k = 0; k < 4; k++) vbox(body, 2.0, 0.05, 0.1, mats.metal, 0, 0.5 + k * 0.4, d / 2 - 0.06);
-    vbox(body, 0.9, 0.5, 0.9, mats.dark, -0.9, 3.0, -0.6); vbox(body, 0.9, 0.5, 0.9, mats.dark, 0.9, 3.0, 0.6); vbox(body, w - 0.4, 0.16, 0.2, mats.team, 0, 2.35, d / 2 - 0.1);
+    vbox(inner, w - 0.3, 2.2, d - 0.3, mats.wall, 0, 1.35, 0); vbox(inner, w - 0.1, 0.3, d - 0.1, mats.roof, 0, 2.6, 0);
+    vbox(inner, 2.0, 1.7, 0.08, mats.dark, 0, 1.1, d / 2 - 0.1); for (let k = 0; k < 4; k++) vbox(inner, 2.0, 0.05, 0.1, mats.metal, 0, 0.5 + k * 0.4, d / 2 - 0.06);
+    vbox(inner, 0.9, 0.5, 0.9, mats.dark, -0.9, 3.0, -0.6); vbox(inner, 0.9, 0.5, 0.9, mats.dark, 0.9, 3.0, 0.6); vbox(inner, w - 0.4, 0.16, 0.2, mats.team, 0, 2.35, d / 2 - 0.1);
   } else if (b.type === 'armory') {
-    vbox(body, w - 0.3, 1.5, d - 0.3, mats.dark, 0, 1.0, 0); vbox(body, w - 0.1, 0.25, d - 0.1, mats.roof, 0, 1.85, 0);
-    const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 0.35, 12), mats.metal); ring.position.set(0, 2.15, 0); body.add(ring);
-    const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 1.4, 8), mats.metal); gun.rotation.x = Math.PI / 2; gun.position.set(0, 2.3, 0.8); body.add(gun);
-    vbox(body, 0.9, 0.9, 0.08, mats.metal, 0, 0.8, d / 2 - 0.12); vbox(body, w - 0.2, 0.12, 0.16, mats.team, 0, 1.45, d / 2 - 0.1);
-    for (const x of [-0.7, 0.7]) vbox(body, 0.5, 0.35, 0.4, L(0x9c8a62), x, 0.45, d / 2 + 0.4);
+    vbox(inner, w - 0.3, 1.5, d - 0.3, mats.dark, 0, 1.0, 0); vbox(inner, w - 0.1, 0.25, d - 0.1, mats.roof, 0, 1.85, 0);
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 0.35, 12), mats.metal); ring.position.set(0, 2.15, 0); inner.add(ring);
+    const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 1.4, 8), mats.metal); gun.rotation.x = Math.PI / 2; gun.position.set(0, 2.3, 0.8); inner.add(gun);
+    vbox(inner, 0.9, 0.9, 0.08, mats.metal, 0, 0.8, d / 2 - 0.12); vbox(inner, w - 0.2, 0.12, 0.16, mats.team, 0, 1.45, d / 2 - 0.1);
+    for (const x of [-0.7, 0.7]) vbox(inner, 0.5, 0.35, 0.4, L(0x9c8a62), x, 0.45, d / 2 + 0.4);
   } else if (b.type === 'airfield') {
-    vbox(body, w - 0.1, 0.12, d - 0.1, L(0x55575a), 0, 0.2, 0);
-    const mk = (x, z, ww, dd) => vbox(body, ww, 0.05, dd, mats.yellow, x, 0.27, z); mk(-0.5, 0, 0.18, 1.3); mk(0.5, 0, 0.18, 1.3); mk(0, 0, 1.0, 0.18);
-    vbox(body, w - 0.4, 1.6, 0.9, mats.wall, 0, 1.0, -d / 2 + 0.55); vbox(body, w - 0.3, 0.2, 1.1, mats.roof, 0, 1.9, -d / 2 + 0.55);
-    vbox(body, 0.06, 2.4, 0.06, mats.metal, w / 2 - 0.3, 1.2, d / 2 - 0.3); const sock = vbox(body, 0.7, 0.18, 0.18, L(0xff6b1a), w / 2 - 0.65, 2.3, d / 2 - 0.3);
-    vbox(body, w - 0.4, 0.12, 0.16, mats.team, 0, 1.1, -d / 2 + 1.0);
+    vbox(inner, w - 0.1, 0.12, d - 0.1, L(0x55575a), 0, 0.2, 0);
+    const mk = (x, z, ww, dd) => vbox(inner, ww, 0.05, dd, mats.yellow, x, 0.27, z); mk(-0.5, 0, 0.18, 1.3); mk(0.5, 0, 0.18, 1.3); mk(0, 0, 1.0, 0.18);
+    vbox(inner, w - 0.4, 1.6, 0.9, mats.wall, 0, 1.0, -d / 2 + 0.55); vbox(inner, w - 0.3, 0.2, 1.1, mats.roof, 0, 1.9, -d / 2 + 0.55);
+    vbox(inner, 0.06, 2.4, 0.06, mats.metal, w / 2 - 0.3, 1.2, d / 2 - 0.3); const sock = vbox(inner, 0.7, 0.18, 0.18, L(0xff6b1a), w / 2 - 0.65, 2.3, d / 2 - 0.3);
+    vbox(inner, w - 0.4, 0.12, 0.16, mats.team, 0, 1.1, -d / 2 + 1.0);
   }
   root.position.set(b.x, b.y, b.z); root.userData.bid = b.id; bldgGroup.add(root);
   b.mesh = { root, body, mats, wreck: 0 };
@@ -1727,7 +1757,7 @@ function updateBldgMeshes(dt) {
     if (!b.alive) { m.wreck -= dt; if (m.wreck <= 0) { disposeMesh(m.root); b.mesh = null; } continue; }
     const k = b.ready ? 1 : 0.18 + 0.82 * b.cons; m.body.scale.y = k; m.body.position.y = 0;
     if (!b.ready && Math.random() < dt * 14) spawnP(partSmoke, b.x + rnd(-b.bw / 2, b.bw / 2), b.y + 0.3, b.z + rnd(-b.bd / 2, b.bd / 2), rnd(-0.5, 0.5), rnd(0.5, 1.2), rnd(-0.5, 0.5), rnd(0.5, 0.9), 0xb09a78, 1.2, { grow: 1.8 });
-    if (b.steam && b.ready && Math.random() < dt * 3) spawnP(partSmoke, b.x + pick(b.steam), b.y + 3.6, b.z, 0, rnd(1, 1.8), 0, 0.7, 0xdddddd, 2.2, { grow: 1.6 });
+    if (b.steam && b.ready && Math.random() < dt * 3) spawnP(partSmoke, b.x + pick(b.steam) * BS, b.y + 3.6 * BSY, b.z, 0, rnd(1, 1.8), 0, 0.7, 0xdddddd, 2.2, { grow: 1.6 });
     if (b.flash > 0) b.flash -= dt;
   }
 }
@@ -2458,8 +2488,16 @@ if (matchMedia('(max-width:760px) and (orientation:portrait)').matches) $('bSide
 /* =========================================================
    The computer opponent: builds a base the same way you do, then sends waves
    ========================================================= */
+const DIFF = [
+  { first: 480, gap: 150, size: 5, grow: 2, max: 18, dmg: 0.7, name: 'Easy' },
+  { first: 330, gap: 115, size: 6, grow: 2, max: 26, dmg: 0.85, name: 'Normal' },
+  { first: 200, gap: 85, size: 6, grow: 3, max: 34, dmg: 1, name: 'Hard' }
+];
+let diff = 1;
+try { const d = +localStorage.getItem('dnd-diff'); if (d >= 0 && d <= 2) diff = d; } catch (e) {}
+document.querySelectorAll('[data-diff]').forEach(b => { b.classList.toggle('sel', +b.dataset.diff === diff); b.onclick = () => { diff = +b.dataset.diff; try { localStorage.setItem('dnd-diff', diff); } catch (e) {} document.querySelectorAll('[data-diff]').forEach(x => x.classList.toggle('sel', +x.dataset.diff === diff)); }; });
 const AI = { t: 0, wave: 0, nextWave: 150, size: 6, defT: 0, team: 1 };
-function aiInit() { AI.t = 0; AI.wave = 0; AI.nextWave = 200; AI.size = 6; AI.defT = 0; }
+function aiInit() { const P = DIFF[diff]; AI.t = 0; AI.wave = 0; AI.nextWave = P.first; AI.size = P.size; AI.defT = 0; }
 function aiNextStructure(T) {
   const s = TS[T], n = type => countB(T, type), low = s.power - s.use < 30;
   if (n('power') === 0) return 'power';
@@ -2476,7 +2514,7 @@ function aiNextStructure(T) {
 }
 function aiPlace(T, cy) {
   const type = TS[T].build.type, B = BT[type], dirx = T === 0 ? 1 : -1;
-  for (let r = 6; r < 22; r += 1) {
+  for (let r = 9; r < 34; r += 1) {
     const tries = 14;
     for (let k = 0; k < tries; k++) {
       const a = Math.random() * Math.PI * 2, x = cy.x + Math.cos(a) * r + dirx * -2, z = cy.z + Math.sin(a) * r * 1.1;
@@ -2526,11 +2564,22 @@ function aiArmy(T) {
     if (foes.length) {
       foes.sort((a, b) => Math.hypot(a.x - base.x, a.z - base.z) - Math.hypot(b.x - base.x, b.z - base.z));
       const tg = foes[Math.min(foes.length - 1, (Math.random() * 3) | 0)];
-      orderMove(army, tg.x - (T === 0 ? 6 : -6), tg.z, 'attackmove'); AI.wave++; AI.size = Math.min(34, AI.size + 3); AI.nextWave = G.time + 85;
+      orderMove(army, tg.x - (T === 0 ? 6 : -6), tg.z, 'attackmove'); AI.wave++; AI.size = Math.min(DIFF[diff].max, AI.size + DIFF[diff].grow); AI.nextWave = G.time + DIFF[diff].gap;
+    }
+  }
+}
+let defT = 0;
+function baseDefense() {
+  for (const T of [0, 1]) {
+    const mine = bldgs.filter(b => b.alive && b.team === T); if (!mine.length) continue;
+    for (const e of units) {
+      if (!e.alive || e.team === T || !mine.some(b => Math.hypot(b.x - e.x, b.z - e.z) < 32)) continue;
+      nearUnits(e.x, e.z, 40, f => { if (f.alive && f.team === T && f.T.wpn && !f.T.digger && !f.order && !targetAlive(f.target) && Math.hypot(f.x - e.x, f.z - e.z) < LEASH + 6) f.target = e; });
     }
   }
 }
 function aiTick(dt) {
+  if ((defT -= dt) <= 0) { defT = 1; baseDefense(); }
   AI.t -= dt; if (AI.t > 0 || G.over) return; AI.t = 0.8;
   const T = AI.team, s = TS[T];
   for (const u of units) if (u.alive && u.team === T && u.type === 'cmv' && !bldgs.some(b => b.alive && b.team === T && b.type === 'cyard')) { if (!u.order) deployCMV(u); }
