@@ -117,6 +117,14 @@ p{margin:0;color:var(--muted);line-height:1.45}
   .cb{min-width:52px;height:42px;font-size:14px}
   #info{min-width:150px}
 }
+@media (max-width:760px){
+  #top{flex-wrap:wrap;gap:6px;padding-left:8px;padding-right:8px}
+  .tbtn{height:30px;padding:0 8px;font-size:11px}
+}
+@media (max-width:520px){
+  #msg{top:calc(122px + env(safe-area-inset-top,0px))}
+  #hint{top:calc(156px + env(safe-area-inset-top,0px))}
+}
 @media (max-height:430px){
   #mini{aspect-ratio:auto;height:78px}
   .tab{padding:3px;font-size:14px}
@@ -134,6 +142,7 @@ p{margin:0;color:var(--muted);line-height:1.45}
     <div class="stat" id="pw"><small>Power</small><b id="pwv">0</b><div class="pwbar"><i id="pwb"></i></div></div>
     <div id="msg"></div>
     <button class="tbtn" id="bSide">Menu</button>
+    <button class="tbtn" id="bView" style="pointer-events:auto">View</button>
     <button class="tbtn" id="bSound" style="pointer-events:auto">Sound</button>
     <button class="tbtn" id="bPause" style="pointer-events:auto">II</button>
   </div>
@@ -167,10 +176,10 @@ p{margin:0;color:var(--muted);line-height:1.45}
       <button class="go" id="bStart" style="flex:1">Skirmish vs. computer</button>
     </div>
     <div class="help">
-      <div><b>Mouse</b> Left click or drag to select · right click to move, attack or harvest · wheel zoom · arrow keys or screen edge scroll · Q/E rotate · Ctrl+1-9 set a group, 1-9 recall · A attack-move · S stop · D deploy · H home</div>
+      <div><b>Mouse</b> Left click or drag to select · right click to move, attack or harvest · wheel zoom · hold Alt and move the mouse to tilt and turn the camera (Alt+wheel tilts, PageUp/PageDown too) · V or View cycles camera views · arrow keys or screen edge scroll · Q/E rotate · Ctrl+1-9 set a group, 1-9 recall · A attack-move · S stop · D deploy · H home</div>
       <div><b>Engineers</b> T then draw a line on the ground: they walk it and dig a trench with sandbags on the lips.</div>
       <div><b>Excavators</b> Z dig, X fill, C level: draw a line and the machine moves real dirt, scoop by scoop. What it digs it must dump somewhere; fill from the sand piles in your base. Trenches and berms stop vehicles.</div>
-      <div><b>Phone</b> Tap a unit to select it, tap the ground to send it, drag to scroll, pinch to zoom. BOX switches dragging to box-select. Press and hold a sidebar item to cancel it. Menu hides the sidebar.</div>
+      <div><b>Phone</b> Tap a unit to select it, tap the ground to send it, drag to scroll, pinch to zoom, slide two fingers up or down to tilt the camera and twist them to turn it. View cycles camera views. BOX switches dragging to box-select. Press and hold a sidebar item to cancel it. Menu hides the sidebar.</div>
       </div>
   </div>
 </div>
@@ -203,7 +212,7 @@ const scene = new THREE.Scene();
 const SKY = 0xa9bfcc;
 scene.background = new THREE.Color(SKY);
 scene.fog = new THREE.Fog(SKY, 95, 210);
-const camera = new THREE.PerspectiveCamera(36, 1, 1, 420);
+const camera = new THREE.PerspectiveCamera(36, 1, 1, 900);
 scene.add(new THREE.HemisphereLight(0xe8f0ff, 0x5a4a32, 0.62));
 const sun = new THREE.DirectionalLight(0xfff1d6, 0.7); sun.position.set(-40, 80, 30); scene.add(sun);
 const boomLight = new THREE.PointLight(0xffa040, 0, 26, 2); scene.add(boomLight);
@@ -876,7 +885,13 @@ const oreLeft = () => { let t = 0; for (let c = 0; c < oreAmt.length; c++) t += 
 const G = { state: 'menu', time: 0, over: false, winner: -1, paused: false, seed: 1, speed: 1 };
 
 /* ---------- camera ---------- */
-const cam = { x: 80, z: 60, y: 0, yaw: -Math.PI / 4, pitch: 0.95, dist: 46, tyaw: -Math.PI / 4, tdist: 46 };
+const cam = { x: 80, z: 60, y: 0, yaw: -Math.PI / 4, pitch: 0.95, tpitch: 0.95, dist: 46, tyaw: -Math.PI / 4, tdist: 46 };
+const PITCH_MIN = 0.28, PITCH_MAX = 1.3, ZOOM_MIN = 22, ZOOM_MAX = 175;
+// camera presets the View button / V key cycle through
+const VIEWS = [{ name: 'Classic view', p: 0.95, d: 52 }, { name: 'Low view', p: 0.42, d: 44 }, { name: 'High view', p: 1.05, d: 120 }, { name: 'Overhead', p: 1.28, d: 80 }];
+let viewI = 0;
+function cycleView() { viewI = (viewI + 1) % VIEWS.length; const v = VIEWS[viewI]; cam.tpitch = v.p; cam.tdist = v.d; toast(v.name, 1.2); }
+function tiltCam(dp) { cam.tpitch = clamp(cam.tpitch + dp, PITCH_MIN, PITCH_MAX); }
 let menuT = 0;
 function updateCamera(dt) {
   if (G.state !== 'play') {
@@ -884,11 +899,16 @@ function updateCamera(dt) {
   } else {
     cam.yaw += (((cam.tyaw - cam.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 8);
     cam.dist += (cam.tdist - cam.dist) * Math.min(1, dt * 9);
+    cam.pitch += (cam.tpitch - cam.pitch) * Math.min(1, dt * 9);
   }
+  // see farther when the camera is high or tipped toward the horizon
+  const see = (cam.dist - 46) * 1.4 + (1 - Math.min(1, cam.pitch)) * 160;
+  scene.fog.near = 95 + Math.max(0, see * 0.6); scene.fog.far = 210 + Math.max(0, see);
   cam.y += (hAt(cam.x, cam.z) - cam.y) * Math.min(1, dt * 5);
   shake = Math.max(0, shake - dt * 2.2);
   const sh = shake * shake * 0.9, cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
   camera.position.set(cam.x + Math.sin(cam.yaw) * cp * cam.dist + rnd(-sh, sh), cam.y + sp * cam.dist + rnd(-sh, sh), cam.z + Math.cos(cam.yaw) * cp * cam.dist + rnd(-sh, sh));
+  { const px = clamp(camera.position.x, 0, W - 0.01), pz = clamp(camera.position.z, 0, D - 0.01), floor = hAt(px, pz) + 2.5; if (camera.position.y < floor) camera.position.y = floor; }   // never dip into a hill
   camera.lookAt(cam.x, cam.y + 1, cam.z);
   Snd.lx = cam.x; Snd.lz = cam.z;
 }
@@ -2025,7 +2045,7 @@ function startMatch(seed) {
   const c1 = spawnUnit('cmv', 1, b.x, b.z, -Math.PI / 2), h1 = spawnUnit('harvester', 1, b.x - 7, b.z + 8, -Math.PI / 2);
   h0.harv = { state: 'seek' }; h1.harv = { state: 'seek' };
   for (let i = 0; i < 3; i++) { spawnUnit('rifle', 0, a.x + 4 + i * 1.4, a.z - 6, Math.PI / 2); spawnUnit('rifle', 1, b.x - 4 - i * 1.4, b.z - 6, -Math.PI / 2); }
-  cam.x = a.x + 4; cam.z = a.z; cam.tdist = 52; cam.dist = 52; cam.yaw = cam.tyaw = -Math.PI / 4;
+  cam.x = a.x + 4; cam.z = a.z; cam.tdist = 52; cam.dist = 52; cam.yaw = cam.tyaw = -Math.PI / 4; cam.pitch = cam.tpitch = 0.95; viewI = 0;
   selectUnits([c0]);
   aiInit(); G.state = 'play'; G.over = false; G.speed = 1;
   $('menu').hidden = true; $('end').hidden = true; $('hud').hidden = false; $('loading').hidden = true;
@@ -2207,7 +2227,7 @@ const pointers = new Map(); let pinch = null, panning = null, lastClick = { t: 0
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('pointerdown', e => {
   Snd.init(); if (G.state !== 'play') return;
-  canvas.setPointerCapture(e.pointerId);
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now(), moved: false, type: e.pointerType, button: e.button });
   if (e.pointerType === 'mouse') {
     mouse.x = e.clientX; mouse.y = e.clientY; mouse.inside = true; mouse.shift = e.shiftKey;
@@ -2220,7 +2240,7 @@ canvas.addEventListener('pointerdown', e => {
     return;
   }
   // touch
-  if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), dist: cam.tdist }; cancelDraw(); panning = null; return; }
+  if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), dist: cam.tdist, my: (a.y + b.y) / 2, ang: Math.atan2(b.y - a.y, b.x - a.x) }; cancelDraw(); panning = null; return; }
   const g = groundPick(e.clientX, e.clientY);
   if (placing && g) { hoverAt(g.x, g.z); return; }
   if (tool && tool !== 'atkmove' && g) { drawBegin(e.pointerId, g.x, g.z); return; }
@@ -2228,6 +2248,10 @@ canvas.addEventListener('pointerdown', e => {
 });
 canvas.addEventListener('pointermove', e => {
   const p = pointers.get(e.pointerId);
+  if (e.pointerType === 'mouse' && (e.altKey || altHeld()) && G.state === 'play') {   // hold Alt and move the mouse: up/down tips the camera, left/right turns it
+    const dx = e.movementX || (e.clientX - mouse.x), dy = e.movementY || (e.clientY - mouse.y);
+    tiltCam(-dy * 0.006); cam.tyaw -= dx * 0.006; mouse.x = e.clientX; mouse.y = e.clientY; return;
+  }
   if (e.pointerType === 'mouse') { mouse.x = e.clientX; mouse.y = e.clientY; mouse.inside = true; const g = groundPick(e.clientX, e.clientY); if (g) hoverAt(g.x, g.z); if (draw && draw.pid === e.pointerId && g) drawPush(g.x, g.z); }
   if (!p) return;
   const moved = Math.hypot(e.clientX - p.sx, e.clientY - p.sy); if (moved > 9) p.moved = true;
@@ -2235,7 +2259,9 @@ canvas.addEventListener('pointermove', e => {
   // touch
   if (pointers.size === 2 && pinch) {
     p.x = e.clientX; p.y = e.clientY; const [a, b] = [...pointers.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
-    cam.tdist = clamp(pinch.dist * pinch.d / Math.max(20, d), 22, 110); cam.dist = cam.tdist; return;
+    cam.tdist = clamp(pinch.dist * pinch.d / Math.max(20, d), ZOOM_MIN, ZOOM_MAX); cam.dist = cam.tdist;
+    const my = (a.y + b.y) / 2, ang = Math.atan2(b.y - a.y, b.x - a.x);
+    tiltCam(-(my - pinch.my) * 0.007); cam.tyaw -= angDiff(pinch.ang, ang); pinch.my = my; pinch.ang = ang; return;
   }
   if (draw && draw.pid === e.pointerId) { const g = groundPick(e.clientX, e.clientY); if (g) drawPush(g.x, g.z); p.x = e.clientX; p.y = e.clientY; return; }
   if (placing) { const g = groundPick(e.clientX, e.clientY); if (g) hoverAt(g.x, g.z); p.x = e.clientX; p.y = e.clientY; return; }
@@ -2267,7 +2293,7 @@ function pointerEnd(e) {
 }
 canvas.addEventListener('pointerup', pointerEnd); canvas.addEventListener('pointercancel', pointerEnd);
 canvas.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') mouse.inside = false; });
-canvas.addEventListener('wheel', e => { e.preventDefault(); cam.tdist = clamp(cam.tdist * (e.deltaY > 0 ? 1.1 : 0.9), 22, 110); }, { passive: false });
+canvas.addEventListener('wheel', e => { e.preventDefault(); if (e.altKey || altHeld()) tiltCam(e.deltaY > 0 ? -0.06 : 0.06); else cam.tdist = clamp(cam.tdist * (e.deltaY > 0 ? 1.1 : 0.9), ZOOM_MIN, ZOOM_MAX); }, { passive: false });
 function clickSelect(x, z, add, dbl) {
   const u = pickUnitAt(x, z, q => q.team === myTeam);
   if (u) {
@@ -2311,9 +2337,13 @@ addEventListener('blur', () => { keys.clear(); mouse.down = false; hideSelBox();
 function togglePause() { G.paused = !G.paused; toast(G.paused ? 'Paused' : 'Resumed', 1.2); $('bPause').textContent = G.paused ? '>' : 'II'; }
 
 /* ---------- camera control ---------- */
+const altHeld = () => keys.has('AltLeft') || keys.has('AltRight');
+addEventListener('keydown', e => { if (e.key === 'Alt') e.preventDefault(); if (e.code === 'KeyV' && G.state === 'play' && !e.repeat && !(e.target && e.target.tagName === 'INPUT')) cycleView(); });
+addEventListener('keyup', e => { if (e.key === 'Alt') e.preventDefault(); });   // keep the browser menu bar from grabbing focus
 function controlCamera(dt) {
   let fw = (keys.has('ArrowUp') ? 1 : 0) - (keys.has('ArrowDown') ? 1 : 0), rt = (keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0);
-  if (mouse.inside && !mouse.down && !draw && !isTouchDev) {
+  if (keys.has('PageUp')) tiltCam(1.2 * dt); if (keys.has('PageDown')) tiltCam(-1.2 * dt);
+  if (mouse.inside && !mouse.down && !draw && !isTouchDev && !altHeld()) {
     const m = 10, side = document.body.classList.contains('noside') ? 0 : $('side').offsetWidth;
     if (mouse.x < m) rt -= 1; if (mouse.x > innerWidth - side - m && mouse.x < innerWidth - side + 6) rt += 1; if (mouse.y < m) fw += 1; if (mouse.y > innerHeight - m) fw -= 1;
   }
@@ -2476,6 +2506,7 @@ function updateHud(dt) {
   const pw = s.power, use = s.use; $('pwv').textContent = pw - use >= 0 ? '+' + (pw - use) : String(pw - use); $('pw').classList.toggle('low', pw < use);
   $('pwb').style.width = (pw ? clamp(use / pw, 0, 1) * 100 : (use ? 100 : 0)) + '%';
 }
+$('bView').addEventListener('click', () => cycleView());
 $('bSound').addEventListener('click', () => { Snd.init(); Snd.on = !Snd.on; $('bSound').textContent = Snd.on ? 'Sound' : 'Muted'; });
 $('bPause').addEventListener('click', () => togglePause());
 $('bStart').addEventListener('click', () => { Snd.init(); $('loading').hidden = false; setTimeout(() => startMatch((Math.random() * 1e9) | 0), 30); });
