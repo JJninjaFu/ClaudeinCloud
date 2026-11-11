@@ -620,21 +620,25 @@ function makeSUV() {
   g.userData = { wheels };
   return g;
 }
-const SHOVEL_REST = -1.15;
+// A person: legs, an upper body that twists and leans at the waist, two arms, and a shovel in the right hand.
+// Everything hangs off `body` so a dodge roll can tumble the whole figure. Forward is +z.
 function makeJimbo(shirt = 0xb5562e, hat = 0x6b4a2e) {
-  const g = new THREE.Group(), legs = [];
-  legs.push(add(g, box(0.24, 0.85, 0.26), M(0x3a4a66), 0.15, 0.43, 0), add(g, box(0.24, 0.85, 0.26), M(0x3a4a66), -0.15, 0.43, 0));
-  add(g, box(0.66, 0.8, 0.4), M(shirt), 0, 1.25, 0);
-  add(g, box(0.36, 0.36, 0.36), M(0xd9a47a), 0, 1.85, 0);
-  add(g, cyl(0.42, 0.42, 0.06, 12), M(hat), 0, 2.05, 0);
-  add(g, cyl(0.2, 0.24, 0.24, 10), M(hat), 0, 2.18, 0);
-  // the shovel: tool and weapon. It pivots at the right shoulder; forward is +z.
-  const shovel = new THREE.Group(); shovel.position.set(0.46, 1.4, 0.05);
-  add(shovel, cyl(0.035, 0.035, 1.25, 6), M(0x8a6a3c), 0, 0, 0.5, Math.PI / 2, 0, 0);
-  add(shovel, box(0.27, 0.04, 0.36), M(0x8d9499), 0, 0, 1.28);
-  shovel.rotation.x = SHOVEL_REST; g.add(shovel);
+  const g = new THREE.Group(), body = new THREE.Group(), upper = new THREE.Group(), legs = [], skin = M(0xd9a47a), cloth = M(shirt), HIP = 0.9;
+  body.position.y = HIP; g.add(body);
+  legs.push(add(body, box(0.24, 0.85, 0.26), M(0x3a4a66), 0.15, 0.43 - HIP, 0), add(body, box(0.24, 0.85, 0.26), M(0x3a4a66), -0.15, 0.43 - HIP, 0));
+  upper.position.y = 0.86 - HIP; body.add(upper);
+  add(upper, box(0.62, 0.8, 0.38), cloth, 0, 0.40, 0);
+  add(upper, box(0.36, 0.36, 0.36), skin, 0, 0.99, 0);
+  add(upper, cyl(0.42, 0.42, 0.06, 12), M(hat), 0, 1.19, 0);
+  add(upper, cyl(0.2, 0.24, 0.24, 10), M(hat), 0, 1.32, 0);
+  const arm = side => { const a = new THREE.Group(); a.position.set(side * 0.42, 0.72, 0); add(a, box(0.19, 0.46, 0.21), cloth, 0, -0.23, 0); add(a, box(0.16, 0.3, 0.18), skin, 0, -0.6, 0); upper.add(a); return a; };
+  const armR = arm(1), armL = arm(-1);
+  const shovel = new THREE.Group(); shovel.position.set(0, -0.72, 0.04);
+  add(shovel, cyl(0.035, 0.035, 1.3, 6), M(0x8a6a3c), 0, 0, 0.42, Math.PI / 2, 0, 0);
+  add(shovel, box(0.27, 0.04, 0.38), M(0x8d9499, 0.4, 0.4), 0, 0, 1.22);
+  armR.add(shovel);
   g.scale.setScalar(1.25);
-  g.userData = { legs, shovel };
+  g.userData = { legs, body, upper, armR, armL, shovel, pose: { arm: -0.55, shv: 0.15, tw: 0, lean: 0 } };
   return g;
 }
 function makePlant() {
@@ -937,9 +941,9 @@ function step(dt) {
 const cam = { x: 0, z: 90, yaw: Math.PI * 1.25, pitch: 0.66, size: window.innerWidth < 640 ? 46 : 38 };
 function placeCamera() {
   cam.x = clamp(cam.x, -HALF, HALF); cam.z = clamp(cam.z, -HALF, HALF); cam.size = clamp(cam.size, 10, 190);
-  const ty = Math.max(0, hAt(cam.x, cam.z)), d = 400;
-  camera.position.set(cam.x + Math.sin(cam.yaw) * Math.cos(cam.pitch) * d, ty + Math.sin(cam.pitch) * d, cam.z + Math.cos(cam.yaw) * Math.cos(cam.pitch) * d);
-  camera.lookAt(cam.x, ty, cam.z);
+  const ty = Math.max(0, hAt(cam.x, cam.z)), d = 400, kx = shake > 0.004 ? (Math.random() - 0.5) * 2 * shake : 0, kz = shake > 0.004 ? (Math.random() - 0.5) * 2 * shake : 0;
+  camera.position.set(cam.x + kx + Math.sin(cam.yaw) * Math.cos(cam.pitch) * d, ty + Math.sin(cam.pitch) * d, cam.z + kz + Math.cos(cam.yaw) * Math.cos(cam.pitch) * d);
+  camera.lookAt(cam.x + kx, ty, cam.z + kz);
   placeSun(cam.x, ty, cam.z, cam.size);
   const w = glCanvas.clientWidth || 1, h = glCanvas.clientHeight || 1, asp = w / h;
   camera.left = -cam.size * asp; camera.right = cam.size * asp; camera.top = cam.size; camera.bottom = -cam.size;
@@ -1028,7 +1032,7 @@ glCanvas.addEventListener('pointerdown', e => {
   if (view === 'drive' && e.pointerType === 'mouse' && !jim.driving && !jim.dead && !toolMode && (e.button === 0 || e.button === 2)) {
     glCanvas.setPointerCapture(e.pointerId);
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, type: 'mouse', btn: e.button, moved: true, fire: true });
-    if (e.button === 0) aim.firing = true; else pressed.add('bomb');
+    if (e.button === 0) aim.firing = true; else aim.blocking = true;
     return;
   }
   glCanvas.setPointerCapture(e.pointerId);
@@ -1056,7 +1060,7 @@ glCanvas.addEventListener('pointermove', e => {
 function endPtr(e) {
   const p = ptrs.get(e.pointerId);
   if (!p) return;
-  if (p.fire) { ptrs.delete(e.pointerId); if (p.btn === 0) aim.firing = false; return; }
+  if (p.fire) { ptrs.delete(e.pointerId); if (p.btn === 0) aim.firing = false; else aim.blocking = false; return; }
   ptrs.delete(e.pointerId);
   if (ptrs.size < 2 && !ptrs.size) pinch = null;
   if (!p.moved && e.type === 'pointerup' && ptrs.size === 0) onTap(e.clientX, e.clientY, p.btn);
@@ -1072,7 +1076,7 @@ window.addEventListener('keydown', e => {
   if (e.key === ' ') { e.preventDefault(); if (view === 'drive') pressed.add('act'); else setSpeed(timeScale ? 0 : 1); }
   if (kk === 'p' && !e.repeat) setSpeed(timeScale ? 0 : 1);
   if ((kk === 'x' || kk === 'f' || e.key === 'Enter') && !e.repeat) pressed.add('hop');
-  if (!e.repeat && view === 'drive') { if (kk === 'g') pressed.add('bomb'); if (kk === 'b') pressed.add('berm'); }
+  if (!e.repeat && view === 'drive') { if (kk === 'g' || kk === 'q') pressed.add('bomb'); if (kk === 'b') pressed.add('berm'); if (kk === 'r') pressed.add('roll'); }
   if (e.key === 'Tab') { e.preventDefault(); if (!e.repeat) setView(view === 'drive' ? 'boss' : 'drive'); }
   if (e.key === 'Escape') { if (toolMode) setTool(null); else select(null); }
 });
@@ -1114,6 +1118,7 @@ function drawHUD() {
   for (const m of machines) if (m.order && m.order.k === 'dig') ring(m.order.x, m.order.z, m.order.r, sel === m ? 'rgba(227,180,72,0.95)' : 'rgba(227,180,72,0.5)');
   if (sel instanceof Structure) ring(sel.x, sel.z, sel.S.r + 1, 'rgba(227,180,72,0.9)');
   if (sel instanceof Machine) ring(sel.x, sel.z, 3, 'rgba(227,180,72,0.9)');
+  fightBars(c);
   if (sel instanceof Pile) ring(sel.x, sel.z, 3.5, 'rgba(227,180,72,0.9)');
   for (let n = marks.length - 1; n >= 0; n--) {
     const mk = marks[n]; mk.t += 1 / 60;
@@ -1182,7 +1187,7 @@ function btn(label, fn, cls) { const b = document.createElement('button'); b.tex
 function renderStats() {
   const left = Math.max(0, T.seasonMin * 60 - ledger.seasonT), mm = Math.floor(left / 60), ss = String(Math.floor(left % 60)).padStart(2, '0');
   const month = Math.min(12, Math.floor(Math.max(0, ledger.seasonT) / (T.seasonMin * 60) * 12) + 1);
-  $('#stats').innerHTML = `<span class="${ledger.money < 0 ? 'neg' : ''}"><b>${money(ledger.money)}</b></span><span>Safe <b>${ledger.goldSafe.toFixed(1)} g</b></span><span class="${jim.carry > 100 ? 'neg' : ''}">Carrying <b>${jim.carry.toFixed(0)} lb</b></span><span>Gold <b>$${ledger.price.toFixed(0)}/g</b></span><span class="${jim.hp < 40 ? 'neg' : ''}">Health <b>${Math.max(0, Math.round(jim.hp))}</b></span><span>Crew <b>${ledger.workers}/${beds()}</b></span><span>Month <b>${month}/12</b></span><span>${race.active ? 'Race' : 'Year'} <b>${mm}:${ss}</b></span>`;
+  $('#stats').innerHTML = `<span class="${ledger.money < 0 ? 'neg' : ''}"><b>${money(ledger.money)}</b></span><span>Safe <b>${ledger.goldSafe.toFixed(1)} g</b></span><span class="${jim.carry > 100 ? 'neg' : ''}">Carrying <b>${jim.carry.toFixed(0)} lb</b></span><span>Gold <b>$${ledger.price.toFixed(0)}/g</b></span><span class="${jim.hp < 40 ? 'neg' : ''}">Health <b>${Math.max(0, Math.round(jim.hp))}</b></span><span>Crew <b>${ledger.workers}/${beds()}</b></span>${ledger.seasonT < 0 ? '<span>Season <b>open</b></span>' : `<span>Month <b>${month}/12</b></span><span>${race.active ? 'Race' : 'Year'} <b>${mm}:${ss}</b></span>`}`;
 }
 let lastCmdSig = '';
 function refreshCmd() {
@@ -1205,7 +1210,7 @@ function buildCmd(info, cmds) {
   }
   if (!sel && view === 'drive') {
     const nm = nearestMachine(5);
-    info.innerHTML = `<b>${jim.dead ? 'Down' : 'On foot'}</b> · <span class="st">${jim.dead ? 'Back at your claim in a moment.' : inTown() ? 'In town. The Assay Office buys gold.' : nm ? `Hop in the ${nm.name} with X or the Hop in button.` : 'Walk with WASD or the stick. Tab switches to the boss view.'}</span>`;
+    info.innerHTML = `<b>${jim.dead ? 'Down' : 'On foot'}</b> · <span class="st">${jim.dead ? 'Back at your claim in a moment.' : inTown() ? 'In town. The Assay Office buys gold.' : nm ? `Hop in the ${nm.name} with X or the Hop in button.` : (ledger.goldSafe > 0.5 && !jim.carry ? `${ledger.goldSafe.toFixed(1)} g of gold is waiting at the wash plant: walk up to it and press Space to pick it up. ` : jim.carry > 0.05 ? 'You are carrying gold: take the Crew 4x4 up the hill road and sell it in town. ' : '') + 'Walk with WASD or the stick. Tab switches to the boss view.'}</span>`;
     if (nm) cmds.append(btn(`Hop in: ${nm.name}`, () => pressed.add('hop'), 'on'));
     cmds.append(goldBtn, btn('Boss view', () => setView('boss')));
     return;
@@ -1352,7 +1357,7 @@ function renderDrawer() {
   } else {
     $('#drawerTitle').textContent = 'How to mine';
     const dl = document.createElement('dl'); dl.className = 'keys';
-    for (const [k, v] of [['Tap', 'Select a machine, building or pile'], ['Tap ground', 'Drive the selected machine there'], ['Dig here', 'Excavator digs that spot down to bedrock'], ['Drag', 'Pan'], ['Pinch', 'Zoom and rotate'], ['Wheel', 'Zoom (mouse)'], ['Tab', 'Switch drive view and boss view'], ['WASD', 'Walk or drive (pan in boss view)'], ['X / F', 'Hop in or out'], ['Space', 'Dig, dump, scoop (pause in boss view)'], ['Q / E', 'Swing the excavator (rotate the view otherwise)'], ['Z / C', 'Rotate the view'], ['Mouse', 'Face where the cursor points; left click swings the shovel, right click throws a satchel'], ['Space on foot', 'Swing the shovel: it hits anyone in reach, otherwise it digs a scoop and throws it to your right; load gold next to the wash plant'], ['Shift', 'Sprint (not when carrying over 100 lb)'], ['G', 'Throw a satchel charge (blows a crater)'], ['B', 'Dig in: throw up a dirt berm for cover'], ['P', 'Pause']]) {
+    for (const [k, v] of [['Tap', 'Select a machine, building or pile'], ['Tap ground', 'Drive the selected machine there'], ['Dig here', 'Excavator digs that spot down to bedrock'], ['Drag', 'Pan'], ['Pinch', 'Zoom and rotate'], ['Wheel', 'Zoom (mouse)'], ['Tab', 'Switch drive view and boss view'], ['WASD', 'Walk or drive (pan in boss view)'], ['X / F', 'Hop in or out'], ['Space', 'Dig, dump, scoop (pause in boss view)'], ['Q / E', 'Swing the excavator (rotate the view otherwise)'], ['Z / C', 'Rotate the view'], ['Mouse', 'Face the cursor. Left click swings the shovel; keep holding and it becomes a heavy overhead chop. Hold right click to block, and block just as a hit lands to parry it'], ['Space on foot', 'Same as left click. With no one around it digs a scoop and throws it to your right. Next to the wash plant it loads your gold'], ['Shift', 'Sprint (not when carrying over 100 lb)'], ['G or Q', 'Throw a satchel charge (blows a crater)'], ['R', 'Dodge roll the way you are moving. Nothing can hit you for a moment'], ['C', 'Block (same as holding right click)'], ['Stamina', 'The yellow bar. Swings, rolls and blocked hits spend it. At zero you are winded and cannot swing'], ['B', 'Dig in: throw up a dirt berm for cover'], ['P', 'Pause']]) {
       const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v; dl.append(dt, dd);
     }
     body.append(dl, h3('The ground'),
@@ -1467,6 +1472,7 @@ function sfx(kind, x, z) {
     case 'shot': noiseBurst(out, t, 0.25, 'highpass', 1800, 0, 0.7, 1.0, 0.18); tone(out, t, 'sine', 160, 50, 0.18, 0.8); noiseBurst(out, t + 0.02, 0.6, 'lowpass', 900, 200, 0.6, 0.35, 0.5); break;
     case 'swish': noiseBurst(out, t, 0.16, 'bandpass', 1400, 500, 1.0, 0.35, 0.12); break;
     case 'whack': tone(out, t, 'triangle', 520, 180, 0.09, 0.7); noiseBurst(out, t, 0.12, 'bandpass', 2400, 0, 2.0, 0.6, 0.06); tone(out, t, 'sine', 120, 60, 0.12, 0.6); break;
+    case 'clang': tone(out, t, 'square', 1180, 820, 0.07, 0.35); tone(out, t, 'triangle', 2350, 1900, 0.16, 0.3); noiseBurst(out, t, 0.08, 'highpass', 3200, 0, 1.2, 0.5, 0.05); break;
     case 'boom': tone(out, t, 'sine', 90, 28, 0.9, 1.0); noiseBurst(out, t, 1.6, 'lowpass', 1400, 90, 0.5, 1.0, 1.4); break;
     case 'hurt': tone(out, t, 'triangle', 300, 140, 0.18, 0.4); break;
     case 'horn': tone(out, t, 'square', 392, 392, 0.4, 0.18); tone(out, t, 'square', 494, 494, 0.4, 0.14); break;
@@ -1703,7 +1709,7 @@ function readInput() {
     fwd: drive ? clamp(k('w') + k('arrowup') - k('s') - k('arrowdown') - touchIn.ly, -1, 1) : 0,
     turn: drive ? clamp(k('a') + k('arrowleft') - k('d') - k('arrowright') - touchIn.lx, -1, 1) : 0,
     swing: drive ? clamp(k('q') - k('e') + touchIn.swing, -1, 1) : 0,
-    action: pressed.has('act'), hop: pressed.has('hop'), dash: pressed.has('dash'), bomb: pressed.has('bomb'), berm: pressed.has('berm'),
+    action: pressed.has('act'), hop: pressed.has('hop'), dash: pressed.has('dash'), bomb: pressed.has('bomb'), berm: pressed.has('berm'), roll: pressed.has('roll'),
   };
   pressed.clear();
   return inp;
@@ -1711,7 +1717,7 @@ function readInput() {
 let wasInTown = false;
 function updatePlayer(dt, live) {
   const inp = readInput();
-  if (!live || jim.dead) { inp.fwd = inp.turn = inp.swing = 0; inp.action = inp.hop = inp.dash = inp.bomb = inp.berm = false; aim.firing = false; }
+  if (!live || jim.dead) { inp.fwd = inp.turn = inp.swing = 0; inp.action = inp.hop = inp.dash = inp.bomb = inp.berm = inp.roll = false; aim.firing = aim.blocking = false; }
   if (jim.ride) inp.fwd = inp.turn = 0;
   if (aim.mouse && view === 'drive') aim.pt = aimGround(mouse[0], mouse[1]);
   if (inp.hop) {
@@ -1733,12 +1739,14 @@ function updatePlayer(dt, live) {
   } else {
     const fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw), rx = Math.cos(cam.yaw), rz = -Math.sin(cam.yaw);
     let mx = fx * inp.fwd - rx * inp.turn, mz = fz * inp.fwd - rz * inp.turn;
-    const mag = Math.hypot(mx, mz);
-    if (mag > 0.05) {
+    const mag = Math.hypot(mx, mz), mf = moveFactor(jim);
+    jim.mvx = mag > 0.05 ? mx : 0; jim.mvz = mag > 0.05 ? mz : 0;
+    if (mag > 0.05 && mf > 0) {
       mx /= Math.max(1, mag); mz /= Math.max(1, mag);
-      const sp = (sprinting() ? 11 : 6) * weightFactor(), nx = jim.x + mx * sp * dt, nz = jim.z + mz * sp * dt;
+      const sp = (sprinting() && mf === 1 ? 11 : 6) * weightFactor() * mf, nx = jim.x + mx * sp * dt, nz = jim.z + mz * sp * dt;
       if (hAt(nx, nz) > WATER_Y - 0.5) { jim.x = nx; jim.z = nz; }
-      jim.yaw = Math.atan2(mx, mz); jim.walk += dt * 10;
+      if (!jim.atk) jim.yaw = Math.atan2(mx, mz);
+      jim.walk += dt * 10;
     }
     pushOut(jim, 0.5);
     rideTick();
@@ -2138,11 +2146,12 @@ function ghostTick(dt) {
   }
 }
 
-// =============================================================== hero combat: shovel, dash, satchel, berm, bandits, loot
-// Jimbo is the hero. No guns: everybody fights with a shovel, and the same swing digs when nobody is in reach.
+// =============================================================== hero combat: shovel fighting, satchel, berm, bandits, loot
+// Jimbo is the hero. No guns: everybody fights with a shovel, and the same swing digs when nobody is near.
 // Every ability reuses the terrain: satchels blow craters, berms pile dirt, and a dirt bank between you blocks a swing.
-Object.assign(jim, { hp: 100, dead: false, cd: { swing: 0, bomb: 0, berm: 0 }, swingT: 0, respawnT: 0, carry: 0, ride: null });
-const aim = { mouse: false, firing: false, pt: null };
+Object.assign(jim, { hp: 100, dead: false, cd: { swing: 0, bomb: 0, berm: 0 }, respawnT: 0, carry: 0, ride: null });
+newFight(jim);
+const aim = { mouse: false, firing: false, blocking: false, pt: null };
 function sprinting() { return (keys.has('shift') || touchIn.run) && !jim.driving && !jim.dead && jim.carry <= 100; }
 // gold leaves the plant as heavy black-sand concentrate: about a pound per gram until the Assay Office cleans it
 function weightFactor() { return jim.carry <= 40 ? 1 : Math.max(0.35, 1 - (jim.carry - 40) / 100 * 0.6); }
@@ -2176,7 +2185,7 @@ function rideTick() {
   jim.x = m.x; jim.z = m.z;
 }
 const COOL = { swing: 0.5, bomb: 8, berm: 9 };
-const SHOVEL = { reach: 2.7, arc: 1.05, dmg: 34, scoop: 0.3, swingT: 0.3 };
+const SHOVEL = { scoop: 0.3 };
 const foes = [], loots = [], bombs = [];
 let shotSeq = 0, lootSeq = 0, banditT = 20;
 const myShots = [], myGrants = [], myPicks = [];
@@ -2197,52 +2206,190 @@ function hostiles() {
   }
   return out;
 }
-// shovel pose: held up at rest, chops down through the swing
-function poseShovel(mesh, t) {
-  const s = mesh.userData.shovel; if (!s) return;
-  s.rotation.x = t > 0 ? lerp(0.55, -1.7, clamp(t / SHOVEL.swingT, 0, 1)) : SHOVEL_REST;
-}
-const angOff = (a, b) => { const d = a - b; return Math.abs(Math.atan2(Math.sin(d), Math.cos(d))); };
-// One swing. Anyone hostile in the arc gets hit (all of them: it is a wide swing). If nobody is in reach
-// the blade goes in the ground instead: a scoop comes out in front and lands to your right, so walking
-// a line digs a ditch with a berm beside it.
-function swingShovel() {
-  if (jim.cd.swing > 0) return false;
-  jim.cd.swing = COOL.swing; jim.swingT = SHOVEL.swingT;
-  const near = hostiles().map(h => ({ ...h, d: dist(h.x, h.z, jim.x, jim.z) })).filter(h => h.d < SHOVEL.reach + (h.r || 0.55)).sort((a, c) => a.d - c.d);
-  // without a mouse the swing turns to face the nearest enemy in reach
-  if (!(aim.mouse && aim.pt) && near[0]) jim.yaw = Math.atan2(near[0].x - jim.x, near[0].z - jim.z);
-  const fx = Math.sin(jim.yaw), fz = Math.cos(jim.yaw);
-  let hits = 0;
-  for (const h of near) {
-    if (angOff(Math.atan2(h.x - jim.x, h.z - jim.z), jim.yaw) > SHOVEL.arc || !clearShot(jim.x, jim.z, h.x, h.z)) continue;
-    hits++;
-    puff(dustTex, h.x, hAt(h.x, h.z) + 1.3, h.z, 1.1, 0.35, 0.3);
-    if (h.kind === 'bandit') { hurtBandit(h.ref, SHOVEL.dmg); h.ref.x += fx * 1.3; h.ref.z += fz * 1.3; h.ref.stun = 0.35; }
-    else if (h.kind === 'ai') { const truck = h.ref.kind === 'truck'; hurtUnit(h.ref, truck ? 12 : SHOVEL.dmg, null); if (!truck) { h.ref.x += fx * 1.3; h.ref.z += fz * 1.3; h.ref.stun = 0.35; } }
-    else myShots.push([++shotSeq, h.peer, SHOVEL.dmg]);
-  }
-  if (hits) { sfx('whack', jim.x, jim.z); return true; }
-  if (jim.ride) { sfx('swish', jim.x, jim.z); return true; }
-  const b = digAt(jim.x + fx * 1.5, jim.z + fz * 1.5, 0.9, SHOVEL.scoop);
-  if (b && b.vol > 0.01) {
-    deposit(jim.x + fx * 1.5 + fz * 2.3, jim.z + fz * 1.5 - fx * 2.3, b.vol, 1);
-    sfx('dig', jim.x, jim.z); puff(dustTex, jim.x + fx * 1.5, hAt(jim.x + fx * 1.5, jim.z + fz * 1.5) + 0.4, jim.z + fz * 1.5, 0.9, 0.5, 0.3);
-  } else sfx('swish', jim.x, jim.z);
+// ---------------------------------------------------------------------------------------------------------------
+// Melee. One set of moves for everybody (Jimbo, bandits, convoy guards), so a fight reads the same from both sides.
+//   light  = side swing, wide arc, quick.  heavy = overhead chop, narrow arc, slow, hits hard and staggers.
+//   Each swing is wind-up -> strike -> recovery and you are committed to the direction you started it in.
+//   Stamina pays for swings, rolls and blocked hits; at zero you are winded and cannot attack.
+//   Block: hits from the front do a quarter damage but cost stamina. Block in the first instant (a parry) and the
+//   attacker is thrown off balance instead. Roll: a short tumble during which nothing can hit you.
+const ATK = {
+  light: { wind: 0.24, act: 0.11, rec: 0.30, reach: 2.5, arc: 1.0, dmg: 24, stam: 18, kb: 3.0, stag: 0.30, stop: 0.055, shake: 0.14 },
+  heavy: { wind: 0.56, act: 0.12, rec: 0.50, reach: 2.8, arc: 0.45, dmg: 52, stam: 34, kb: 7.0, stag: 0.75, stop: 0.11, shake: 0.32, chop: true },
+  dig: { wind: 0.14, act: 0.06, rec: 0.28, reach: 0, arc: 0, dmg: 0, stam: 0, kb: 0, stag: 0, stop: 0, shake: 0, chop: true, dig: true },
+};
+const FIGHT = { parry: 0.22, parryStun: 1.0, blockCut: 0.25, rollT: 0.42, rollDist: 5.0, rollInv: 0.30, rollStam: 24, stamRegen: 30, stamWait: 0.7, winded: 1.5, aiSlow: 1.55, aiDmg: 0.7 };
+let hitStop = 0, shake = 0, jimToken = null, jimTokenT = 0;
+const angOff = (a, c) => { const d = a - c; return Math.abs(Math.atan2(Math.sin(d), Math.cos(d))); };
+const ease = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+function newFight(e) { return Object.assign(e, { atk: null, atkT: 0, atkYaw: 0, atkSlow: 1, atkHit: null, swingDir: 1, stag: 0, kx: 0, kz: 0, stam: 100, stamWait: 0, block: false, blockT: 0, blockHold: 0, roll: 0, rvx: 0, rvz: 0, inv: 0, tokenRest: 0 }); }
+function canAct(e) { return !e.atk && e.stag <= 0 && e.roll <= 0 && e.hp > 0 && !e.dead; }
+function drainStam(e, n) { e.stam = Math.max(0, e.stam - n); e.stamWait = e.stam <= 0 ? FIGHT.winded : FIGHT.stamWait; }
+function atkHeld() { return aim.firing || keys.has(' '); }
+function meleeFoes() { const out = foes.filter(f => f.hp > 0); for (const u of aiUnits()) if (u.kind === 'guard') out.push(u); return out; }
+function moveFactor(e) { return e.roll > 0 || e.stag > 0 ? 0 : e.atk ? (ATK[e.atk].dig ? 0.55 : 0.3) : e.block ? 0.45 : 1; }
+function startAttack(e, kind, yaw, slow = 1) {
+  const A = ATK[kind];
+  if (!canAct(e) || e.stam < A.stam * 0.5) return false;                      // too winded to swing
+  Object.assign(e, { atk: kind, atkT: 0, atkYaw: yaw, yaw, atkSlow: slow, atkHit: new Set(), swingDir: -e.swingDir, block: false });
+  drainStam(e, A.stam);
+  // people in front of Jimbo sometimes get their shovel up in time
+  if (e === jim && !A.dig) for (const o of meleeFoes()) if (canAct(o) && dist(o.x, o.z, e.x, e.z) < 3.6 && Math.random() < 0.3) { o.blockHold = 0.75; o.blockT = 0; o.block = true; }
   return true;
 }
-// a bandit or a guard winds up, then swings: there is time to step back out of reach
-function foeSwing(e, tx, tz, d, dt, onHit) {
-  e.swingT = Math.max(0, (e.swingT || 0) - dt);
-  e.cool -= dt;
-  if (e.wind > 0) {
-    e.wind -= dt;
-    if (e.wind <= 0) {
-      e.swingT = SHOVEL.swingT; sfx('swish', e.x, e.z);
-      if (d < SHOVEL.reach + 0.3 && clearShot(e.x, e.z, tx, tz)) { sfx('whack', tx, tz); onHit(); }
+function startRoll(e, dx, dz) {
+  if (e.stag > 0 || e.roll > 0 || e.stam <= 0 || !(e.hp > 0) || e.dead) return false;
+  if (e.atk && e.atkT >= ATK[e.atk].wind * e.atkSlow) return false;      // too late to bail out of a swing once it is coming down
+  let L = Math.hypot(dx, dz); if (L < 0.05) { dx = Math.sin(e.yaw); dz = Math.cos(e.yaw); L = 1; }
+  const sp = FIGHT.rollDist / FIGHT.rollT * (e === jim ? weightFactor() : 1);
+  Object.assign(e, { atk: null, block: false, roll: FIGHT.rollT, rvx: dx / L * sp, rvz: dz / L * sp, inv: FIGHT.rollInv, yaw: Math.atan2(dx, dz) });
+  drainStam(e, FIGHT.rollStam); sfx('swish', e.x, e.z);
+  return true;
+}
+// who a swing can reach
+function fightTargets(e) {
+  if (e === jim) return hostiles();
+  const t = e.isBandit ? 'jim' : e.target && e.target.t;
+  if (!t) return [];
+  if (t === 'jim') return jim.dead ? [] : [{ kind: 'jim', ref: jim, x: jim.x, z: jim.z, r: 0.55 }];
+  return t.hp > 0 ? [{ kind: 'ai', ref: t, x: t.x, z: t.z, r: t.kind === 'truck' ? 1.3 : 0.55 }] : [];
+}
+function hitFx(att, ent, x, z, A, k = 1) {
+  puff(dustTex, x, hAt(x, z) + 1.3, z, 1.1, 0.35, 0.3);
+  if (att === jim || ent === jim) { hitStop = Math.max(hitStop, A.stop * k); shake = Math.max(shake, A.shake * k); }   // only fights you are in freeze the frame
+}
+function applyHit(att, t, A) {
+  att.atkHit.add(t.ref || t.peer);
+  const dx = t.x - att.x, dz = t.z - att.z, L = Math.hypot(dx, dz) || 1, ux = dx / L, uz = dz / L, byO = att.o || null;
+  if (t.kind === 'player') { myShots.push([++shotSeq, t.peer, A.dmg]); sfx('whack', t.x, t.z); hitFx(att, null, t.x, t.z, A); return; }
+  const ent = t.ref, isJim = ent === jim;
+  if (ent.kind === 'truck') { hurtUnit(ent, A.chop ? 18 : 9, byO); sfx('whack', t.x, t.z); hitFx(att, ent, t.x, t.z, A, 0.6); return; }
+  if (ent.inv > 0) return;                                                   // rolled through it
+  let dmg = A.dmg * (att === jim ? 1 : FIGHT.aiDmg), kb = A.kb, stag = A.stag;
+  if (isJim && jim.driving) { hurtMe(dmg * 0.5, att.why); return; }           // the cab takes most of it
+  if (ent.block && angOff(Math.atan2(-ux, -uz), ent.yaw) < 1.15) {
+    if (ent.blockT <= FIGHT.parry) {                                         // parry: the attacker is the one who pays
+      Object.assign(att, { atk: null, stag: FIGHT.parryStun, kx: -ux * 2.5, kz: -uz * 2.5 });
+      ent.stam = Math.min(100, ent.stam + 15);
+      sfx('clang', t.x, t.z); puff(sparkTex, (att.x + t.x) / 2, hAt(t.x, t.z) + 1.5, (att.z + t.z) / 2, 1.6, 0.22, 0, true);
+      if (att === jim || isJim) { hitStop = Math.max(hitStop, 0.09); shake = Math.max(shake, 0.16); }
+      return;
     }
-  } else if (e.cool <= 0 && d < 2.3) { e.cool = rand(1.0, 1.5); e.wind = 0.38; }
-  poseShovel(e.mesh, e.wind > 0 ? SHOVEL.swingT : e.swingT);
+    dmg *= FIGHT.blockCut; kb *= 0.5; stag = 0; drainStam(ent, A.stam * 0.9 + 6); sfx('clang', t.x, t.z);
+    if (ent.stam <= 0) { stag = 0.9; ent.block = false; ent.blockHold = 0; }  // guard broken
+  } else sfx('whack', t.x, t.z);
+  ent.kx += ux * kb; ent.kz += uz * kb;
+  if (stag > 0) { ent.stag = Math.max(ent.stag, stag); ent.atk = null; }
+  hitFx(att, ent, t.x, t.z, A);
+  if (isJim) hurtMe(dmg, att.why || 'You got laid out'); else if (ent.isBandit) hurtBandit(ent, dmg); else hurtUnit(ent, dmg, byO);
+}
+// the same swing, with nobody to hit: a scoop comes out in front and lands to your right
+function digScoop(e) {
+  const fx = Math.sin(e.yaw), fz = Math.cos(e.yaw), s = digAt(e.x + fx * 1.5, e.z + fz * 1.5, 0.9, SHOVEL.scoop);
+  if (s && s.vol > 0.01) {
+    deposit(e.x + fx * 1.5 + fz * 2.3, e.z + fz * 1.5 - fx * 2.3, s.vol, 1);
+    sfx('dig', e.x, e.z); puff(dustTex, e.x + fx * 1.5, hAt(e.x + fx * 1.5, e.z + fz * 1.5) + 0.4, e.z + fz * 1.5, 0.9, 0.5, 0.3);
+  }
+}
+function tickFight(e, dt) {
+  if (e.kx || e.kz) {
+    const nx = e.x + e.kx * dt, nz = e.z + e.kz * dt; if (hAt(nx, nz) > WATER_Y - 0.5) { e.x = nx; e.z = nz; }
+    const f = Math.exp(-9 * dt); e.kx *= f; e.kz *= f; if (Math.abs(e.kx) + Math.abs(e.kz) < 0.05) e.kx = e.kz = 0;
+  }
+  e.stag = Math.max(0, e.stag - dt); e.inv = Math.max(0, e.inv - dt);
+  if (e.roll > 0) { e.roll = Math.max(0, e.roll - dt); const nx = e.x + e.rvx * dt, nz = e.z + e.rvz * dt; if (hAt(nx, nz) > WATER_Y - 0.5) { e.x = nx; e.z = nz; } }
+  e.blockT = e.block ? e.blockT + dt : 0;
+  if (e.stamWait > 0) e.stamWait -= dt; else if (!e.atk && e.roll <= 0) e.stam = Math.min(100, e.stam + FIGHT.stamRegen * (e.block ? 0.35 : 1) * dt);
+  if (!e.atk) return;
+  let A = ATK[e.atk]; const w = A.wind * e.atkSlow, t0 = e.atkT; e.atkT += dt;
+  // keep holding the button through a side swing's wind-up and it turns into the overhead chop
+  if (e === jim && e.atk === 'light' && t0 < w && e.atkT >= w && atkHeld() && e.stam >= 8) { e.atk = 'heavy'; drainStam(e, ATK.heavy.stam - ATK.light.stam); return; }
+  if (t0 < w && e.atkT >= w) { sfx('swish', e.x, e.z); if (A.dig) digScoop(e); }
+  if (!A.dig && e.atkT >= w && t0 < w + A.act) for (const t of fightTargets(e)) {
+    if (e.atkHit.has(t.ref || t.peer)) continue;
+    const r = t.r || 0.55, d = dist(t.x, t.z, e.x, e.z);
+    if (d > A.reach + r || angOff(Math.atan2(t.x - e.x, t.z - e.z), e.atkYaw) > A.arc + (r > 1 ? 0.3 : 0) || !clearShot(e.x, e.z, t.x, t.z)) continue;
+    applyHit(e, t, A);
+    if (!e.atk) return;                                                      // parried
+  }
+  if (e.atkT >= w + A.act + A.rec) e.atk = null;
+}
+// Jimbo's swing button. Near a fight it is a swing; alone it is a shovel.
+function playerAttack() {
+  let near = 1e9, ny = jim.yaw;
+  for (const h of hostiles()) { const d = dist(h.x, h.z, jim.x, jim.z); if (d < near) { near = d; ny = Math.atan2(h.x - jim.x, h.z - jim.z); } }
+  const yaw = aim.mouse && aim.pt ? jim.yaw : near < 3.6 ? ny : jim.yaw;       // without a mouse, turn to the nearest enemy in reach
+  return startAttack(jim, near < 14 ? 'light' : 'dig', yaw);
+}
+const swingShovel = playerAttack;
+// only one enemy presses the attack on Jimbo at a time; the rest hang back and circle
+function hasToken(e) {
+  if (jimToken && (jimToken.hp <= 0 || jimTokenT <= 0)) { jimToken.tokenRest = 1.4; jimToken = null; }
+  if (!jimToken && !(e.tokenRest > 0)) { jimToken = e; jimTokenT = rand(2.6, 4.2); }
+  return jimToken === e;
+}
+function foeBrain(e, tx, tz, d, dt, isJim) {
+  e.tokenRest = Math.max(0, e.tokenRest - dt); e.blockHold = Math.max(0, e.blockHold - dt);
+  if (!canAct(e)) { e.block = false; return; }                               // mid-swing or reeling: no steering
+  if (e.hold) return;                                                        // tests pin a fighter in place with this
+  const want = Math.atan2(tx - e.x, tz - e.z);
+  e.yaw = angLerp(e.yaw, want, Math.min(1, dt * 10));
+  e.block = e.blockHold > 0;
+  e.strafeT = (e.strafeT || 0) - dt; if (e.strafeT <= 0) { e.strafeT = rand(0.9, 2); e.side = Math.random() < 0.5 ? -1 : 1; }
+  const press = !isJim || hasToken(e), goal = press ? 1.9 : 4.3;
+  const adv = d > goal + 0.25 ? 1 : d < goal - 0.6 ? -0.55 : 0, sp = (press ? 6.4 : 5.2) * (e.block ? 0.5 : 1) * (e.stam <= 0 ? 0.6 : 1), circ = d < 6.5 ? (press ? 0.9 : 1.8) * (e.side || 1) : 0;
+  e.x += (Math.sin(e.yaw) * adv * sp + Math.cos(e.yaw) * circ) * dt; e.z += (Math.cos(e.yaw) * adv * sp - Math.sin(e.yaw) * circ) * dt;
+  if (adv || circ) e.walk += dt * 11;
+  e.cool -= dt;
+  if (press && d < 2.4 && e.cool <= 0 && e.stam > 25 && !e.block && startAttack(e, Math.random() < 0.28 ? 'heavy' : 'light', want, FIGHT.aiSlow)) e.cool = rand(1.0, 1.7);
+}
+// pose the rig from the fight state; values ease toward their targets so nothing snaps
+function poseFighter(mesh, e, dt) {
+  const u = mesh.userData; if (!u.upper) return;
+  let arm = -0.55, shv = 0.15, tw = 0, lean = 0;
+  const A = e.atk && ATK[e.atk];
+  if (e.stag > 0) { lean = -0.42; arm = -0.15; shv = 0.5; tw = 0.25; }
+  else if (A) {
+    const w = A.wind * e.atkSlow, t = e.atkT, s = e.swingDir;
+    if (A.chop) {
+      if (t < w) { const k = ease(t / w); arm = lerp(-0.55, -2.9, k); shv = lerp(0.15, 0.3, k); lean = -0.24 * k; }
+      else if (t < w + A.act) { const k = (t - w) / A.act; arm = lerp(-2.9, -0.7, k); shv = lerp(0.3, 1.3, k); lean = lerp(-0.24, 0.4, k); }
+      else { const k = ease((t - w - A.act) / A.rec); arm = lerp(-0.7, -0.55, k); shv = lerp(1.3, 0.15, k); lean = 0.4 * (1 - k); }
+    } else {
+      if (t < w) { const k = ease(t / w); tw = s * 1.2 * k; arm = lerp(-0.55, -1.4, k); shv = lerp(0.15, 1.0, k); }
+      else if (t < w + A.act) { const k = (t - w) / A.act; tw = s * lerp(1.2, -1.05, k); arm = -1.4; shv = 1.1; lean = 0.12; }
+      else { const k = ease((t - w - A.act) / A.rec); tw = -s * 1.05 * (1 - k); arm = lerp(-1.4, -0.55, k); shv = lerp(1.1, 0.15, k); }
+    }
+  } else if (e.block) { arm = -1.5; shv = 0.15; tw = 0.5; lean = -0.06; }
+  const P = u.pose, striking = A && e.atkT >= A.wind * e.atkSlow && e.atkT < A.wind * e.atkSlow + A.act, k = striking || !dt ? 1 : 1 - Math.exp(-22 * dt);
+  P.arm = lerp(P.arm, arm, k); P.shv = lerp(P.shv, shv, k); P.tw = lerp(P.tw, tw, k); P.lean = lerp(P.lean, lean, k);
+  u.upper.rotation.y = P.tw; u.upper.rotation.x = P.lean; u.armR.rotation.x = P.arm; u.armL.rotation.x = P.arm * 0.8; u.armL.rotation.z = -0.25 * Math.min(1, -P.arm); u.shovel.rotation.x = P.shv;
+  const r = e.roll > 0 ? 1 - e.roll / FIGHT.rollT : 0;
+  u.body.rotation.x = r * Math.PI * 2; u.body.position.y = 0.9 - Math.sin(r * Math.PI) * 0.35;
+}
+// health and stamina over people's heads, and the note on the wash plant when there is gold to collect
+function fightBars(c) {
+  const bar = (x, y, w, frac, col) => { c.fillStyle = 'rgba(20,17,12,0.75)'; c.fillRect(x - w / 2 - 1, y - 1, w + 2, 6); c.fillStyle = col; c.fillRect(x - w / 2, y, w * clamp(frac, 0, 1), 4); };
+  const fighting = meleeFoes().some(f => dist(f.x, f.z, jim.x, jim.z) < 30);
+  if (!jim.dead && !jim.driving && (fighting || jim.stam < 99 || jim.hp < 99)) {
+    const s = toScreen(jim.x, hAt(jim.x, jim.z) + 3.4, jim.z);
+    if (s) { bar(s[0], s[1], 54, jim.hp / 100, '#d9534a'); bar(s[0], s[1] + 7, 54, jim.stam / 100, jim.stam <= 0 || jim.stamWait > FIGHT.stamWait ? '#8a8172' : '#e3b448'); }
+  }
+  for (const f of meleeFoes()) {
+    if (f.hp >= 75 && f.stam >= 99) continue;
+    const s = toScreen(f.x, hAt(f.x, f.z) + 3.3, f.z); if (!s) continue;
+    bar(s[0], s[1], 40, f.hp / 75, '#d9534a'); bar(s[0], s[1] + 7, 40, f.stam / 100, '#e3b448');
+  }
+  if (ledger.goldSafe > 0.5 && !jim.dead) for (const st of structures) {
+    if (st.kind !== 'plant') continue;
+    const s = toScreen(st.x, hAt(st.x, st.z) + 8.5, st.z); if (!s) continue;
+    const here = jim.driving ? jim.driving.type === 'suv' && nearPlant(jim.x, jim.z, 6) : nearPlant(jim.x, jim.z, 4);
+    const txt = here ? `Press Space to load ${ledger.goldSafe.toFixed(1)} g` : `${ledger.goldSafe.toFixed(1)} g of gold ready here. Walk up, or park the 4x4, and press Space.`;
+    c.font = '600 14px "Barlow Condensed", sans-serif'; const w = c.measureText(txt).width + 18;
+    c.fillStyle = here ? 'rgba(227,180,72,0.95)' : 'rgba(27,23,17,0.9)'; c.fillRect(s[0] - w / 2, s[1] - 12, w, 24);
+    c.strokeStyle = '#e3b448'; c.lineWidth = 1; c.strokeRect(s[0] - w / 2 + 0.5, s[1] - 11.5, w - 1, 23);
+    c.fillStyle = here ? '#15130f' : '#f1e6cf'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(txt, s[0], s[1] + 1); c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+  }
 }
 function hurtBandit(f, dmg) {
   f.hp -= dmg; puff(dustTex, f.x, hAt(f.x, f.z) + 1.3, f.z, 1, 0.4, 0.3);
@@ -2252,7 +2399,7 @@ function hurtMe(dmg, why) {
   if (jim.dead) return;
   jim.hp -= dmg; sfx('hurt', jim.x, jim.z);
   if (jim.hp > 0) return;
-  jim.dead = true; jim.respawnT = 6; jim.ride = null;
+  jim.dead = true; jim.respawnT = 6; jim.ride = null; jim.atk = null; jim.block = false; jim.roll = 0;
   if (jim.driving) exitMachine();
   const g = jim.carry * 0.5;
   if (g > 0.05) { jim.carry -= g; dropLoot(jim.x, jim.z, g); }
@@ -2266,10 +2413,13 @@ function dropLoot(x, z, g) {
   loots.push({ id: ++lootSeq, x, z, g, mesh, own: true });
 }
 function heroAbilities(inp, dt) {
-  if (aim.mouse && aim.pt) jim.yaw = Math.atan2(aim.pt[0] - jim.x, aim.pt[1] - jim.z);
+  if (jim.atk) jim.yaw = jim.atkYaw;                                          // committed to the swing
+  else if (jim.roll <= 0 && jim.stag <= 0 && aim.mouse && aim.pt) jim.yaw = Math.atan2(aim.pt[0] - jim.x, aim.pt[1] - jim.z);
+  jim.block = (aim.blocking || keys.has('c')) && canAct(jim);
+  if (inp.roll) startRoll(jim, jim.mvx || 0, jim.mvz || 0);
   const loadable = ledger.goldSafe > 0.05 && nearPlant(jim.x, jim.z, 4) && !hostiles().some(h => dist(h.x, h.z, jim.x, jim.z) < 30);
   if (inp.action && loadable) { jim.carry += ledger.goldSafe; toast(`Loaded ${ledger.goldSafe.toFixed(1)} g. That is ${jim.carry.toFixed(0)} lb with the black-sand concentrate. ${jim.carry > 40 ? 'Heavy: the 4x4 carries it easier.' : ''}`, 3200); ledger.goldSafe = 0; sfx('dump', jim.x, jim.z); }
-  else if (inp.action || aim.firing) swingShovel();
+  else if ((inp.action || aim.firing) && !jim.block) playerAttack();
   if (inp.bomb) {
     if (jim.cd.bomb > 0) toast(`Satchel ready in ${jim.cd.bomb.toFixed(0)} s.`, 900);
     else {
@@ -2314,17 +2464,19 @@ function spawnBandits() {
   for (let n = 0; n < 2; n++) {
     const x = Math.sin(a + n * 0.15) * r, z = Math.cos(a + n * 0.15) * r, mesh = makeJimbo(0x262626, 0x111111);
     scene.add(mesh);
-    foes.push({ x, z, hp: 75, yaw: 0, cool: rand(1, 2), mesh, walk: 0 });
+    foes.push(newFight({ x, z, hp: 75, yaw: 0, cool: rand(0.4, 1.2), mesh, walk: 0, isBandit: true, why: 'A bandit laid you out' }));
   }
-  toast('Bandits! They want your gold. Click or Space swings the shovel, Shift sprints, right click or G throws a satchel, B digs in.', 4500);
+  toast('Bandits! Click swings, hold for a heavy chop. Hold right click to block, R rolls clear, G throws a satchel. Watch your stamina.', 5200);
 }
 function combatTick(dt) {
   if (!dt) return;
   for (const k in jim.cd) jim.cd[k] = Math.max(0, jim.cd[k] - dt);
-  jim.swingT = Math.max(0, jim.swingT - dt); poseShovel(jim.mesh, jim.swingT);
+  jimTokenT -= dt;
+  if (!jim.dead && !jim.driving) tickFight(jim, dt);
+  poseFighter(jim.mesh, jim, dt);
   if (jim.dead) {
     jim.respawnT -= dt;
-    if (jim.respawnT <= 0) { const [x, z] = worldOf(home, -30, -11); Object.assign(jim, { x, z, hp: 100, dead: false }); cam.x = x; cam.z = z; updateTouchUI(); refreshCmd(); }
+    if (jim.respawnT <= 0) { const [x, z] = worldOf(home, -30, -11); Object.assign(jim, { x, z, hp: 100, dead: false }); newFight(jim); cam.x = x; cam.z = z; updateTouchUI(); refreshCmd(); }
   } else if (jim.hp < 100) jim.hp = Math.min(100, jim.hp + dt * 2);
   // satchels in flight
   for (let n = bombs.length - 1; n >= 0; n--) {
@@ -2341,14 +2493,8 @@ function combatTick(dt) {
     const f = foes[n];
     if (f.hp <= 0) { f.dead = (f.dead || 0) + dt; if (f.dead > 8) { scene.remove(f.mesh); foes.splice(n, 1); } continue; }
     const d = dist(f.x, f.z, jim.x, jim.z);
-    f.yaw = Math.atan2(jim.x - f.x, jim.z - f.z);
-    f.strafeT = (f.strafeT || 0) - dt; if (f.strafeT <= 0) { f.strafeT = rand(0.8, 1.8); f.side = Math.random() < 0.5 ? -1 : 1; }
-    // run you down: faster than a walk, slower than a sprint, so a heavy load of gold gets caught
-    f.stun = Math.max(0, (f.stun || 0) - dt);
-    const adv = jim.dead || f.stun > 0 || f.wind > 0 ? 0 : d > 1.9 ? 1 : 0, circ = d < 5 ? 1.2 : 0;
-    if (!jim.dead) { const sx = Math.cos(f.yaw) * f.side, sz = -Math.sin(f.yaw) * f.side; f.x += (Math.sin(f.yaw) * adv * 6.5 + sx * circ) * dt; f.z += (Math.cos(f.yaw) * adv * 6.5 + sz * circ) * dt; if (adv) f.walk += dt * 11; pushOut(f, 0.5); }
-    if (jim.dead) { f.wind = 0; poseShovel(f.mesh, 0); }
-    else foeSwing(f, jim.x, jim.z, d, dt, () => hurtMe(jim.driving ? 8 : 16, 'A bandit laid you out'));
+    if (!jim.dead) foeBrain(f, jim.x, jim.z, d, dt, true); else { f.block = false; f.atk = null; }
+    tickFight(f, dt); pushOut(f, 0.5); poseFighter(f.mesh, f, dt);
     if (dist(f.x, f.z, 0, 0) > 120 && jim.dead) f.hp = 0;
     f.mesh.position.set(f.x, hAt(f.x, f.z), f.z); f.mesh.rotation.y = f.yaw;
     const legs = f.mesh.userData.legs; legs[0].rotation.x = Math.sin(f.walk) * 0.5; legs[1].rotation.x = -legs[0].rotation.x;
@@ -2438,7 +2584,7 @@ function sendConvoy(o) {
   const route = convoyRoute(o), [x, z] = route[0];
   const tmesh = makeSUV(); add(tmesh, box(1.2, 0.5, 1.2), M(o.color), 0, 2.75, -0.35); scene.add(tmesh);
   const truck = { o, kind: 'truck', x, z, yaw: 0, hp: 150, mesh: tmesh, cargo: o.stash };
-  const guards = [-1, 1, 0].map((side, n) => { const mesh = makeJimbo(o.color, 0x2a1d12); scene.add(mesh); return { o, kind: 'guard', slotSide: side, slotBack: n === 2 ? 7 : 3, x: x + side * 2, z, yaw: 0, hp: 75, mesh, cool: rand(0.5, 1.5), walk: 0, side: 1, strafeT: 0 }; });
+  const guards = [-1, 1, 0].map((side, n) => { const mesh = makeJimbo(o.color, 0x2a1d12); scene.add(mesh); return newFight({ o, kind: 'guard', slotSide: side, slotBack: n === 2 ? 7 : 3, x: x + side * 2, z, yaw: 0, hp: 75, mesh, cool: rand(0.5, 1.5), walk: 0, side: 1, strafeT: 0, why: `A ${o.name} guard laid you out` }); });
   o.stash = 0;
   o.convoy = { truck, guards, route, wi: 1, back: false };
 }
@@ -2502,22 +2648,16 @@ function outfitTick(dt) {
       const tg = unitTarget(g); g.target = tg;
       if (tg) {
         const tx = tg.t === 'jim' ? jim.x : tg.t.x, tz = tg.t === 'jim' ? jim.z : tg.t.z;
-        g.yaw = Math.atan2(tx - g.x, tz - g.z);
-        g.strafeT -= dt; if (g.strafeT <= 0) { g.strafeT = rand(0.8, 1.8); g.side = Math.random() < 0.5 ? -1 : 1; }
-        g.stun = Math.max(0, (g.stun || 0) - dt);
-        const reach = tg.t !== 'jim' && tg.t.kind === 'truck' ? 2.6 : 1.9;
-        const adv = g.stun > 0 || g.wind > 0 ? 0 : tg.d > reach ? 1 : 0, circ = tg.d < 5 ? 1.2 : 0;
-        g.x += (Math.sin(g.yaw) * adv * 6.5 + Math.cos(g.yaw) * g.side * circ) * dt; g.z += (Math.cos(g.yaw) * adv * 6.5 - Math.sin(g.yaw) * g.side * circ) * dt; if (adv) g.walk += dt * 11;
-        foeSwing(g, tx, tz, tg.d - (reach - 1.9), dt, () => { if (tg.t === 'jim') hurtMe(jim.driving ? 8 : 16, `A ${o.name} guard laid you out`); else hurtUnit(tg.t, tg.t.kind === 'truck' ? 10 : 16, o); });
+        foeBrain(g, tx, tz, tg.d - (tg.t !== 'jim' && tg.t.kind === 'truck' ? 0.7 : 0), dt, tg.t === 'jim');
       } else {
         // keep formation around the truck (or walk home if it is gone)
         const anchor = tr.hp > 0 ? tr : { x: c.route[0][0], z: c.route[0][1], yaw: Math.atan2(c.route[0][0] - g.x, c.route[0][1] - g.z) };
         const sx = anchor.x - Math.sin(anchor.yaw) * g.slotBack + Math.cos(anchor.yaw) * g.slotSide * 2.6, sz = anchor.z - Math.cos(anchor.yaw) * g.slotBack - Math.sin(anchor.yaw) * g.slotSide * 2.6;
         const d = dist(sx, sz, g.x, g.z);
-        g.wind = 0; poseShovel(g.mesh, 0);
+        g.block = false;
         if (d > 0.4) { g.yaw = Math.atan2(sx - g.x, sz - g.z); const sp = Math.min(d, 7 * dt); g.x += Math.sin(g.yaw) * sp; g.z += Math.cos(g.yaw) * sp; g.walk += dt * 9; }
       }
-      pushOut(g, 0.5);
+      tickFight(g, dt); pushOut(g, 0.5); poseFighter(g.mesh, g, dt);
       g.mesh.position.set(g.x, hAt(g.x, g.z), g.z); g.mesh.rotation.y = g.yaw;
       const legs = g.mesh.userData.legs; legs[0].rotation.x = Math.sin(g.walk) * 0.5; legs[1].rotation.x = -legs[0].rotation.x;
     }
@@ -2545,14 +2685,18 @@ function frame(now) {
   const t0 = performance.now();
   keyPan(real);
   const sc = race.active ? (Date.now() < race.startAt || ledger.over ? 0 : 1) : timeScale;
-  updatePlayer(real, sc > 0);
-  let acc = real * sc;
+  // a solid hit freezes the world for a few hundredths of a second and kicks the camera: that is most of what "weight" is
+  if (hitStop > 0) hitStop -= real;
+  const cdt = hitStop > 0 ? 0 : real;
+  shake *= Math.exp(-12 * real);
+  updatePlayer(cdt, sc > 0);
+  let acc = cdt * sc;
   while (acc > 0) { const d = Math.min(acc, 0.05); step(d); acc -= d; }
-  syncMeshes(real * sc);
-  updateEffects(real * sc);
+  syncMeshes(cdt * sc);
+  updateEffects(cdt * sc);
   ghostTick(real);
-  combatTick(sc > 0 ? real : 0);
-  outfitTick(sc > 0 ? real * sc : 0);
+  combatTick(sc > 0 ? cdt : 0);
+  outfitTick(sc > 0 ? cdt * sc : 0);
   netT -= real;
   if (netT <= 0) { netT = 0.16; if (race.active) { netTick(); pushPresence(); } }
   flushTerrain();
@@ -2593,7 +2737,7 @@ setupClaim();
 makeOutfits();
 bakeMini();
 for (const s of structures) if (s.kind === 'pump') s.wetOK = waterNear(s.x, s.z, 9) > 0;
-window.__claim = { machines, structures, piles, ledger, T, digAt, jim, TOWN, worldOf, ghosts, H, I: (x, z) => I(Math.round(gx(x)), Math.round(gx(z))), get home() { return home; }, foes, loots, hurtMe, toScreen, aim, cam, GFX, terrain, step, N, CELL, renderer, scene, sunL, hemiL, get gtao() { return gtao; }, swingShovel, hostiles, spawnBandits, combatTick, SHOVEL, paytop: k => PAYTOP[k], outfits, sendConvoy, setBanditT: v => { banditT = v; } };
+window.__claim = { machines, structures, piles, ledger, T, digAt, jim, TOWN, worldOf, ghosts, H, I: (x, z) => I(Math.round(gx(x)), Math.round(gx(z))), get home() { return home; }, foes, loots, hurtMe, toScreen, aim, cam, GFX, terrain, step, N, CELL, renderer, scene, sunL, hemiL, get gtao() { return gtao; }, swingShovel, hostiles, spawnBandits, combatTick, SHOVEL, ATK, FIGHT, startAttack, startRoll, tickFight, poseFighter, newFight, makeJimbo, keys, get hitStop() { return hitStop; }, get token() { return jimToken; }, paytop: k => PAYTOP[k], outfits, sendConvoy, setBanditT: v => { banditT = v; } };
 resize();
 renderStats();
 refreshCmd();
