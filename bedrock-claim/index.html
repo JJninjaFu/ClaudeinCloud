@@ -1,0 +1,2508 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bedrock Claim</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rye&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+[hidden]{display:none!important}
+/* Layout: full-screen isometric claim; a weathered assay-office HUD floats on top (ledger strip, controls, command bar, side drawer). */
+:root {
+  --bg: #15130f;
+  --panel: rgba(27, 23, 17, 0.93);
+  --panel-solid: #1d1913;
+  --line: #3b3226;
+  --ink: #efe5cf;
+  --muted: #a99b80;
+  --gold: #e3b448;
+  --water: #6fb1d6;
+  --danger: #d4574a;
+  --ok: #8db36a;
+  --display: "Rye", "Georgia", serif;
+  --ui: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--ui); font-size: 15px; overflow: hidden; }
+#app { position: relative; width: 100%; height: 100%; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+#gl, #hud { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#hud { pointer-events: none; }
+button, select { font-family: var(--ui); font-size: 15px; font-weight: 600; letter-spacing: 0.02em; color: var(--ink); }
+button { background: #2a241b; border: 1px solid var(--line); border-radius: 6px; padding: 7px 11px; cursor: pointer; min-height: 36px; }
+button:hover { border-color: #5a4c38; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+button.on { background: var(--gold); color: #241a05; border-color: var(--gold); }
+button.dim { opacity: 0.5; }
+button.warn { border-color: #6b3a33; color: #f0b8ad; }
+button.goldbtn { background: #4a3812; border-color: var(--gold); color: #ffe3a0; }
+
+.topbar { position: absolute; top: 8px; left: 0; right: 0; padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; justify-content: space-between; pointer-events: none; }
+.topbar > * { pointer-events: auto; }
+.ledger { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px 7px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ledger h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 21px; line-height: 1.1; color: var(--gold); letter-spacing: 0.02em; }
+.stats { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.stats b { color: var(--gold); font-weight: 700; }
+.stats .neg { color: var(--danger); }
+.perf { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
+.seg { display: inline-flex; gap: 2px; }
+.seg button { border-radius: 4px; padding: 7px 9px; }
+
+.cmdbar { position: absolute; bottom: 8px; left: 0; right: 0; padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); display: flex; gap: 8px; align-items: flex-end; pointer-events: none; }
+.cmdbar > * { pointer-events: auto; }
+.selpanel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; min-width: 0; max-width: 680px; }
+.selinfo { font-size: 15px; line-height: 1.25; }
+.selinfo b { color: var(--gold); font-weight: 700; }
+.selinfo .st { color: var(--muted); font-size: 13px; }
+.cmds { display: flex; flex-wrap: wrap; gap: 6px; }
+
+#toast { position: absolute; left: 50%; transform: translateX(-50%); top: 92px; background: var(--panel-solid); border: 1px solid var(--gold); color: var(--ink); border-radius: 8px; padding: 8px 12px; display: flex; gap: 10px; align-items: center; max-width: calc(100% - 32px); font-size: 15px; z-index: 5; }
+#toast button { min-height: 30px; padding: 4px 10px; }
+
+#drawer { position: absolute; top: 76px; right: max(12px, env(safe-area-inset-right, 0px)); bottom: 96px; width: 370px; max-width: calc(100% - 24px); background: var(--panel-solid); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; z-index: 6; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+.dhead { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); gap: 8px; }
+.dhead h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 19px; color: var(--gold); }
+.dbody { overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.dbody h3 { margin: 4px 0 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 600; }
+.dbody p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.4; }
+.shopitem { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 8px; }
+.shopitem .nm { font-weight: 700; font-size: 16px; }
+.shopitem .ds { grid-column: 1 / 2; color: var(--muted); font-size: 13px; line-height: 1.3; }
+.shopitem button { grid-row: 1 / 3; grid-column: 2; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; }
+.slider { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; }
+.slider label { font-size: 14px; }
+.slider output { font-variant-numeric: tabular-nums; color: var(--gold); font-weight: 600; font-size: 14px; }
+.slider input { grid-column: 1 / -1; width: 100%; accent-color: var(--gold); }
+.slider.changed label::after { content: " · changed"; color: var(--gold); }
+.copybox { width: 100%; min-height: 90px; background: #12100c; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; font: 12px/1.4 ui-monospace, Menlo, monospace; padding: 6px; }
+table.rep { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 15px; }
+table.rep td { padding: 5px 4px; border-bottom: 1px solid #2c261d; }
+table.rep td.n { text-align: right; color: var(--gold); font-weight: 600; }
+.board { display: flex; flex-direction: column; gap: 1px; font-size: 14px; font-variant-numeric: tabular-nums; border-top: 1px solid var(--line); padding-top: 4px; margin-top: 2px; }
+#mini { width: 132px; height: 132px; border-radius: 6px; border: 1px solid var(--line); margin-top: 4px; cursor: pointer; }
+@media (max-width: 640px) { #mini { width: 96px; height: 96px; } }
+.board .me { color: var(--gold); font-weight: 700; }
+.field { display: grid; gap: 4px; font-size: 14px; color: var(--muted); }
+.field input, .field select { background: #12100c; border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; color: var(--ink); min-height: 36px; font-family: var(--ui); font-size: 16px; }
+#stickZone { position: absolute; left: 0; bottom: 0; width: 50%; height: 55%; touch-action: none; z-index: 3; }
+.stick { position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 2px solid rgba(239,229,207,.55); background: rgba(20,16,10,.3); pointer-events: none; left: 90px; top: calc(100% - 100px); }
+.stick i { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: 50%; background: rgba(227,180,72,.9); }
+#tbtns { position: absolute; right: max(14px, env(safe-area-inset-right, 0px)); bottom: 24px; display: grid; grid-template-columns: auto auto; gap: 12px; z-index: 4; }
+.tb { width: 64px; height: 64px; border-radius: 50%; border: 2px solid #241a05; background: var(--gold); color: #241a05; font-weight: 700; font-size: 15px; padding: 0; touch-action: none; }
+.tb.alt { background: #efe5cf; }
+.tb.down { transform: translateY(2px); filter: brightness(.85); }
+body.drivetouch .cmdbar { display: none; }
+.keys { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 14px; margin: 0; }
+.keys dt { color: var(--gold); font-weight: 600; }
+.keys dd { margin: 0; }
+
+@media (max-width: 640px) {
+  .ledger h1 { font-size: 17px; }
+  .stats { font-size: 13px; gap: 0 10px; }
+  #drawer { top: auto; left: max(8px, env(safe-area-inset-left, 0px)); right: max(8px, env(safe-area-inset-right, 0px)); width: auto; max-width: none; bottom: 8px; height: 62%; }
+  #toast { top: auto; bottom: 150px; }
+}
+</style>
+
+<div id="app">
+  <canvas id="gl" aria-label="Mining claim"></canvas>
+  <canvas id="hud"></canvas>
+
+  <header class="topbar">
+    <div class="ledger">
+      <h1>Bedrock Claim</h1>
+      <div class="stats" id="stats"></div>
+      <div class="perf" id="perf">measuring…</div>
+      <div class="board" id="board" hidden></div>
+      <canvas id="mini" width="132" height="132" aria-label="Map of the claims"></canvas>
+    </div>
+    <div class="controls">
+      <div class="seg" id="speedSeg" role="group" aria-label="Game speed">
+        <button data-speed="0">Pause</button>
+        <button data-speed="1" class="on">1×</button>
+        <button data-speed="2">2×</button>
+        <button data-speed="4">4×</button>
+      </div>
+      <button id="viewBtn">Boss view</button>
+      <button data-drawer="race">Race</button>
+      <button data-drawer="shop">Shop</button>
+      <button data-drawer="crew">Crew</button>
+      <button id="surveyBtn">Survey</button>
+      <button data-drawer="tune">Tune</button>
+      <button id="sndBtn" aria-pressed="true">Tap for sound</button>
+      <button data-drawer="help">Controls</button>
+    </div>
+  </header>
+
+  <div id="stickZone" hidden><div class="stick" id="stick"><i></i></div></div>
+  <div id="tbtns" hidden>
+    <button class="tb alt" id="tbL" type="button" hidden>◀</button>
+    <button class="tb alt" id="tbR" type="button" hidden>▶</button>
+    <button class="tb alt" id="tbDash" type="button" hidden>Run</button>
+    <button class="tb alt" id="tbBomb" type="button" hidden>Bomb</button>
+    <button class="tb alt" id="tbBerm" type="button" hidden>Berm</button>
+    <button class="tb alt" id="tbHop" type="button">Hop in</button>
+    <button class="tb" id="tbAct" type="button" hidden>Dig</button>
+  </div>
+  <div id="toast" hidden><span id="toastText"></span><button id="toastCancel">Cancel</button></div>
+
+  <footer class="cmdbar">
+    <div class="selpanel">
+      <div class="selinfo" id="selInfo"></div>
+      <div class="cmds" id="cmds"></div>
+    </div>
+  </footer>
+
+  <aside id="drawer" hidden>
+    <div class="dhead"><h2 id="drawerTitle">Shop</h2><button id="drawerClose">Close</button></div>
+    <div class="dbody" id="drawerBody"></div>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const rand = (a = 0, b = 1) => a + Math.random() * (b - a);
+const smooth = (e0, e1, x) => { const t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); };
+const dist = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
+const money = v => (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString('en-US');
+
+// =============================================================== tuning
+const DEFAULT_T = {
+  digRate: 0.8, bucket: 1.6, siteRadius: 3.5, loaderCap: 1.6, washRate: 0.14, hopperCap: 20, recovery: 0.85, cutoff: 0.6,
+  wage: 0.9, fuelExc: 0.35, fuelLoader: 0.15, fuelGen: 0.4, fuelPump: 0.12, repose: 0.75, goldPrice: 115, seasonMin: 20,
+};
+const T_FIELDS = [
+  ['digRate', 'Excavator digging, m³ per second', 0.05, 2, 0.05], ['bucket', 'Excavator bucket, m³', 0.3, 4, 0.1], ['siteRadius', 'Dig site radius, m', 2, 10, 0.5],
+  ['loaderCap', 'Loader bucket, m³', 0.5, 6, 0.1], ['washRate', 'Wash plant, m³ per second', 0.02, 1, 0.01], ['hopperCap', 'Wash plant hopper, m³', 4, 80, 1],
+  ['recovery', 'Gold recovery at the plant', 0.3, 1, 0.01], ['cutoff', 'Pay dirt cutoff, g per m³', 0, 4, 0.1],
+  ['wage', 'Wage per worker, $ per second', 0, 5, 0.1], ['fuelExc', 'Excavator diesel, $ per second', 0, 3, 0.05], ['fuelLoader', 'Loader diesel, $ per second', 0, 3, 0.05],
+  ['fuelGen', 'Generator diesel, $ per second', 0, 3, 0.05], ['fuelPump', 'Pump diesel, $ per second', 0, 2, 0.02], ['repose', 'Pile steepness (angle of repose)', 0.3, 1.5, 0.05],
+  ['goldPrice', 'Starting gold price, $ per gram', 20, 400, 5], ['seasonMin', 'Season length, minutes', 5, 90, 1],
+];
+const T = Object.assign({}, DEFAULT_T);
+const STORE_KEY = 'bedrockClaim.tune.v1';
+try { Object.assign(T, JSON.parse(localStorage.getItem(STORE_KEY) || '{}')); } catch (e) { /* storage unavailable */ }
+function saveTune() { try { localStorage.setItem(STORE_KEY, JSON.stringify(T)); } catch (e) { /* ignore */ } }
+const PRICES = { excavator: 14000, dozer: 16000, loader: 6000, pump: 2500, generator: 8000, plant: 18000, bunkhouse: 5000, survey: 1500, hire: 600 };
+
+// =============================================================== ground: surface, overburden, pay gravel, bedrock
+const SIZE = 400, N = 321, CELL = SIZE / (N - 1), HALF = SIZE / 2, NN = N * N, WATER_Y = -1.4;
+const H = new Float32Array(NN), H0 = new Float32Array(NN), PAYTOP = new Float32Array(NN), BEDR = new Float32Array(NN), GRADE = new Float32Array(NN);
+const loose = new Float32Array(NN), looseKind = new Uint8Array(NN);
+const I = (i, j) => j * N + i;
+const gx = x => (x + HALF) / CELL;
+const wx = i => i * CELL - HALF;
+function hAt(x, z) {
+  const fx = clamp(gx(x), 0, N - 1.0001), fz = clamp(gx(z), 0, N - 1.0001);
+  const i = fx | 0, j = fz | 0, u = fx - i, v = fz - j;
+  return lerp(lerp(H[I(i, j)], H[I(i + 1, j)], u), lerp(H[I(i, j + 1)], H[I(i + 1, j + 1)], u), v);
+}
+let seed = 20261030;
+function srand() { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+const hash = (i, j) => { const s = Math.sin(i * 12.9898 + j * 78.233) * 43758.5453; return s - Math.floor(s); };
+// 8 claims in a ring around the mesa town, rotationally identical so every slot is fair.
+const SLOTS = 8, SEG = Math.PI * 2 / SLOTS, CLAIM_R = 120;
+function localOf(x, z) {
+  // nearest claim slot, and (u, v): u points away from town, v runs sideways across the claim
+  const k = ((Math.round(Math.atan2(x, z) / SEG) % SLOTS) + SLOTS) % SLOTS, a = k * SEG, ox = Math.sin(a), oz = Math.cos(a);
+  const px = x - ox * CLAIM_R, pz = z - oz * CLAIM_R;
+  return { k, u: px * ox + pz * oz, v: px * oz - pz * ox };
+}
+function worldOf(k, u, v) { const a = k * SEG, ox = Math.sin(a), oz = Math.cos(a); return [ox * (CLAIM_R + u) + oz * v, oz * (CLAIM_R + u) - ox * v]; }
+const LOCAL_POCKETS = [[-8, -14, 3, 9], [14, 10, 2.5, 10], [2, 26, 3, 7]];
+const POND = [30, 16];
+const TOWN = { x: 0, z: 0, r: 22, h: 8 };
+const ROAD_IN = 20, ROAD_OUT = CLAIM_R - 34;
+const ROADK = new Uint8Array(NN);
+function natural(x, z) {
+  const r = Math.hypot(x, z), f = ((Math.atan2(x, z) % SEG) + SEG) % SEG, off = Math.min(f, SEG - f), arc = off * r;
+  let h = 0.9 + 0.6 * Math.sin(r * 0.05) * Math.cos(arc * 0.06) + 0.4 * Math.sin(r * 0.11 + arc * 0.08);
+  h += TOWN.h * smooth(TOWN.r + 16, TOWN.r + 2, r);                                                    // the mesa
+  h += 7 * smooth(SEG * 0.3, SEG * 0.5, off) * smooth(48, 72, r) * (1 - 0.85 * Math.exp(-((r - 150) ** 2) / 200)); // ridges between claims, with a pass
+  h += 6 * smooth(178, 198, r);                                                                       // outer rim
+  return h;
+}
+function genGround() {
+  const h0 = natural(0, ROAD_OUT), h1 = natural(0, 0);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const x = wx(i), z = wx(j), k = I(i, j), r = Math.hypot(x, z), L = localOf(x, z);
+    let h = natural(x, z);
+    // a graded road from every claim straight up the mesa
+    const rd = r > ROAD_IN - 4 && r < ROAD_OUT + 4 ? Math.abs(L.v) : 1e9;
+    if (rd < 8) h = lerp(h, lerp(h1, h0, clamp((r - ROAD_IN) / (ROAD_OUT - ROAD_IN), 0, 1)), 1 - smooth(3, 8, rd));
+    if (r < TOWN.r + 2) h = lerp(h, h1, 1 - smooth(TOWN.r - 4, TOWN.r + 2, r));
+    ROADK[k] = rd < 2.6 || r < 16 ? 1 : 0;
+    const pd = dist(L.u, L.v, POND[0], POND[1]);
+    h = lerp(h, -2.8, smooth(9, 4, pd));
+    H[k] = H0[k] = h;
+    const over = 1.4 + 0.9 * (0.5 + 0.5 * Math.sin(L.u * 0.07 + L.v * 0.05)) + Math.max(0, h) * 0.22;
+    const pay = 1.6 + 0.8 * (0.5 + 0.5 * Math.cos(L.u * 0.05 - L.v * 0.06));
+    PAYTOP[k] = h - (pd < 7 ? 0.4 : over);
+    BEDR[k] = PAYTOP[k] - pay;
+    const dp = Math.abs(L.u - (6 * Math.sin(L.v * 0.07) - 4));
+    let g = (0.15 + 4.0 * Math.exp(-(dp * dp) / (2 * 9 * 9))) * (0.65 + 0.7 * hash(Math.round(L.u / CELL), Math.round(L.v / CELL)));
+    for (const [pu, pv, pr, pg] of LOCAL_POCKETS) g += pg * Math.exp(-((L.u - pu) ** 2 + (L.v - pv) ** 2) / (2 * pr * pr));
+    // rich ground around the foot of the mesa: worth fighting over
+    const mid = ((Math.atan2(x, z) + SEG / 2) % SEG + SEG) % SEG, md = dist(r, Math.min(mid, SEG - mid) * r, 54, SEG / 2 * 54);
+    g += 14 * Math.exp(-(md * md) / (2 * 4 * 4));
+    GRADE[k] = g;
+  }
+}
+genGround();
+
+// =============================================================== three.js
+const glCanvas = $('#gl'), hud = $('#hud'), hctx = hud.getContext('2d');
+const renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xb8b3a1);
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -600, 1200);
+scene.add(new THREE.HemisphereLight(0xf2ead8, 0x4d4130, 0.8));
+const sunL = new THREE.DirectionalLight(0xfff0d0, 0.85); sunL.position.set(-60, 120, -40); scene.add(sunL);
+
+const tGeo = new THREE.BufferGeometry();
+const tPos = new Float32Array(NN * 3), tCol = new Float32Array(NN * 3), tNrm = new Float32Array(NN * 3), tIdx = new Uint32Array((N - 1) * (N - 1) * 6);
+for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const k = I(i, j); tPos[k * 3] = wx(i); tPos[k * 3 + 1] = H[k]; tPos[k * 3 + 2] = wx(j); }
+{ let p = 0; for (let j = 0; j < N - 1; j++) for (let i = 0; i < N - 1; i++) { const a = I(i, j), b = I(i, j + 1), c = I(i + 1, j), d = I(i + 1, j + 1); tIdx[p++] = a; tIdx[p++] = b; tIdx[p++] = c; tIdx[p++] = c; tIdx[p++] = b; tIdx[p++] = d; } }
+tGeo.setAttribute('position', new THREE.BufferAttribute(tPos, 3));
+tGeo.setAttribute('color', new THREE.BufferAttribute(tCol, 3));
+tGeo.setAttribute('normal', new THREE.BufferAttribute(tNrm, 3));
+tGeo.setIndex(new THREE.BufferAttribute(tIdx, 1));
+const terrain = new THREE.Mesh(tGeo, new THREE.MeshLambertMaterial({ vertexColors: true }));
+scene.add(terrain);
+const water = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE), new THREE.MeshLambertMaterial({ color: 0x3f6f8a, transparent: true, opacity: 0.78, depthWrite: false }));
+water.rotation.x = -Math.PI / 2; water.position.y = WATER_Y; scene.add(water);
+const base = new THREE.Mesh(new THREE.BoxGeometry(SIZE, 8, SIZE), new THREE.MeshLambertMaterial({ color: 0x5a4a36 }));
+base.position.y = -8; scene.add(base);
+let survey = false;
+function normalAt(i, j) {
+  const k = I(i, j);
+  const nx = (H[I(Math.max(i - 1, 0), j)] - H[I(Math.min(i + 1, N - 1), j)]) / (2 * CELL);
+  const nz = (H[I(i, Math.max(j - 1, 0))] - H[I(i, Math.min(j + 1, N - 1))]) / (2 * CELL);
+  const L = Math.hypot(nx, 1, nz);
+  tNrm[k * 3] = nx / L; tNrm[k * 3 + 1] = 1 / L; tNrm[k * 3 + 2] = nz / L;
+}
+function colorVertex(i, j) {
+  const k = I(i, j), h = H[k], v = (hash(i, j) - 0.5) * 0.05;
+  let c;
+  if (loose[k] > 0.05) c = looseKind[k] === 2 ? [0.46, 0.29, 0.17] : looseKind[k] === 3 ? [0.63, 0.61, 0.55] : [0.56, 0.46, 0.33];
+  else if (H0[k] < WATER_Y) c = [0.46, 0.43, 0.34];
+  else if (h < H0[k] - 0.15) {
+    if (h > PAYTOP[k] + 0.05) c = [0.43, 0.32, 0.21];
+    else if (h > BEDR[k] + 0.05) { const sp = hash(i * 3, j * 7) > 0.85 ? 0.08 : 0; c = [0.62 + sp, 0.46 + sp, 0.27]; }
+    else c = [0.33, 0.33, 0.37];
+  } else {
+    c = ROADK[k] ? (dist(wx(i), wx(j), TOWN.x, TOWN.z) < 11 ? [0.62, 0.55, 0.42] : [0.55, 0.46, 0.33]) : [0.44, 0.5, 0.26];
+    const nb = (a, b) => Math.abs(H[I(clamp(a, 0, N - 1), clamp(b, 0, N - 1))] - h) / CELL;
+    const st = smooth(0.6, 1.2, Math.max(nb(i + 1, j), nb(i - 1, j), nb(i, j + 1), nb(i, j - 1)));
+    c = [lerp(c[0], 0.45, st), lerp(c[1], 0.36, st), lerp(c[2], 0.24, st)];
+  }
+  if (survey && loose[k] <= 0.05 && h > BEDR[k] + 0.05) {
+    const t = clamp(GRADE[k] / 5, 0, 1);
+    const heat = t < 0.5 ? [lerp(0.25, 0.85, t * 2), lerp(0.3, 0.7, t * 2), lerp(0.55, 0.15, t * 2)] : [lerp(0.85, 1, (t - 0.5) * 2), lerp(0.7, 0.85, (t - 0.5) * 2), lerp(0.15, 0.25, (t - 0.5) * 2)];
+    c = [lerp(c[0], heat[0], 0.65), lerp(c[1], heat[1], 0.65), lerp(c[2], heat[2], 0.65)];
+  }
+  tCol[k * 3] = c[0] + v; tCol[k * 3 + 1] = c[1] + v; tCol[k * 3 + 2] = c[2] + v;
+}
+for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { colorVertex(i, j); normalAt(i, j); }
+tGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), SIZE * 0.75);
+let dirty = null;
+let netBox = null, applyingRemote = false;
+function markDirty(i0, j0, i1, j1) {
+  if (!applyingRemote && race.active) {
+    if (!netBox) netBox = [i0, j0, i1, j1];
+    else { netBox[0] = Math.min(netBox[0], i0); netBox[1] = Math.min(netBox[1], j0); netBox[2] = Math.max(netBox[2], i1); netBox[3] = Math.max(netBox[3], j1); }
+  }
+  if (!dirty) dirty = [i0, j0, i1, j1];
+  else { dirty[0] = Math.min(dirty[0], i0); dirty[1] = Math.min(dirty[1], j0); dirty[2] = Math.max(dirty[2], i1); dirty[3] = Math.max(dirty[3], j1); }
+}
+function flushTerrain() {
+  if (!dirty) return;
+  const i0 = Math.max(0, dirty[0] - 1), j0 = Math.max(0, dirty[1] - 1), i1 = Math.min(N - 1, dirty[2] + 1), j1 = Math.min(N - 1, dirty[3] + 1);
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { tPos[I(i, j) * 3 + 1] = H[I(i, j)]; colorVertex(i, j); normalAt(i, j); }
+  tGeo.attributes.position.needsUpdate = true; tGeo.attributes.color.needsUpdate = true; tGeo.attributes.normal.needsUpdate = true;
+  dirty = null;
+}
+function cellBox(x, z, r) {
+  return [Math.max(1, Math.floor(gx(x - r))), Math.max(1, Math.floor(gx(z - r))), Math.min(N - 2, Math.ceil(gx(x + r))), Math.min(N - 2, Math.ceil(gx(z + r)))];
+}
+
+// --- moving earth: digging layer by layer, dumping, slumping piles
+function overlap(a0, a1, b0, b1) { return Math.max(0, Math.min(a1, b1) - Math.max(a0, b0)); }
+function digAt(cx, cz, r, want) {
+  // Find the highest diggable spot inside the site and take a scoop around it, top down.
+  const [i0, j0, i1, j1] = cellBox(cx, cz, r);
+  let best = -1, bh = -1e9;
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    if (dist(wx(i), wx(j), cx, cz) > r) continue;
+    const k = I(i, j);
+    if (H[k] - BEDR[k] > 0.03 && H[k] > bh) { bh = H[k]; best = k; }
+  }
+  if (best < 0) return null;
+  const bx = wx(best % N), bz = wx((best / N) | 0);
+  let vol = 0, gold = 0, payVol = 0;
+  const [a0, b0, a1, b1] = cellBox(bx, bz, 1.8);
+  const cellA = CELL * CELL;
+  for (let pass = 0; pass < 6 && vol < want; pass++) {
+    for (let j = b0; j <= b1 && vol < want; j++) for (let i = a0; i <= a1 && vol < want; i++) {
+      const d = dist(wx(i), wx(j), bx, bz);
+      if (d > 1.8 || dist(wx(i), wx(j), cx, cz) > r + 0.6) continue;
+      const k = I(i, j);
+      const dh = Math.min(H[k] - BEDR[k], 0.12 * (1 - d / 2.2), (want - vol) / cellA);
+      if (dh <= 0.001) continue;
+      const top = H[k], bot = top - dh;
+      const lo = Math.min(loose[k], dh);
+      const ov = Math.max(0, overlap(bot, top - lo, PAYTOP[k], 1e9));
+      const py = overlap(bot, top - lo, BEDR[k], PAYTOP[k]);
+      const rich = overlap(bot, top - lo, BEDR[k], BEDR[k] + 0.5);
+      gold += (py * GRADE[k] + rich * GRADE[k] * 1.5 + ov * 0.03) * cellA;
+      payVol += py * cellA;
+      H[k] = bot; loose[k] = Math.max(0, loose[k] - dh);
+      vol += dh * cellA;
+    }
+  }
+  markDirty(a0, b0, a1, b1);
+  return { vol, gold, payVol };
+}
+function relax(x, z, R, iters) {
+  const [i0, j0, i1, j1] = cellBox(x, z, R), rep = T.repose * CELL;
+  for (let it = 0; it < iters; it++) {
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const k = I(i, j);
+      if (loose[k] < 0.002) continue;
+      for (const n of [k + 1, k - 1, k + N, k - N]) {
+        const diff = H[k] - H[n];
+        if (diff > rep) {
+          const mv = Math.min((diff - rep) * 0.5, loose[k]);
+          H[k] -= mv; loose[k] -= mv; H[n] += mv; loose[n] += mv; looseKind[n] = looseKind[k];
+        }
+      }
+    }
+  }
+  markDirty(i0, j0, i1, j1);
+}
+function deposit(x, z, vol, kind) {
+  const [i0, j0, i1, j1] = cellBox(x, z, 1.6);
+  let wsum = 0;
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) wsum += Math.max(0, 1 - dist(wx(i), wx(j), x, z) / 1.6);
+  if (wsum <= 0) return;
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const w = Math.max(0, 1 - dist(wx(i), wx(j), x, z) / 1.6);
+    if (!w) continue;
+    const k = I(i, j), dh = vol * w / wsum / (CELL * CELL);
+    H[k] += dh; loose[k] += dh; looseKind[k] = kind;
+  }
+  relax(x, z, 14, 8);
+}
+function takeLoose(x, z, vol, kind) {
+  let need = vol / (CELL * CELL), guard = 0;
+  const [i0, j0, i1, j1] = cellBox(x, z, 12);
+  while (need > 0.001 && guard++ < 400) {
+    let best = -1, bh = -1e9;
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const k = I(i, j);
+      if (loose[k] > 0.01 && looseKind[k] === kind && H[k] > bh) { bh = H[k]; best = k; }
+    }
+    if (best < 0) break;
+    const tk = Math.min(0.15, loose[best], need);
+    H[best] -= tk; loose[best] -= tk; need -= tk;
+  }
+  markDirty(i0, j0, i1, j1);
+}
+function waterNear(x, z, r) {
+  const [i0, j0, i1, j1] = cellBox(x, z, r);
+  let n = 0;
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (H[I(i, j)] < WATER_Y - 0.15 && dist(wx(i), wx(j), x, z) <= r) n++;
+  return n;
+}
+
+// =============================================================== pathfinding (machines avoid steep pit walls and buildings)
+const blocked = new Uint8Array(NN);
+const gScore = new Float32Array(NN), came = new Int32Array(NN), stamp = new Uint32Array(NN), closed = new Uint32Array(NN);
+let curStamp = 0;
+const heapA = new Int32Array(NN * 4), heapF = new Float32Array(NN * 4);
+const DIRS = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, Math.SQRT2], [1, -1, Math.SQRT2], [-1, 1, Math.SQRT2], [-1, -1, Math.SQRT2]];
+const cellOf = (x, z) => [clamp(Math.round(gx(x)), 0, N - 1), clamp(Math.round(gx(z)), 0, N - 1)];
+const wet = k => H[k] < WATER_Y - 0.25;
+function lineOK(ax, az, bx, bz, slope) {
+  const L = dist(ax, az, bx, bz), steps = Math.max(1, Math.ceil(L / (CELL * 0.5)));
+  let ph = hAt(ax, az);
+  const [si, sj] = cellOf(ax, az), sb = blocked[I(si, sj)];
+  for (let s = 1; s <= steps; s++) {
+    const t = s / steps, x = lerp(ax, bx, t), z = lerp(az, bz, t), h = hAt(x, z);
+    const [ci, cj] = cellOf(x, z), k = I(ci, cj);
+    if ((!sb && blocked[k]) || wet(k) || Math.abs(h - ph) / (L / steps) > slope * 1.08) return false;
+    ph = h;
+  }
+  return true;
+}
+function findPath(sx, sz, tx, tz, slope) {
+  curStamp++;
+  const [si, sj] = cellOf(sx, sz), [ti, tj] = cellOf(tx, tz);
+  const start = I(si, sj), goal = I(ti, tj);
+  const hfn = k => { const dx = Math.abs((k % N) - ti), dz = Math.abs(((k / N) | 0) - tj); return (dx + dz + (Math.SQRT2 - 2) * Math.min(dx, dz)) * CELL; };
+  let hs = 0;
+  const push = (k, f) => { let p = hs++; heapA[p] = k; heapF[p] = f; while (p > 0) { const q = (p - 1) >> 1; if (heapF[q] <= heapF[p]) break; [heapA[p], heapA[q]] = [heapA[q], heapA[p]]; [heapF[p], heapF[q]] = [heapF[q], heapF[p]]; p = q; } };
+  const pop = () => { const top = heapA[0]; hs--; if (hs > 0) { heapA[0] = heapA[hs]; heapF[0] = heapF[hs]; let p = 0; for (;;) { const l = p * 2 + 1, r = l + 1; let m = p; if (l < hs && heapF[l] < heapF[m]) m = l; if (r < hs && heapF[r] < heapF[m]) m = r; if (m === p) break; [heapA[p], heapA[m]] = [heapA[m], heapA[p]]; [heapF[p], heapF[m]] = [heapF[m], heapF[p]]; p = m; } } return top; };
+  stamp[start] = curStamp; gScore[start] = 0; came[start] = -1; push(start, hfn(start));
+  let best = start, bestH = hfn(start), iter = 0;
+  while (hs > 0 && iter++ < 160000) {
+    const k = pop();
+    if (closed[k] === curStamp) continue;
+    closed[k] = curStamp;
+    const hk = hfn(k);
+    if (hk < bestH) { bestH = hk; best = k; }
+    if (k === goal) break;
+    const ki = k % N, kj = (k / N) | 0;
+    for (const [di, dj, dd] of DIRS) {
+      const ni = ki + di, nj = kj + dj;
+      if (ni < 0 || nj < 0 || ni >= N || nj >= N) continue;
+      const n = I(ni, nj);
+      if (closed[n] === curStamp) continue;
+      if ((blocked[n] && !blocked[k] && n !== goal) || wet(n)) continue;
+      const step = dd * CELL, dh = Math.abs(H[n] - H[k]);
+      if (dh / step > slope) continue;
+      const g = gScore[k] + step * (1 + dh / step);
+      if (stamp[n] !== curStamp || g < gScore[n]) { stamp[n] = curStamp; gScore[n] = g; came[n] = k; push(n, g + hfn(n)); }
+    }
+  }
+  const raw = [];
+  for (let k = best; k !== -1; k = came[k]) raw.push([wx(k % N), wx((k / N) | 0)]);
+  raw.reverse();
+  if (best === goal) raw.push([tx, tz]);
+  const out = [];
+  let cur = [sx, sz], a = 0;
+  while (a < raw.length) { let b = raw.length - 1; while (b > a && !lineOK(cur[0], cur[1], raw[b][0], raw[b][1], slope)) b--; out.push(raw[b]); cur = raw[b]; a = b + 1; }
+  return { pts: out, reached: best === goal };
+}
+
+// =============================================================== models
+const M = c => new THREE.MeshLambertMaterial({ color: c });
+const MAT = { yel: M(0xd9a22a), dark: M(0x2a2b2e), steel: M(0x8a8f96), rubber: M(0x1c1c1e), wood: M(0x7a5634), roof: M(0x4a3b2e), gen: M(0x3d5a3c), rust: M(0x8a5a34), pump: M(0x2f6fa8), dirt: M(0x6a4a2c),
+  glass: new THREE.MeshLambertMaterial({ color: 0x9fc7d8, transparent: true, opacity: 0.55 }), sluice: new THREE.MeshBasicMaterial({ color: 0x6fb1d6 }) };
+const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+const cyl = (a, b, h, s = 12) => new THREE.CylinderGeometry(a, b, h, s);
+function add(g, geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); g.add(m); return m; }
+function makeExcavator() {
+  const g = new THREE.Group();
+  add(g, box(0.7, 0.8, 4.2), MAT.dark, 1.25, 0.4, 0); add(g, box(0.7, 0.8, 4.2), MAT.dark, -1.25, 0.4, 0);
+  const house = new THREE.Group(); house.position.y = 0.85; g.add(house);
+  add(house, box(2.6, 1.0, 3.0), MAT.yel, 0, 0.55, -0.2);
+  add(house, box(1.0, 1.3, 1.2), MAT.glass, -0.75, 1.6, 0.7);
+  add(house, box(2.6, 0.8, 0.7), MAT.dark, 0, 0.55, -1.85);
+  const boom = new THREE.Group(); boom.position.set(0.45, 1.1, 1.1); house.add(boom);
+  add(boom, box(0.36, 0.42, 4.6), MAT.yel, 0, 0, 2.3);
+  const stick = new THREE.Group(); stick.position.set(0, 0, 4.5); boom.add(stick);
+  add(stick, box(0.3, 0.3, 3.0), MAT.yel, 0, 0, 1.5);
+  const bucket = add(stick, box(1.0, 0.65, 0.75), MAT.dark, 0, -0.2, 3.1);
+  const load = add(stick, box(0.8, 0.3, 0.5), MAT.dirt, 0, 0.12, 3.1); load.visible = false;
+  g.userData = { house, boom, stick, bucket, load };
+  return g;
+}
+function makeLoader() {
+  const g = new THREE.Group();
+  add(g, box(1.8, 1.1, 2.7), MAT.yel, 0, 1.0, -0.2);
+  add(g, box(1.3, 1.0, 1.1), MAT.glass, 0, 2.0, -0.5);
+  for (const [x, z] of [[1.0, 0.8], [-1.0, 0.8], [1.0, -1.1], [-1.0, -1.1]]) add(g, cyl(0.55, 0.55, 0.45, 12), MAT.rubber, x, 0.55, z, 0, 0, Math.PI / 2);
+  const arms = new THREE.Group(); arms.position.set(0, 1.5, 0.7); g.add(arms);
+  add(arms, box(0.15, 0.18, 1.7), MAT.yel, 0.8, 0, 0.8); add(arms, box(0.15, 0.18, 1.7), MAT.yel, -0.8, 0, 0.8);
+  add(arms, box(2.1, 0.7, 0.75), MAT.dark, 0, -0.35, 1.75);
+  const load = add(arms, box(1.8, 0.35, 0.55), MAT.dirt, 0, 0.05, 1.75); load.visible = false;
+  g.userData = { arms, load };
+  return g;
+}
+function makeDozer() {
+  const g = new THREE.Group();
+  add(g, box(0.75, 0.85, 3.6), MAT.dark, 1.15, 0.43, -0.2); add(g, box(0.75, 0.85, 3.6), MAT.dark, -1.15, 0.43, -0.2);
+  add(g, box(1.8, 1.0, 3.0), MAT.yel, 0, 1.25, -0.4);
+  add(g, box(1.5, 1.2, 1.3), MAT.glass, 0, 2.3, -0.9);
+  add(g, box(1.7, 0.12, 1.5), MAT.yel, 0, 2.95, -0.9);
+  add(g, cyl(0.1, 0.1, 1.0, 8), MAT.dark, 0.5, 2.3, 0.6);
+  for (const x of [-1.25, 1.25]) add(g, box(0.15, 0.2, 1.6), MAT.yel, x, 0.9, 1.4);
+  const blade = new THREE.Group(); blade.position.set(0, 0.7, 2.3); g.add(blade);
+  add(blade, box(3.4, 1.1, 0.25), MAT.yel, 0, 0.3, 0); add(blade, box(3.4, 0.12, 0.35), MAT.steel, 0, -0.22, 0.05);
+  const load = add(blade, box(2.8, 0.6, 0.8), MAT.dirt, 0, 0.1, 0.55); load.visible = false;
+  g.userData = { blade, load, wheels: [] };
+  return g;
+}
+function makeSUV() {
+  const g = new THREE.Group(), tan = M(0xc4a86e), wheels = [];
+  add(g, box(2.2, 0.9, 4.0), tan, 0, 1.1, 0);
+  add(g, box(2.05, 0.9, 2.3), tan, 0, 1.95, -0.35);
+  add(g, box(1.9, 0.6, 0.06), MAT.glass, 0, 2.0, 0.82);
+  add(g, box(2.3, 0.4, 0.2), MAT.dark, 0, 0.9, 2.08);
+  add(g, box(1.8, 0.1, 2.0), MAT.dark, 0, 2.45, -0.35);
+  for (const z of [1.3, -1.3]) for (const x of [-1.15, 1.15]) wheels.push(add(g, cyl(0.6, 0.6, 0.5, 12), MAT.rubber, x, 0.6, z, 0, 0, Math.PI / 2));
+  g.userData = { wheels };
+  return g;
+}
+function makeJimbo(shirt = 0xb5562e, hat = 0x6b4a2e) {
+  const g = new THREE.Group(), legs = [];
+  legs.push(add(g, box(0.24, 0.85, 0.26), M(0x3a4a66), 0.15, 0.43, 0), add(g, box(0.24, 0.85, 0.26), M(0x3a4a66), -0.15, 0.43, 0));
+  add(g, box(0.66, 0.8, 0.4), M(shirt), 0, 1.25, 0);
+  add(g, box(0.36, 0.36, 0.36), M(0xd9a47a), 0, 1.85, 0);
+  add(g, cyl(0.42, 0.42, 0.06, 12), M(hat), 0, 2.05, 0);
+  add(g, cyl(0.2, 0.24, 0.24, 10), M(hat), 0, 2.18, 0);
+  g.scale.setScalar(1.25);
+  g.userData = { legs };
+  return g;
+}
+function makePlant() {
+  const g = new THREE.Group();
+  add(g, box(6.5, 0.3, 11), MAT.dark, 0, 0.15, 0);
+  for (const [x, z] of [[2.2, 4], [-2.2, 4], [2.2, 1.5], [-2.2, 1.5]]) add(g, box(0.25, 3.3, 0.25), MAT.steel, x, 1.8, z);
+  add(g, new THREE.CylinderGeometry(2.4, 1.0, 2.2, 4), MAT.steel, 0, 4.4, 3.2, 0, Math.PI / 4, 0);
+  const trommel = add(g, cyl(1.0, 1.0, 5.2, 14), MAT.rust, 0, 2.6, 0, Math.PI / 2, 0, 0);
+  add(g, box(1.6, 0.3, 6), MAT.steel, 0, 1.4, -3.2, 0.13);
+  add(g, box(1.3, 0.06, 5.8), MAT.sluice, 0, 1.58, -3.2, 0.13);
+  add(g, box(0.8, 0.22, 6.2), MAT.dark, 0, 2.2, -7.2, -0.35);
+  g.userData = { trommel };
+  return g;
+}
+function makeGenerator() {
+  const g = new THREE.Group();
+  add(g, box(2.4, 2.4, 5.5), MAT.gen, 0, 1.2, 0);
+  add(g, cyl(0.16, 0.16, 1.6, 8), MAT.dark, 0.6, 3.0, -1.8);
+  return g;
+}
+function makePump() {
+  const g = new THREE.Group();
+  add(g, box(1.3, 0.9, 1.6), MAT.pump, 0, 0.45, 0);
+  add(g, box(0.8, 0.6, 0.8), MAT.dark, 0, 1.15, -0.2);
+  add(g, cyl(0.12, 0.12, 3, 8), MAT.rubber, 0, 0.3, 2.0, Math.PI / 2, 0, 0);
+  return g;
+}
+function makeBunkhouse() {
+  const g = new THREE.Group();
+  add(g, box(10, 3.2, 6), MAT.wood, 0, 1.6, 0);
+  add(g, box(10.6, 0.22, 3.6), MAT.roof, 0, 3.85, 1.55, 0.48);
+  add(g, box(10.6, 0.22, 3.6), MAT.roof, 0, 3.85, -1.55, -0.48);
+  add(g, box(1.6, 2.4, 0.2), MAT.dark, 0, 1.2, 3.05);
+  add(g, box(0.6, 1.8, 0.6), MAT.steel, 3.5, 4.6, -1);
+  return g;
+}
+
+// =============================================================== effects
+function radialTexture(stops) {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  for (const [o, col] of stops) gr.addColorStop(o, col);
+  x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+const smokeTex = radialTexture([[0, 'rgba(70,68,64,0.8)'], [0.6, 'rgba(80,78,74,0.3)'], [1, 'rgba(80,78,74,0)']]);
+const dustTex = radialTexture([[0, 'rgba(150,120,85,0.9)'], [0.6, 'rgba(140,112,80,0.35)'], [1, 'rgba(130,105,75,0)']]);
+const sparkTex = radialTexture([[0, 'rgba(255,240,170,1)'], [0.4, 'rgba(240,190,70,0.8)'], [1, 'rgba(230,170,40,0)']]);
+const puffs = [];
+function puff(tex, x, y, z, size, life, rise = 0.6, additive = false) {
+  let p = puffs.find(q => !q.alive && q.tex === tex);
+  if (!p) {
+    if (puffs.length > 200) return;
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending });
+    p = { sprite: new THREE.Sprite(mat), tex }; scene.add(p.sprite); puffs.push(p);
+  }
+  Object.assign(p, { alive: true, t: 0, life, size, rise });
+  p.sprite.visible = true; p.sprite.position.set(x, y, z); p.sprite.scale.setScalar(size * 0.5);
+}
+function updateEffects(dt) {
+  for (const p of puffs) {
+    if (!p.alive) continue;
+    p.t += dt;
+    const k = p.t / p.life;
+    if (k >= 1) { p.alive = false; p.sprite.visible = false; continue; }
+    p.sprite.position.y += p.rise * dt; p.sprite.scale.setScalar(p.size * (0.5 + k * 0.9)); p.sprite.material.opacity = 1 - k;
+  }
+}
+
+// =============================================================== claim state
+const machines = [], structures = [], piles = [];
+const ledger = { money: 25000, goldSafe: 0, goldWashed: 0, goldSold: 0, earned: 0, spent: 0, workers: 3, price: T.goldPrice, seasonT: 0, over: false };
+let race = { active: false };
+let simTime = 0, timeScale = 1, toolMode = null, sel = null, surveyBought = false, ID = 1;
+const KIND = { waste: 1, pay: 2, tail: 3 };
+class Pile {
+  constructor(kind, x, z) { this.id = ID++; this.kind = kind; this.code = KIND[kind]; this.x = x; this.z = z; this.vol = 0; this.gold = 0; piles.push(this); }
+  get grade() { return this.vol > 0.01 ? this.gold / this.vol : 0; }
+  add(v, g) { this.vol += v; this.gold += g; deposit(this.x + rand(-0.7, 0.7), this.z + rand(-0.7, 0.7), v, this.code); }
+  take(v) { v = Math.min(v, this.vol); const g = this.vol > 0 ? this.gold * v / this.vol : 0; this.vol -= v; this.gold -= g; takeLoose(this.x, this.z, v, this.code); return [v, g]; }
+}
+function pileAt(kind, x, z) { return piles.find(p => p.kind === kind && dist(p.x, p.z, x, z) < 4) || new Pile(kind, x, z); }
+const MTYPE = { excavator: { name: 'Excavator', speed: 1.8, slope: 0.55 }, loader: { name: 'Loader', speed: 5, slope: 0.6 }, suv: { name: 'Crew 4x4', speed: 9, slope: 0.6 }, dozer: { name: 'Dozer', speed: 2.4, slope: 0.6 } };
+class Machine {
+  constructor(type, x, z, heading = 0) {
+    this.id = ID++; this.type = type; this.M = MTYPE[type]; this.x = x; this.z = z; this.y = hAt(x, z); this.heading = heading;
+    this.path = null; this.pathI = 0; this.goal = null; this.order = null; this.state = 'Idle'; this.crewed = false; this.moving = false;
+    this.cargo = 0; this.cargoGold = 0; this.timer = 0; this.auto = type === 'loader'; this.swing = 0; this.boom = -0.3; this.stick = 0.4; this.bucketFull = false;
+    this.speed = 0; this.manualT = -1;
+    this.mesh = type === 'excavator' ? makeExcavator() : type === 'suv' ? makeSUV() : type === 'dozer' ? makeDozer() : makeLoader();
+    this.mesh.traverse(o => { o.userData.ent = this; });
+    scene.add(this.mesh); machines.push(this);
+  }
+  get name() { return this.type === 'suv' ? 'Crew 4x4' : this.M.name + ' ' + (machines.filter(m => m.type === this.type).indexOf(this) + 1); }
+}
+const STYPE = { plant: { name: 'Wash Plant', r: 5.6 }, generator: { name: 'Generator', r: 3.2 }, pump: { name: 'Water Pump', r: 1.8 }, bunkhouse: { name: 'Bunkhouse', r: 5.8 } };
+class Structure {
+  constructor(kind, x, z, heading = 0) {
+    this.id = ID++; this.kind = kind; this.S = STYPE[kind]; this.x = x; this.z = z; this.heading = heading; this.y = hAt(x, z);
+    this.on = true; this.crewed = false; this.hopper = 0; this.hopperGold = 0; this.washed = 0; this.tailAcc = 0; this.goldAcc = 0; this.rate = 0; this.running = false;
+    this.mesh = { plant: makePlant, generator: makeGenerator, pump: makePump, bunkhouse: makeBunkhouse }[kind]();
+    this.mesh.position.set(x, this.y, z); this.mesh.rotation.y = heading;
+    this.mesh.traverse(o => { o.userData.ent = this; });
+    scene.add(this.mesh); structures.push(this); this.block(1);
+    if (kind === 'plant') this.tail = new Pile('tail', x - Math.sin(heading) * (this.S.r + 5), z - Math.cos(heading) * (this.S.r + 5));
+  }
+  block(v) {
+    const r = this.S.r + 0.4, [i0, j0, i1, j1] = cellBox(this.x, this.z, r);
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (dist(wx(i), wx(j), this.x, this.z) <= r) blocked[I(i, j)] = Math.max(0, blocked[I(i, j)] + v);
+  }
+  get name() { const same = structures.filter(s => s.kind === this.kind); return this.S.name + (same.length > 1 ? ' ' + (same.indexOf(this) + 1) : ''); }
+  get inPt() { return [this.x + Math.sin(this.heading) * (this.S.r + 2.5), this.z + Math.cos(this.heading) * (this.S.r + 2.5)]; }
+}
+function beds() { return structures.filter(s => s.kind === 'bunkhouse').length * 4; }
+let home = 0; // your claim slot; a shared race hands out 0 to 7
+function setupClaim() {
+  const k = home, a = k * SEG, at = (u, v) => worldOf(k, u, v);
+  new Structure('plant', ...at(-20, 8), a);
+  new Structure('generator', ...at(-24, 22), a);
+  new Structure('pump', ...at(22, 16), a);
+  new Structure('bunkhouse', ...at(-26, -20), a + Math.PI);
+  new Machine('excavator', ...at(-4, -14), a);
+  new Machine('loader', ...at(-12, -2), a);
+  new Machine('suv', ...at(-32, -6), a + Math.PI);
+  new Machine('dozer', ...at(-10, 18), a);
+  const [jx, jz] = at(-30, -11);
+  Object.assign(jim, { x: jx, z: jz, yaw: a, driving: null });
+  cam.x = jx; cam.z = jz; cam.yaw = a + Math.PI * 1.25;
+}
+
+// =============================================================== simulation
+function waterSupply() { return structures.filter(s => s.kind === 'pump' && s.on && s.wetOK).length * 60; }
+function power() { return structures.filter(s => s.kind === 'generator' && s.on).length * 60; }
+function assignCrew() {
+  let w = ledger.workers;
+  for (const s of structures) s.crewed = false;
+  for (const m of machines) m.crewed = !!m.driven || m.type === 'suv';
+  const free = m => !m.crewed;
+  for (const s of structures) if (s.kind === 'plant' && w > 0) { s.crewed = true; w--; }
+  for (const m of machines) if (free(m) && m.type === 'excavator' && m.order && w > 0) { m.crewed = true; w--; }
+  for (const m of machines) if (free(m) && m.type === 'loader' && (m.auto || m.order) && w > 0) { m.crewed = true; w--; }
+  for (const m of machines) if (free(m) && w > 0) { m.crewed = true; w--; }
+}
+function spend(v) { ledger.money -= v; ledger.spent += v; }
+function travel(m, gx2, gz2, dt) {
+  // Follows a path to (gx2, gz2); returns true on arrival.
+  if (!m.goal || dist(m.goal[0], m.goal[1], gx2, gz2) > 1.5 || !m.path) {
+    const p = findPath(m.x, m.z, gx2, gz2, m.M.slope);
+    m.path = p.pts; m.pathI = 0; m.goal = [gx2, gz2]; m.reach = p.reached;
+  }
+  const tp = m.path[m.pathI];
+  if (!tp) { m.moving = false; return true; }
+  const dx = tp[0] - m.x, dz = tp[1] - m.z, dd = Math.hypot(dx, dz);
+  let sp = m.M.speed * (m.cargo > 0 ? 0.85 : 1);
+  const grade = (hAt(m.x + dx / (dd || 1), m.z + dz / (dd || 1)) - hAt(m.x, m.z));
+  sp *= clamp(1 - 0.5 * grade, 0.45, 1.15);
+  const st = Math.min(dd, sp * dt);
+  if (dd > 0.01) { m.x += dx / dd * st; m.z += dz / dd * st; const want = Math.atan2(dx, dz); m.heading += (((want - m.heading) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI) * clamp(dt * 4, 0, 1); }
+  if (dd < 0.7) m.pathI++;
+  m.moving = true;
+  return false;
+}
+function updateExcavator(m, dt) {
+  const o = m.order;
+  m.moving = false;
+  if (!o) { m.state = m.crewed ? 'Idle' : 'Parked'; m.boom = lerp(m.boom, -0.3, dt * 2); return; }
+  if (o.k === 'move') { m.state = 'Driving'; if (travel(m, o.x, o.z, dt)) { m.order = null; m.goal = null; } spend(T.fuelExc * dt); return; }
+  if (!m.crewed) { m.state = 'Waiting for an operator'; return; }
+  if (!o.arrived) {
+    m.state = 'Driving to the dig site';
+    spend(T.fuelExc * dt * 0.6);
+    if (travel(m, o.sx, o.sz, dt)) {
+      o.arrived = true; m.goal = null;
+      if (dist(m.x, m.z, o.sx, o.sz) > 3) { m.order = null; toast('The excavator could not reach that spot. The ground is too steep or wet.', 3200); return; }
+      const a = Math.atan2(o.x - m.x, o.z - m.z), rx = Math.cos(a), rz = -Math.sin(a);
+      o.pay = pileAt('pay', m.x + rx * 6.5, m.z + rz * 6.5);
+      o.waste = pileAt('waste', m.x - rx * 6.5, m.z - rz * 6.5);
+      m.heading = a;
+    }
+    return;
+  }
+  spend(T.fuelExc * dt);
+  const cycle = Math.max(1.2, T.bucket / T.digRate);
+  m.timer += dt;
+  const ph = (m.timer % cycle) / cycle;
+  const toPit = Math.atan2(o.x - m.x, o.z - m.z) - m.heading;
+  const toPile = m.bucketFull ? Math.atan2((m.bucketGrade >= T.cutoff ? o.pay : o.waste).x - m.x, (m.bucketGrade >= T.cutoff ? o.pay : o.waste).z - m.z) - m.heading : toPit;
+  if (ph < 0.35) { m.swing = lerp(m.swing, toPit, dt * 4); m.boom = lerp(m.boom, 0.35, dt * 3); m.stick = lerp(m.stick, 1.0, dt * 3); }
+  else if (ph < 0.45) {
+    if (!m.bucketFull) {
+      const b = digAt(o.x, o.z, o.r, T.bucket);
+      if (!b || b.vol < 0.02) { m.order = null; toast(`${m.name} reached bedrock everywhere in that dig site.`, 3200); return; }
+      m.bucketFull = true; m.bucketVol = b.vol; m.bucketGold = b.gold; m.bucketGrade = b.gold / Math.max(0.01, b.vol);
+      sfx('dig', o.x, o.z);
+      puff(dustTex, o.x + rand(-1, 1), hAt(o.x, o.z) + 0.6, o.z + rand(-1, 1), 3, 1.4, 0.6);
+    }
+    m.boom = lerp(m.boom, -0.45, dt * 4); m.stick = lerp(m.stick, 0.3, dt * 4);
+  } else if (ph < 0.8) { m.swing = lerp(m.swing, toPile, dt * 3.5); m.boom = lerp(m.boom, -0.4, dt * 3); }
+  else if (m.bucketFull) {
+    const p = m.bucketGrade >= T.cutoff ? o.pay : o.waste;
+    p.add(m.bucketVol, m.bucketGold);
+    m.bucketFull = false;
+    sfx('dump', p.x, p.z);
+    puff(dustTex, p.x, hAt(p.x, p.z) + 1, p.z, 3.5, 1.6, 0.8);
+  }
+  m.state = m.bucketFull ? (m.bucketGrade >= T.cutoff ? `Pay dirt, ${m.bucketGrade.toFixed(1)} g/m³` : 'Overburden to waste') : 'Digging';
+}
+function updateLoader(m, dt) {
+  const o = m.order;
+  if (o && o.k === 'move') { m.state = 'Driving'; spend(T.fuelLoader * dt); if (travel(m, o.x, o.z, dt)) { m.order = null; m.goal = null; } return; }
+  if (!m.auto) { m.moving = false; m.state = 'Parked'; return; }
+  if (!m.crewed) { m.moving = false; m.state = 'Waiting for an operator'; return; }
+  spend(T.fuelLoader * dt);
+  m.job = m.job || { s: 'seek' };
+  const j = m.job;
+  if (j.s === 'seek') {
+    m.moving = false;
+    const plants = structures.filter(s => s.kind === 'plant' && s.hopper < T.hopperCap - 0.5);
+    const cands = piles.filter(p => p.kind === 'pay' && p.vol >= 0.5 && (!m.only || p === m.only));
+    if (!plants.length || !cands.length) { m.state = !cands.length ? 'No pay dirt to haul' : 'Wash plant hopper full'; return; }
+    cands.sort((a, b) => (b.vol - dist(b.x, b.z, m.x, m.z) * 0.05) - (a.vol - dist(a.x, a.z, m.x, m.z) * 0.05));
+    j.pile = cands[0]; j.plant = plants.sort((a, b) => a.hopper - b.hopper)[0]; j.s = 'toPile'; m.goal = null;
+  }
+  if (j.s === 'toPile') {
+    m.state = 'Heading to the pay dirt';
+    const a = Math.atan2(m.x - j.pile.x, m.z - j.pile.z), tx = j.pile.x + Math.sin(a) * 3.2, tz = j.pile.z + Math.cos(a) * 3.2;
+    if (travel(m, tx, tz, dt)) { j.s = 'load'; m.timer = 0; m.goal = null; m.heading = Math.atan2(j.pile.x - m.x, j.pile.z - m.z); }
+  } else if (j.s === 'load') {
+    m.moving = false; m.state = 'Loading'; m.timer += dt;
+    if (m.timer > 2.5) { const [v, g] = j.pile.take(T.loaderCap); m.cargo = v; m.cargoGold = g; sfx('dump', j.pile.x, j.pile.z); j.s = v > 0.05 ? 'toPlant' : 'seek'; m.goal = null; }
+  } else if (j.s === 'toPlant') {
+    m.state = `Hauling ${m.cargo.toFixed(1)} m³`;
+    const [tx, tz] = j.plant.inPt;
+    if (travel(m, tx, tz, dt)) { j.s = 'dump'; m.timer = 0; m.goal = null; m.heading = Math.atan2(j.plant.x - m.x, j.plant.z - m.z); }
+  } else if (j.s === 'dump') {
+    m.moving = false; m.state = 'Feeding the hopper'; m.timer += dt;
+    if (m.timer > 2) { j.plant.hopper += m.cargo; j.plant.hopperGold += m.cargoGold; m.cargo = 0; m.cargoGold = 0; sfx('dump', j.plant.x, j.plant.z); j.s = 'seek'; }
+  }
+}
+function updateStructures(dt) {
+  const plants = structures.filter(s => s.kind === 'plant');
+  const running = plants.filter(s => s.on && s.crewed && s.hopper > 0.01);
+  const pw = power(), wt = waterSupply();
+  const pf = running.length ? Math.min(1, pw / (running.length * 40)) : 0;
+  const wf = running.length ? Math.min(1, wt / (running.length * 100)) : 0;
+  for (const s of plants) {
+    s.running = running.includes(s) && pf > 0 && wf > 0;
+    s.rate = s.running ? T.washRate * pf * wf : 0;
+    s.pf = pf; s.wf = wf;
+    if (!s.running) continue;
+    const v = Math.min(s.hopper, s.rate * dt), g = s.hopper > 0 ? s.hopperGold * v / s.hopper : 0;
+    s.hopper -= v; s.hopperGold -= g;
+    const won = g * T.recovery;
+    ledger.goldSafe += won; ledger.goldWashed += won; s.washed += v; s.goldAcc += won;
+    s.tailAcc += v * 0.92;
+    if (s.tailAcc > 0.4) { s.tail.add(s.tailAcc, g - won); s.tailAcc = 0; }
+    if (s.goldAcc >= 1) { s.goldAcc -= 1; sfx('ding', s.x, s.z); puff(sparkTex, s.x, s.y + 2, s.z, 1.6, 0.7, 1.2, true); }
+  }
+  for (const s of structures) {
+    if (s.kind === 'generator' && s.on) { spend(T.fuelGen * dt * (running.length ? 1 : 0.35)); if (Math.random() < dt * 3) puff(smokeTex, s.x + 0.6, s.y + 3.8, s.z - 1.8, 1.6, 2.4, 1.4); }
+    if (s.kind === 'pump' && s.on) spend(T.fuelPump * dt);
+  }
+}
+function updateLedger(dt) {
+  spend(T.wage * ledger.workers * dt);
+  ledger.priceT = (ledger.priceT || 0) + dt;
+  if (ledger.priceT > 8) { ledger.priceT = 0; ledger.priceN = (ledger.priceN || 0) + 1; ledger.price = clamp(ledger.price * (1 + hash(ledger.priceN, 3.7) * 0.051 - 0.025), T.goldPrice * 0.6, T.goldPrice * 1.6); }
+  if (race.active) ledger.seasonT = (Date.now() - race.startAt) / 1000; else ledger.seasonT += dt;
+  if (!ledger.over && ledger.seasonT >= T.seasonMin * 60) {
+    ledger.over = true;
+    if (race.active) pushPresence(); else setSpeed(0);
+    drawer = 'season'; renderDrawer(); sfx('cash', cam.x, cam.z);
+  }
+}
+function inTown() { return dist(jim.x, jim.z, TOWN.x, TOWN.z) < TOWN.r + 6; }
+function carried() { return jim.carry + (jim.driving && jim.driving.type === 'suv' ? jim.driving.cargoGold : 0); }
+function sellGold() {
+  if (carried() < 0.01) return toast(ledger.goldSafe > 0.01 ? 'Load the gold from your claim safe first (Space next to the wash plant), then bring it here.' : 'You are not carrying any gold. Wash some pay dirt first.', 3000);
+  if (!inTown()) return toast('Gold sells at the Assay Office in town. Drive the Crew 4x4 up the hill road.', 3200);
+  const g = carried(), v = g * ledger.price;
+  ledger.money += v; ledger.earned += v; ledger.goldSold += g; jim.carry = 0;
+  if (jim.driving && jim.driving.type === 'suv') jim.driving.cargoGold = 0;
+  sfx('cash', cam.x, cam.z); toast(`Sold gold for ${money(v)}.`, 2400); refreshCmd();
+}
+function step(dt) {
+  simTime += dt;
+  assignCrew();
+  for (const m of machines) {
+    if (m.driven) continue;
+    if (m.type === 'excavator') updateExcavator(m, dt);
+    else if (m.type === 'loader') updateLoader(m, dt);
+    else { m.moving = false; m.state = 'Parked'; if (m.order && m.order.k === 'move') { m.state = 'Driving'; if (travel(m, m.order.x, m.order.z, dt)) { m.order = null; m.goal = null; } } }
+    m.y = hAt(m.x, m.z);
+  }
+  updateStructures(dt);
+  updateLedger(dt);
+}
+
+// =============================================================== camera + input (isometric)
+const cam = { x: 0, z: 90, yaw: Math.PI * 1.25, pitch: 0.66, size: window.innerWidth < 640 ? 46 : 38 };
+function placeCamera() {
+  cam.x = clamp(cam.x, -HALF, HALF); cam.z = clamp(cam.z, -HALF, HALF); cam.size = clamp(cam.size, 10, 190);
+  const ty = Math.max(0, hAt(cam.x, cam.z)), d = 400;
+  camera.position.set(cam.x + Math.sin(cam.yaw) * Math.cos(cam.pitch) * d, ty + Math.sin(cam.pitch) * d, cam.z + Math.cos(cam.yaw) * Math.cos(cam.pitch) * d);
+  camera.lookAt(cam.x, ty, cam.z);
+  const w = glCanvas.clientWidth || 1, h = glCanvas.clientHeight || 1, asp = w / h;
+  camera.left = -cam.size * asp; camera.right = cam.size * asp; camera.top = cam.size; camera.bottom = -cam.size;
+  camera.updateProjectionMatrix();
+}
+function panBy(dxPx, dyPx) {
+  const wpp = 2 * cam.size / (glCanvas.clientHeight || 1);
+  const rx = Math.cos(cam.yaw), rz = -Math.sin(cam.yaw), fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw);
+  cam.x -= rx * dxPx * wpp; cam.z -= rz * dxPx * wpp;
+  cam.x += fx * dyPx * wpp / Math.sin(cam.pitch); cam.z += fz * dyPx * wpp / Math.sin(cam.pitch);
+}
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), tmpV = new THREE.Vector3();
+function setRay(cx, cy) { const r = glCanvas.getBoundingClientRect(); ndc.set((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera); }
+function groundAt(cx, cy) { setRay(cx, cy); const hit = ray.intersectObject(terrain, false)[0]; return hit ? [hit.point.x, hit.point.z] : null; }
+function toScreen(x, y, z) { tmpV.set(x, y, z).project(camera); if (tmpV.z > 1 || tmpV.z < -1) return null; return [(tmpV.x + 1) / 2 * glCanvas.clientWidth, (1 - tmpV.y) / 2 * glCanvas.clientHeight]; }
+function pickEntity(cx, cy) {
+  setRay(cx, cy);
+  const hit = ray.intersectObjects([...machines.map(m => m.mesh), ...structures.map(s => s.mesh)], true)[0];
+  if (hit) return hit.object.userData.ent;
+  const r = glCanvas.getBoundingClientRect(), px = cx - r.left, py = cy - r.top;
+  let best = null, bd = 34;
+  for (const m of machines) { const s = toScreen(m.x, m.y + 1.5, m.z); if (s) { const d = Math.hypot(s[0] - px, s[1] - py); if (d < bd) { bd = d; best = m; } } }
+  for (const p of piles) { if (p.vol < 0.3) continue; const s = toScreen(p.x, hAt(p.x, p.z) + 0.5, p.z); if (s) { const d = Math.hypot(s[0] - px, s[1] - py); if (d < bd) { bd = d; best = p; } } }
+  return best;
+}
+function select(e) { sel = e; refreshCmd(); }
+const marks = [];
+function markAt(x, z, color) { marks.push({ x, z, color, t: 0 }); sfx('click', x, z); }
+function onTap(cx, cy, button) {
+  if (toolMode) { useTool(cx, cy); return; }
+  const e = pickEntity(cx, cy);
+  if (sel instanceof Machine && sel.type === 'loader' && e instanceof Pile && e.kind === 'pay') { sel.only = e; sel.auto = true; sel.order = null; sel.job = null; markAt(e.x, e.z, '#e3b448'); refreshCmd(); return; }
+  if (e && button !== 2) { select(e); return; }
+  if (sel instanceof Machine) {
+    const g = groundAt(cx, cy);
+    if (!g) return;
+    sel.order = { k: 'move', x: g[0], z: g[1] }; sel.goal = null; sel.job = null;
+    if (sel.type === 'loader') sel.auto = false;
+    markAt(g[0], g[1], '#efe5cf'); refreshCmd();
+    return;
+  }
+  select(null);
+}
+function siteProblem(kind, x, z) {
+  const r = STYPE[kind].r;
+  if (Math.abs(x) > HALF - r - 3 || Math.abs(z) > HALF - r - 3) return 'Too close to the edge of the claim.';
+  for (const s of structures) if (dist(s.x, s.z, x, z) < r + s.S.r + 1.5) return 'Too close to another building.';
+  let lo = 1e9, hi = -1e9;
+  for (let a = 0; a < 8; a++) for (const rr of [0, r * 0.6, r]) { const h = hAt(x + Math.cos(a * Math.PI / 4) * rr, z + Math.sin(a * Math.PI / 4) * rr); lo = Math.min(lo, h); hi = Math.max(hi, h); }
+  if (hi - lo > 2.2) return 'The ground there is too uneven.';
+  if (hAt(x, z) < WATER_Y) return 'That spot is under water.';
+  if (dist(x, z, TOWN.x, TOWN.z) < TOWN.r + r + 2) return 'That is town land.';
+  if (kind === 'pump' && !waterNear(x, z, 9)) return 'A pump needs water within 9 m.';
+  return null;
+}
+function useTool(cx, cy) {
+  const g = groundAt(cx, cy);
+  if (!g) return;
+  if (toolMode === 'dig' && sel instanceof Machine) {
+    const a = Math.atan2(sel.x - g[0], sel.z - g[1]), r = T.siteRadius;
+    sel.order = { k: 'dig', x: g[0], z: g[1], r, sx: g[0] + Math.sin(a) * (r + 3.2), sz: g[1] + Math.cos(a) * (r + 3.2) };
+    sel.goal = null; sel.bucketFull = false; sel.timer = 0;
+    markAt(g[0], g[1], '#e3b448'); setTool(null); refreshCmd();
+    return;
+  }
+  if (toolMode && toolMode.startsWith('build:')) {
+    const kind = toolMode.split(':')[1], why = siteProblem(kind, g[0], g[1]);
+    if (why) { toastPersist(why + ' Tap somewhere else.'); return; }
+    if (ledger.money < PRICES[kind]) { setTool(null); toast(`Not enough money: ${STYPE[kind].name} costs ${money(PRICES[kind])}.`, 2600); return; }
+    spend(PRICES[kind]);
+    const s = new Structure(kind, g[0], g[1], Math.round(Math.atan2(cam.x - g[0], cam.z - g[1]) / (Math.PI / 2)) * (Math.PI / 2));
+    if (kind === 'pump') s.wetOK = true;
+    markAt(g[0], g[1], '#e3b448'); setTool(null); select(s);
+  }
+}
+const TOOL_TEXT = { dig: 'Tap the ground where the excavator should dig.', build: () => `Tap open, level ground for the ${STYPE[toolMode.split(':')[1]].name}.` };
+function setTool(t) {
+  toolMode = t;
+  if (t) { const tx = TOOL_TEXT[t] || TOOL_TEXT[t.split(':')[0]]; toastPersist(typeof tx === 'function' ? tx() : tx); } else hideToast();
+}
+const ptrs = new Map();
+let pinch = null, mouse = [0, 0];
+glCanvas.addEventListener('contextmenu', e => e.preventDefault());
+glCanvas.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse') { aim.mouse = true; mouse = [e.clientX, e.clientY]; }
+  if (view === 'drive' && e.pointerType === 'mouse' && !jim.driving && !jim.dead && !toolMode && (e.button === 0 || e.button === 2)) {
+    glCanvas.setPointerCapture(e.pointerId);
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, type: 'mouse', btn: e.button, moved: true, fire: true });
+    if (e.button === 0) aim.firing = true; else pressed.add('bomb');
+    return;
+  }
+  glCanvas.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, type: e.pointerType, btn: e.button, moved: false });
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), ang: Math.atan2(b.y - a.y, b.x - a.x), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 }; for (const p of ptrs.values()) p.moved = true; }
+});
+glCanvas.addEventListener('pointermove', e => {
+  mouse = [e.clientX, e.clientY];
+  if (e.pointerType === 'mouse') aim.mouse = true;
+  const p = ptrs.get(e.pointerId);
+  if (!p || p.fire) return;
+  const dx = e.clientX - p.x, dy = e.clientY - p.y;
+  p.x = e.clientX; p.y = e.clientY;
+  if (ptrs.size >= 2 && pinch) {
+    const [a, b] = [...ptrs.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y), ang = Math.atan2(b.y - a.y, b.x - a.x), cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+    cam.size *= pinch.d / Math.max(1, d); cam.yaw -= ang - pinch.ang; panBy(cx - pinch.cx, cy - pinch.cy);
+    pinch = { d, ang, cx, cy };
+    return;
+  }
+  if (!p.moved && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) > 7) p.moved = true;
+  if (!p.moved) return;
+  if (view === 'drive' || (p.type === 'mouse' && p.btn === 1)) cam.yaw -= dx * 0.006; else panBy(dx, dy);
+});
+function endPtr(e) {
+  const p = ptrs.get(e.pointerId);
+  if (!p) return;
+  if (p.fire) { ptrs.delete(e.pointerId); if (p.btn === 0) aim.firing = false; return; }
+  ptrs.delete(e.pointerId);
+  if (ptrs.size < 2 && !ptrs.size) pinch = null;
+  if (!p.moved && e.type === 'pointerup' && ptrs.size === 0) onTap(e.clientX, e.clientY, p.btn);
+}
+glCanvas.addEventListener('pointerup', endPtr);
+glCanvas.addEventListener('pointercancel', endPtr);
+glCanvas.addEventListener('wheel', e => { e.preventDefault(); cam.size *= Math.exp(e.deltaY * 0.0012); }, { passive: false });
+const keys = new Set();
+window.addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('input, select, textarea')) return;
+  keys.add(e.key.toLowerCase());
+  const kk = e.key.toLowerCase();
+  if (e.key === ' ') { e.preventDefault(); if (view === 'drive') pressed.add('act'); else setSpeed(timeScale ? 0 : 1); }
+  if (kk === 'p' && !e.repeat) setSpeed(timeScale ? 0 : 1);
+  if ((kk === 'x' || kk === 'f' || e.key === 'Enter') && !e.repeat) pressed.add('hop');
+  if (!e.repeat && view === 'drive') { if (kk === 'g') pressed.add('bomb'); if (kk === 'b') pressed.add('berm'); }
+  if (e.key === 'Tab') { e.preventDefault(); if (!e.repeat) setView(view === 'drive' ? 'boss' : 'drive'); }
+  if (e.key === 'Escape') { if (toolMode) setTool(null); else select(null); }
+});
+window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+function keyPan(dt) {
+  const s = 600 * dt;
+  if (keys.has('z')) cam.yaw += dt * 1.4;
+  if (keys.has('c')) cam.yaw -= dt * 1.4;
+  if (view === 'drive') { if (!jim.driving || jim.driving.type !== 'excavator') { if (keys.has('q')) cam.yaw += dt * 1.4; if (keys.has('e')) cam.yaw -= dt * 1.4; } return; }
+  if (keys.has('w') || keys.has('arrowup')) panBy(0, s);
+  if (keys.has('s') || keys.has('arrowdown')) panBy(0, -s);
+  if (keys.has('d') || keys.has('arrowright')) panBy(-s, 0);
+  if (keys.has('a') || keys.has('arrowleft')) panBy(s, 0);
+  if (keys.has('q')) cam.yaw += dt * 1.4;
+  if (keys.has('e')) cam.yaw -= dt * 1.4;
+}
+
+// =============================================================== HUD overlay
+function badge(c, x, y, text, sub, stripe, selected, fill) {
+  c.font = '600 12px "Barlow Condensed", "Arial Narrow", sans-serif';
+  const w = Math.max(c.measureText(text).width, sub ? c.measureText(sub).width : 0) + 16, h = sub ? 30 : 17, bx = x - w / 2, by = y - h;
+  c.fillStyle = selected ? 'rgba(52,40,14,0.95)' : 'rgba(22,19,14,0.8)'; c.fillRect(bx, by, w, h);
+  c.fillStyle = stripe; c.fillRect(bx, by, 4, h);
+  c.strokeStyle = selected ? '#e3b448' : 'rgba(255,255,255,0.12)'; c.lineWidth = selected ? 1.5 : 1; c.strokeRect(bx + 0.5, by + 0.5, w - 1, h - 1);
+  c.fillStyle = '#efe5cf'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(text, bx + 9, by + 9);
+  if (sub) { c.fillStyle = '#a99b80'; c.fillText(sub, bx + 9, by + 22); }
+  if (fill != null) { c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(bx, by + h, w, 4); c.fillStyle = '#e3b448'; c.fillRect(bx, by + h, w * clamp(fill, 0, 1), 4); }
+}
+function drawHUD() {
+  const w = hud.clientWidth, h = hud.clientHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (hud.width !== Math.round(w * dpr) || hud.height !== Math.round(h * dpr)) { hud.width = Math.round(w * dpr); hud.height = Math.round(h * dpr); }
+  const c = hctx;
+  c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h);
+  const ring = (x, z, r, color) => {
+    c.beginPath(); let first = true;
+    for (let a = 0; a <= 32; a++) { const t = a / 32 * Math.PI * 2, px = x + Math.cos(t) * r, pz = z + Math.sin(t) * r, s = toScreen(px, hAt(px, pz) + 0.15, pz); if (!s) { first = true; continue; } if (first) { c.moveTo(s[0], s[1]); first = false; } else c.lineTo(s[0], s[1]); }
+    c.setLineDash([5, 4]); c.strokeStyle = color; c.lineWidth = 1.5; c.stroke(); c.setLineDash([]);
+  };
+  for (const m of machines) if (m.order && m.order.k === 'dig') ring(m.order.x, m.order.z, m.order.r, sel === m ? 'rgba(227,180,72,0.95)' : 'rgba(227,180,72,0.5)');
+  if (sel instanceof Structure) ring(sel.x, sel.z, sel.S.r + 1, 'rgba(227,180,72,0.9)');
+  if (sel instanceof Machine) ring(sel.x, sel.z, 3, 'rgba(227,180,72,0.9)');
+  if (sel instanceof Pile) ring(sel.x, sel.z, 3.5, 'rgba(227,180,72,0.9)');
+  for (let n = marks.length - 1; n >= 0; n--) {
+    const mk = marks[n]; mk.t += 1 / 60;
+    if (mk.t > 0.8) { marks.splice(n, 1); continue; }
+    const s = toScreen(mk.x, hAt(mk.x, mk.z) + 0.2, mk.z);
+    if (s) { c.strokeStyle = mk.color; c.globalAlpha = 1 - mk.t / 0.8; c.lineWidth = 2; c.beginPath(); c.arc(s[0], s[1], 6 + mk.t * 22, 0, 7); c.stroke(); c.globalAlpha = 1; }
+  }
+  for (const p of piles) {
+    if (p.vol < 0.3) continue;
+    const s = toScreen(p.x, hAt(p.x, p.z) + 1.2, p.z);
+    if (!s) continue;
+    const label = p.kind === 'pay' ? `Pay dirt ${p.vol.toFixed(0)} m³` : p.kind === 'waste' ? `Waste ${p.vol.toFixed(0)} m³` : `Tailings ${p.vol.toFixed(0)} m³`;
+    badge(c, s[0], s[1], label, p.kind === 'pay' ? `${p.grade.toFixed(2)} g/m³ · ~${(p.gold * T.recovery).toFixed(0)} g` : null, p.kind === 'pay' ? '#c4762f' : p.kind === 'waste' ? '#8d7656' : '#a8a296', sel === p);
+  }
+  for (const s0 of structures) {
+    const s = toScreen(s0.x, s0.y + (s0.kind === 'plant' ? 6.5 : s0.kind === 'bunkhouse' ? 5.5 : 3.5), s0.z);
+    if (!s) continue;
+    let sub = null, fill = null, stripe = '#8a8f96';
+    if (s0.kind === 'plant') {
+      sub = !s0.crewed ? 'No operator' : s0.hopper < 0.05 ? 'Hopper empty' : s0.running ? `Washing ${(s0.rate * 60).toFixed(1)} m³/min` : (s0.pf <= 0 ? 'No power' : 'No water');
+      fill = s0.hopper / T.hopperCap; stripe = s0.running ? '#8db36a' : '#d4574a';
+    } else if (s0.kind === 'pump') { sub = s0.on ? '60 water' : 'Off'; stripe = s0.on ? '#6fb1d6' : '#555'; }
+    else if (s0.kind === 'generator') { sub = s0.on ? '60 kW' : 'Off'; stripe = s0.on ? '#8db36a' : '#555'; }
+    else { sub = `${ledger.workers}/${beds()} beds used`; }
+    badge(c, s[0], s[1], s0.name, sub, stripe, sel === s0, fill);
+  }
+  for (const [label, dx, dz, sub] of TOWN_LABELS) {
+    const s = toScreen(TOWN.x + dx, hAt(TOWN.x, TOWN.z) + 6.5, TOWN.z + dz);
+    if (s) badge(c, s[0], s[1], label, sub, '#e3b448', false);
+  }
+  for (const o of outfits) { const tr = o.convoy && o.convoy.truck; if (!tr || tr.hp <= 0) continue; const s = toScreen(tr.x, hAt(tr.x, tr.z) + 4, tr.z); if (s) badge(c, s[0], s[1], `${o.name} convoy`, tr.cargo > 0.05 ? `${tr.cargo.toFixed(0)} g aboard` : 'Heading home', o.css, false); }
+  for (const g of ghosts.values()) {
+    if (!g.jt) continue;
+    const s = toScreen(g.jx, hAt(g.jx, g.jz) + (g.jd >= 0 ? 4.6 : 3.4), g.jz);
+    if (s) badge(c, s[0], s[1], g.nick, g.team !== 'solo' ? TEAMS[g.team] : null, TEAM_COL[g.team], false);
+  }
+  if (!jim.driving) {
+    const s = toScreen(jim.x, hAt(jim.x, jim.z) + 3.4, jim.z);
+    if (s) { c.fillStyle = '#e3b448'; c.beginPath(); c.moveTo(s[0] - 7, s[1] - 10); c.lineTo(s[0] + 7, s[1] - 10); c.lineTo(s[0], s[1]); c.fill(); }
+  }
+  for (const m of machines) {
+    const s = toScreen(m.x, m.y + 3.6, m.z);
+    if (!s) continue;
+    badge(c, s[0], s[1], m.name, m.state, m.crewed ? '#e3b448' : '#d4574a', sel === m);
+  }
+  if (race.active && Date.now() < race.startAt + 1000) {
+    const n = Math.ceil((race.startAt - Date.now()) / 1000);
+    c.fillStyle = 'rgba(20,16,10,0.75)'; c.fillRect(w / 2 - 170, h / 2 - 64, 340, 128);
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.font = '400 60px Rye, Georgia, serif'; c.fillStyle = '#e3b448'; c.fillText(n > 0 ? String(n) : 'Dig!', w / 2, h / 2 - 12);
+    c.font = '600 16px "Barlow Condensed", sans-serif'; c.fillStyle = '#efe5cf'; c.fillText('Most gold washed in one year wins.', w / 2, h / 2 + 40);
+  }
+}
+
+// =============================================================== UI
+let toastTimer = 0;
+function toast(text, ms) { if (toolMode) return; $('#toastText').textContent = text; $('#toastCancel').hidden = true; $('#toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, ms || 2000); }
+function toastPersist(text) { clearTimeout(toastTimer); $('#toastText').textContent = text; $('#toastCancel').hidden = false; $('#toast').hidden = false; }
+function hideToast() { $('#toast').hidden = true; }
+$('#toastCancel').addEventListener('click', () => setTool(null));
+function setSpeed(s) {
+  if (race.active && s !== 1) { toast('Speed is locked to 1× during a race.', 2000); s = 1; }
+  timeScale = s; for (const b of document.querySelectorAll('#speedSeg button')) b.classList.toggle('on', +b.dataset.speed === s); }
+for (const b of document.querySelectorAll('#speedSeg button')) b.addEventListener('click', () => setSpeed(+b.dataset.speed));
+function btn(label, fn, cls) { const b = document.createElement('button'); b.textContent = label; if (cls) b.className = cls; b.addEventListener('click', fn); return b; }
+function renderStats() {
+  const left = Math.max(0, T.seasonMin * 60 - ledger.seasonT), mm = Math.floor(left / 60), ss = String(Math.floor(left % 60)).padStart(2, '0');
+  const month = Math.min(12, Math.floor(Math.max(0, ledger.seasonT) / (T.seasonMin * 60) * 12) + 1);
+  $('#stats').innerHTML = `<span class="${ledger.money < 0 ? 'neg' : ''}"><b>${money(ledger.money)}</b></span><span>Safe <b>${ledger.goldSafe.toFixed(1)} g</b></span><span class="${jim.carry > 100 ? 'neg' : ''}">Carrying <b>${jim.carry.toFixed(0)} lb</b></span><span>Gold <b>$${ledger.price.toFixed(0)}/g</b></span><span class="${jim.hp < 40 ? 'neg' : ''}">Health <b>${Math.max(0, Math.round(jim.hp))}</b></span><span>Crew <b>${ledger.workers}/${beds()}</b></span><span>Month <b>${month}/12</b></span><span>${race.active ? 'Race' : 'Year'} <b>${mm}:${ss}</b></span>`;
+}
+let lastCmdSig = '';
+function refreshCmd() {
+  // Rebuild the buttons only when they change, so a tap never lands on a button that was just replaced.
+  const frag = document.createElement('div');
+  buildCmd($('#selInfo'), frag);
+  const sig = (sel ? sel.id || 'x' : 0) + '|' + (jim.driving ? jim.driving.id : 0) + '|' + [...frag.children].map(b => b.textContent + '#' + b.className).join('|');
+  if (sig !== lastCmdSig) { lastCmdSig = sig; $('#cmds').replaceChildren(...frag.children); }
+}
+function buildCmd(info, cmds) {
+  const goldBtn = btn(inTown() ? `Sell gold ${carried().toFixed(1)} g` : `Carrying ${carried().toFixed(1)} g (sell in town)`, sellGold, inTown() ? 'goldbtn' : '');
+  if (jim.driving) {
+    const m = jim.driving;
+    info.innerHTML = `<b>Driving ${m.name}</b><br><span class="st">${DRIVE_HELP[m.type]}</span>`;
+    if (m.type !== 'suv') cmds.append(btn(actLabel(m), () => pressed.add('act'), 'on'));
+    cmds.append(btn('Hop out', () => pressed.add('hop')));
+    if (inTown()) cmds.append(goldBtn);
+    if (view === 'boss') cmds.append(btn('Drive view', () => setView('drive')));
+    return;
+  }
+  if (!sel && view === 'drive') {
+    const nm = nearestMachine(5);
+    info.innerHTML = `<b>${jim.dead ? 'Down' : 'On foot'}</b> · <span class="st">${jim.dead ? 'Back at your claim in a moment.' : inTown() ? 'In town. The Assay Office buys gold.' : nm ? `Hop in the ${nm.name} with X or the Hop in button.` : 'Walk with WASD or the stick. Tab switches to the boss view.'}</span>`;
+    if (nm) cmds.append(btn(`Hop in: ${nm.name}`, () => pressed.add('hop'), 'on'));
+    cmds.append(goldBtn, btn('Boss view', () => setView('boss')));
+    return;
+  }
+  if (!sel) {
+    const pw = power(), wt = waterSupply(), demandW = structures.filter(s => s.kind === 'plant').length * 100;
+    info.innerHTML = `<b>Your claim.</b> <span class="st">Power ${pw} kW · water ${wt}/${demandW} · tap a machine, building or pile. Gold sits in the buried riverbed, richest right on bedrock.</span>`;
+    cmds.append(goldBtn, btn('Excavator', () => select(machines.find(m => m.type === 'excavator'))), btn('Wash plant', () => select(structures.find(s => s.kind === 'plant'))));
+    return;
+  }
+  if (sel instanceof Machine) {
+    const m = sel;
+    info.innerHTML = `<b>${m.name}</b> · ${m.crewed ? 'operator on board' : 'no operator, hire more crew'}<br><span class="st">${m.state}${m.type === 'loader' && m.only ? ' · hauling from one chosen pile' : ''}</span>`;
+    if (m.type === 'suv' || m.type === 'dozer') cmds.append(btn('Take the wheel', () => takeWheel(m), 'on'));
+    else if (m.type === 'excavator') cmds.append(btn('Dig here', () => setTool('dig')), btn('Stop', () => { m.order = null; refreshCmd(); }), btn('Take the wheel', () => takeWheel(m)));
+    else cmds.append(btn('Take the wheel', () => takeWheel(m)), btn(m.auto ? 'Auto-haul: on' : 'Auto-haul: off', () => { m.auto = !m.auto; m.order = null; m.job = null; m.only = null; refreshCmd(); }, m.auto ? 'on' : ''), btn('Haul from any pile', () => { m.only = null; m.auto = true; m.order = null; m.job = null; refreshCmd(); }));
+    cmds.append(btn('Deselect', () => select(null)));
+    if (m.type === 'loader') info.innerHTML += '<br><span class="st">Tip: tap a pay dirt pile to haul from just that pile.</span>';
+    return;
+  }
+  if (sel instanceof Pile) {
+    const p = sel;
+    info.innerHTML = `<b>${p.kind === 'pay' ? 'Pay dirt pile' : p.kind === 'waste' ? 'Waste pile' : 'Tailings'}</b> · ${p.vol.toFixed(1)} m³<br><span class="st">${p.kind === 'pay' ? `${p.grade.toFixed(2)} g/m³ · about ${(p.gold * T.recovery).toFixed(1)} g recoverable` : p.kind === 'waste' ? 'Overburden with almost no gold. Dirt for ramps and berms later.' : 'Washed gravel from the plant. A little gold slips past every sluice.'}</span>`;
+    cmds.append(btn('Deselect', () => select(null)));
+    return;
+  }
+  const s = sel;
+  if (s.kind === 'plant') {
+    const st = !s.crewed ? 'No operator. Hire more crew.' : s.hopper < 0.05 ? 'Waiting for pay dirt. Loaders feed the hopper.' : s.running ? `Washing ${(s.rate * 60).toFixed(1)} m³ per minute${s.wf < 1 ? `, slowed by water (${Math.round(s.wf * 100)}%)` : ''}${s.pf < 1 ? `, slowed by power (${Math.round(s.pf * 100)}%)` : ''}.` : s.pf <= 0 ? 'No power. Turn on a generator.' : 'No water. Place a pump at the creek.';
+    info.innerHTML = `<b>${s.name}</b> · hopper ${s.hopper.toFixed(1)}/${T.hopperCap} m³ · washed ${s.washed.toFixed(0)} m³<br><span class="st">${st}</span>`;
+    cmds.append(goldBtn, btn(s.on ? 'Shut down' : 'Start up', () => { s.on = !s.on; refreshCmd(); }));
+  } else if (s.kind === 'generator' || s.kind === 'pump') {
+    info.innerHTML = `<b>${s.name}</b> · ${s.on ? 'running' : 'off'}<br><span class="st">${s.kind === 'pump' ? 'Pumps 60 units of creek water. Each wash plant needs 100.' : 'Makes 60 kW. Each running wash plant needs 40 kW.'} Burns diesel while on.</span>`;
+    cmds.append(btn(s.on ? 'Turn off' : 'Turn on', () => { s.on = !s.on; refreshCmd(); }));
+  } else {
+    info.innerHTML = `<b>${s.name}</b> · ${ledger.workers}/${beds()} beds used<br><span class="st">Every machine and wash plant needs one crew member. Wages are ${money(T.wage * 60)} per worker per minute.</span>`;
+    cmds.append(btn(`Hire worker ${money(PRICES.hire)}`, hireWorker), btn('Let one go', fireWorker));
+  }
+  cmds.append(btn('Deselect', () => select(null)));
+}
+function hireWorker() {
+  if (ledger.workers >= beds()) return toast('No free beds. Build another bunkhouse first.', 2400);
+  if (ledger.money < PRICES.hire) return toast('Not enough money to hire.', 2000);
+  spend(PRICES.hire); ledger.workers++; sfx('click', cam.x, cam.z); refreshCmd(); if (drawer === 'crew') renderDrawer();
+}
+function fireWorker() { if (ledger.workers > 0) ledger.workers--; refreshCmd(); if (drawer === 'crew') renderDrawer(); }
+
+let drawer = null;
+for (const b of document.querySelectorAll('[data-drawer]')) b.addEventListener('click', () => { drawer = drawer === b.dataset.drawer ? null : b.dataset.drawer; renderDrawer(); });
+$('#drawerClose').addEventListener('click', () => { drawer = null; renderDrawer(); });
+$('#surveyBtn').addEventListener('click', () => {
+  if (!surveyBought) {
+    if (ledger.money < PRICES.survey) return toast('A geologist costs ' + money(PRICES.survey) + '.', 2400);
+    spend(PRICES.survey); surveyBought = true; toast('The geologist mapped the gold. Gold-colored ground is richest.', 3200);
+  }
+  survey = !survey;
+  $('#surveyBtn').classList.toggle('on', survey);
+  $('#surveyBtn').textContent = survey ? 'Survey: on' : 'Survey';
+  markDirtyAll();
+});
+function markDirtyAll() { markDirty(0, 0, N - 1, N - 1); }
+function sliderRow(key, label, min, max, step) {
+  const wrap = document.createElement('div'); wrap.className = 'slider';
+  const id = 't_' + key;
+  const lab = document.createElement('label'); lab.htmlFor = id; lab.textContent = label;
+  const out = document.createElement('output'); out.htmlFor = id;
+  const fmt = v => step >= 1 ? String(Math.round(v)) : (+v).toFixed(step < 0.1 ? 2 : 1);
+  const mark = () => wrap.classList.toggle('changed', Math.abs(T[key] - DEFAULT_T[key]) > 1e-9);
+  out.textContent = fmt(T[key]); mark();
+  const inp = document.createElement('input'); inp.type = 'range'; inp.id = id; inp.min = min; inp.max = max; inp.step = step; inp.value = T[key];
+  inp.addEventListener('input', () => { T[key] = +inp.value; out.textContent = fmt(T[key]); mark(); saveTune(); });
+  wrap.append(lab, out, inp);
+  return wrap;
+}
+function shopItem(name, price, desc, onBuy) {
+  const d = document.createElement('div'); d.className = 'shopitem';
+  const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = name;
+  const ds = document.createElement('div'); ds.className = 'ds'; ds.textContent = desc;
+  const b = btn(money(price), onBuy);
+  if (ledger.money < price) b.classList.add('dim');
+  d.append(nm, b, ds);
+  return d;
+}
+function deliver(type) {
+  if (ledger.money < PRICES[type]) return toast(`Not enough money: costs ${money(PRICES[type])}.`, 2400);
+  spend(PRICES[type]);
+  const m = new Machine(type, TOWN.x + 12 + rand(-2, 2), TOWN.z + 10 + rand(-2, 2), Math.PI * 0.75);
+  const [dx, dz] = worldOf(home, -14 + rand(-4, 4), rand(-6, 6));
+  m.order = { k: 'move', x: dx, z: dz };
+  toast(`${m.name} delivered at the dealer in town. It is driving down to the claim.`, 3000); select(m);
+}
+function renderDrawer() {
+  const d = $('#drawer'), body = $('#drawerBody');
+  for (const b of document.querySelectorAll('[data-drawer]')) b.classList.toggle('on', b.dataset.drawer === drawer);
+  d.hidden = !drawer;
+  if (!drawer) return;
+  body.textContent = '';
+  const h3 = t => { const e = document.createElement('h3'); e.textContent = t; return e; };
+  const p = t => { const e = document.createElement('p'); e.textContent = t; return e; };
+  if (drawer === 'shop') {
+    $('#drawerTitle').textContent = 'Equipment dealer';
+    body.append(p(`You have ${money(ledger.money)}. Machines arrive at the dealer in town and drive down to your claim. Buildings: tap to place.`), h3('Machines'),
+      shopItem('Excavator', PRICES.excavator, 'Digs a site layer by layer and sorts waste from pay dirt.', () => deliver('excavator')),
+      shopItem('Dozer', PRICES.dozer, 'Strips overburden down to the pay gravel, fills pits, builds ramps. Never wastes gold. Drive it yourself.', () => deliver('dozer')),
+      shopItem('Loader', PRICES.loader, 'Hauls pay dirt from piles to the wash plant hopper.', () => deliver('loader')),
+      h3('Buildings'),
+      shopItem('Water pump', PRICES.pump, 'Place within 9 m of water. 60 water units.', () => setTool('build:pump')),
+      shopItem('Generator', PRICES.generator, 'Diesel generator, 60 kW. A wash plant needs 40 kW.', () => setTool('build:generator')),
+      shopItem('Wash plant', PRICES.plant, 'Trommel and sluice. Needs 40 kW, 100 water and an operator.', () => setTool('build:plant')),
+      shopItem('Bunkhouse', PRICES.bunkhouse, 'Four beds for crew.', () => setTool('build:bunkhouse')));
+  } else if (drawer === 'crew') {
+    $('#drawerTitle').textContent = 'Crew';
+    const need = machines.length + structures.filter(s => s.kind === 'plant').length;
+    body.append(p(`${ledger.workers} workers on the payroll, ${beds()} beds. Your machines and plants need ${need} operators to all run at once. Wages: ${money(T.wage * 60)} per worker per minute.`),
+      (() => { const r = document.createElement('div'); r.className = 'row'; r.append(btn(`Hire worker ${money(PRICES.hire)}`, hireWorker), btn('Let one go', fireWorker)); return r; })(),
+      p('Crew are assigned automatically: wash plants first, then excavators with a dig site, then loaders.'));
+  } else if (drawer === 'tune') {
+    $('#drawerTitle').textContent = 'Tune numbers';
+    if (race.active) { body.append(p('Tuning is locked to the defaults during a race, so every claim is fair. Your own numbers come back after the race.')); return; }
+    body.append(p('Changes apply live and are saved in this browser.'));
+    for (const f of T_FIELDS) body.append(sliderRow(...f));
+    const r = document.createElement('div'); r.className = 'row';
+    r.append(btn('Reset to defaults', () => { Object.assign(T, DEFAULT_T); saveTune(); renderDrawer(); }, 'warn'), btn('Copy my tuning', copyTuning));
+    const box2 = document.createElement('textarea'); box2.className = 'copybox'; box2.id = 'copyBox'; box2.readOnly = true; box2.hidden = true;
+    body.append(r, p('Copy my tuning copies every number you changed, so you can paste it into the chat with Claude.'), box2);
+  } else if (drawer === 'season') {
+    $('#drawerTitle').textContent = race.active ? 'Year over' : 'Season over';
+    const worth = ledger.money + ledger.goldSafe * ledger.price;
+    const tbl = document.createElement('table'); tbl.className = 'rep';
+    tbl.innerHTML = `<tr><td>Gold washed</td><td class="n">${ledger.goldWashed.toFixed(1)} g</td></tr><tr><td>Gold sold</td><td class="n">${ledger.goldSold.toFixed(1)} g</td></tr><tr><td>Gold still in the safe</td><td class="n">${ledger.goldSafe.toFixed(1)} g</td></tr><tr><td>Money earned</td><td class="n">${money(ledger.earned)}</td></tr><tr><td>Money spent</td><td class="n">${money(ledger.spent)}</td></tr><tr><td>Cash plus gold</td><td class="n">${money(worth)}</td></tr><tr><td>Started with</td><td class="n">$25,000</td></tr>`;
+    if (race.active) {
+      const rows = mpPlayers(), waiting = rows.some(r => r.phase === 'race' || r.phase === 'count');
+      const top = rows.slice().sort((a, b) => b.gold - a.gold)[0];
+      const tg = rows.filter(r => r.team === 'gold').reduce((a, r) => a + r.gold, 0), ts = rows.filter(r => r.team === 'silver').reduce((a, r) => a + r.gold, 0);
+      const teamWin = tg && ts ? (tg >= ts ? `Team Gold wins, ${tg.toFixed(1)} g to ${ts.toFixed(1)} g.` : `Team Silver wins, ${ts.toFixed(1)} g to ${tg.toFixed(1)} g.`) : null;
+      body.append(h3('Standings'), p(waiting ? 'Waiting for the others to finish their year.' : teamWin || (top.me ? `You win with ${top.gold.toFixed(1)} g!` : `${top.nick} wins with ${top.gold.toFixed(1)} g.`)), standings(), h3('Your claim'), tbl,
+        (() => { const r = document.createElement('div'); r.className = 'row'; r.append(btn('Back to the lobby', endRace)); return r; })());
+      return;
+    }
+    body.append(p(worth >= 25000 ? 'The claim paid. The bank is happy.' : 'The claim lost money this season.'), tbl, h3('Gold sold this year'), p(`You: ${ledger.goldSold.toFixed(1)} g. ` + outfits.map(o => `${o.name}: ${o.sold.toFixed(1)} g`).join('. ') + '.'),
+      (() => { const r = document.createElement('div'); r.className = 'row'; r.append(btn('Keep digging', () => { ledger.seasonT = -1e9; drawer = null; renderDrawer(); setSpeed(1); }), btn('New claim', () => location.reload(), 'warn')); return r; })());
+  } else if (drawer === 'race') {
+    renderRaceDrawer(body, p, h3);
+  } else {
+    $('#drawerTitle').textContent = 'How to mine';
+    const dl = document.createElement('dl'); dl.className = 'keys';
+    for (const [k, v] of [['Tap', 'Select a machine, building or pile'], ['Tap ground', 'Drive the selected machine there'], ['Dig here', 'Excavator digs that spot down to bedrock'], ['Drag', 'Pan'], ['Pinch', 'Zoom and rotate'], ['Wheel', 'Zoom (mouse)'], ['Tab', 'Switch drive view and boss view'], ['WASD', 'Walk or drive (pan in boss view)'], ['X / F', 'Hop in or out'], ['Space', 'Dig, dump, scoop (pause in boss view)'], ['Q / E', 'Swing the excavator (rotate the view otherwise)'], ['Z / C', 'Rotate the view'], ['Mouse', 'Aim where the cursor points; left click fires, right click throws a satchel'], ['Space on foot', 'Shoot (aims for you without a mouse); load gold next to the wash plant'], ['Shift', 'Sprint (not when carrying over 100 lb)'], ['G', 'Throw a satchel charge (blows a crater)'], ['B', 'Dig in: throw up a dirt berm for cover'], ['P', 'Pause']]) {
+      const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v; dl.append(dt, dd);
+    }
+    body.append(dl, h3('The ground'),
+      p('Under the grass is brown overburden with almost no gold, then orange pay gravel, then grey bedrock. Gold follows a buried ancient riverbed and is richest in the last half meter above bedrock.'),
+      p('The excavator digs top down. Buckets below the pay dirt cutoff go to the waste pile, the rest to the pay dirt pile. Loaders haul pay dirt to the wash plant. The plant needs an operator, power and water. Gold goes to the safe. Sell it when the price is good.'),
+      p('Dig below the water table and the pit floods. Machines cannot drive into water or up pit walls steeper than about 30 degrees.'),
+      p('Sound is made live. On iPhone, tap the sound button once.'));
+  }
+}
+function copyTuning() {
+  const diff = {};
+  for (const k in DEFAULT_T) if (Math.abs(T[k] - DEFAULT_T[k]) > 1e-9) diff[k] = { was: DEFAULT_T[k], now: T[k] };
+  const text = Object.keys(diff).length ? 'Bedrock Claim tuning: ' + JSON.stringify(diff) : 'Bedrock Claim tuning: no changes from the defaults.';
+  const box2 = $('#copyBox');
+  const show = () => { if (box2) { box2.hidden = false; box2.value = text; box2.focus(); box2.select(); } };
+  try { navigator.clipboard.writeText(text).then(() => { toast('Copied. Paste it into the chat.', 2600); show(); }, () => { show(); toast('Select the text below and copy it.', 2600); }); }
+  catch (e) { show(); toast('Select the text below and copy it.', 2600); }
+}
+
+// =============================================================== sound (synthesized live with Web Audio)
+const SFX = { ctx: null, on: true, master: null, wet: null, noise: null, voices: 0, voiceT: 0, hum: null, rattle: null };
+function audioInit() {
+  if (!SFX.on) return;
+  if (SFX.ctx) { unlockAudio(); return; }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  try {
+    const ctx = new AC(); SFX.ctx = ctx;
+    SFX.master = ctx.createGain(); SFX.master.gain.value = 0.7;
+    const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 6;
+    SFX.master.connect(comp); comp.connect(ctx.destination);
+    const nb = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), nd = nb.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    SFX.noise = nb;
+    const ir = ctx.createBuffer(2, Math.floor(ctx.sampleRate * 1.6), ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const a = ir.getChannelData(ch); for (let i = 0; i < a.length; i++) a[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / a.length, 3); }
+    const conv = ctx.createConvolver(); conv.buffer = ir;
+    SFX.wet = ctx.createGain(); SFX.wet.gain.value = 0.18; SFX.wet.connect(conv); conv.connect(SFX.master);
+    const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), lp = ctx.createBiquadFilter(), hg = ctx.createGain();
+    o1.type = 'sawtooth'; o1.frequency.value = 42; o2.type = 'sawtooth'; o2.frequency.value = 63.5; lp.type = 'lowpass'; lp.frequency.value = 240; hg.gain.value = 0;
+    o1.connect(lp); o2.connect(lp); lp.connect(hg); hg.connect(SFX.master); o1.start(); o2.start();
+    SFX.hum = { g: hg, o1, o2 };
+    const rs = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), rg = ctx.createGain();
+    rs.buffer = nb; rs.loop = true; bp.type = 'bandpass'; bp.frequency.value = 700; bp.Q.value = 0.8; rg.gain.value = 0;
+    rs.connect(bp); bp.connect(rg); rg.connect(SFX.master); rs.start();
+    SFX.rattle = rg;
+    ctx.onstatechange = updateSoundLabel;
+    unlockAudio();
+  } catch (e) { SFX.ctx = null; }
+}
+let silentEl = null;
+function silentWavURL() {
+  const n = 4000, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true);
+  for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+  let bin = ''; const u8 = new Uint8Array(buf);
+  for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
+  return 'data:audio/wav;base64,' + btoa(bin);
+}
+function unlockAudio() {
+  const ctx = SFX.ctx;
+  if (!ctx) return;
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* not supported */ }
+  if (!silentEl) { try { silentEl = new Audio(silentWavURL()); silentEl.loop = true; silentEl.setAttribute('playsinline', ''); } catch (e) { silentEl = null; } }
+  if (silentEl && silentEl.paused) { const pr = silentEl.play(); if (pr && pr.catch) pr.catch(() => {}); }
+  if (ctx.state !== 'running') { const r = ctx.resume(); if (r && r.then) r.then(updateSoundLabel, () => {}); }
+  try { const b = ctx.createBuffer(1, 1, 22050), src = ctx.createBufferSource(); src.buffer = b; src.connect(ctx.destination); src.start(0); } catch (e) { /* ignore */ }
+  updateSoundLabel();
+}
+function updateSoundLabel() { const b = $('#sndBtn'); if (!b) return; b.textContent = !SFX.on ? 'Sound off' : (SFX.ctx && SFX.ctx.state === 'running' ? 'Sound on' : 'Tap for sound'); b.setAttribute('aria-pressed', String(SFX.on)); }
+for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) document.addEventListener(ev, audioInit, true);
+function sndOut(x, z, reach) {
+  const ctx = SFX.ctx, d = dist(x, z, cam.x, cam.z);
+  const vol = Math.pow(clamp(1 - d / reach, 0, 1), 1.5) * clamp(40 / cam.size, 0.35, 1.3);
+  if (vol < 0.02) return null;
+  const g = ctx.createGain(); g.gain.value = vol;
+  let node = g;
+  if (ctx.createStereoPanner) { const pn = ctx.createStereoPanner(), s = toScreen(x, hAt(x, z), z); pn.pan.value = s ? clamp((s[0] / (glCanvas.clientWidth || 1)) * 2 - 1, -1, 1) * 0.7 : 0; g.connect(pn); node = pn; }
+  node.connect(SFX.master); node.connect(SFX.wet);
+  return g;
+}
+function noiseBurst(out, t0, dur, ftype, f0, f1, q, peak, decay) {
+  const ctx = SFX.ctx, src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  src.buffer = SFX.noise; f.type = ftype; f.frequency.setValueAtTime(f0, t0); if (f1) f.frequency.exponentialRampToValueAtTime(f1, t0 + dur); f.Q.value = q;
+  g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(peak, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + decay);
+  src.connect(f); f.connect(g); g.connect(out); src.start(t0, Math.random() * 1.5); src.stop(t0 + dur + 0.05);
+}
+function tone(out, t0, type, f0, f1, dur, peak) {
+  const ctx = SFX.ctx, o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t0); o.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(peak, t0 + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(out); o.start(t0); o.stop(t0 + dur + 0.05);
+}
+function sfx(kind, x, z) {
+  if (!SFX.ctx || !SFX.on || timeScale === 0 || SFX.ctx.state !== 'running') return;
+  const now = SFX.ctx.currentTime;
+  if (now - SFX.voiceT > 0.1) { SFX.voiceT = now; SFX.voices = 0; }
+  if (++SFX.voices > 8) return;
+  let out;
+  if (kind === 'click' || kind === 'cash' || kind === 'door' || kind === 'hurt') { out = SFX.ctx.createGain(); out.gain.value = kind === 'cash' ? 0.35 : 0.2; out.connect(SFX.master); }
+  else { out = sndOut(x, z, 160); if (!out) return; }
+  const t = now + 0.01;
+  switch (kind) {
+    case 'dig': noiseBurst(out, t, 0.7, 'bandpass', 900, 300, 1.2, 0.7, 0.6); noiseBurst(out, t + 0.15, 0.4, 'lowpass', 400, 150, 0.7, 0.5, 0.35); break;
+    case 'dump': noiseBurst(out, t, 1.0, 'lowpass', 700, 120, 0.6, 0.9, 0.85); tone(out, t, 'sine', 70, 40, 0.3, 0.6); break;
+    case 'ding': tone(out, t, 'sine', 1760, 1700, 0.5, 0.25); tone(out, t, 'sine', 2637, 2600, 0.35, 0.12); break;
+    case 'cash': tone(out, t, 'square', 1046, 1046, 0.08, 0.2); tone(out, t + 0.08, 'square', 1568, 1568, 0.18, 0.2); noiseBurst(out, t + 0.05, 0.4, 'highpass', 5000, 0, 0.5, 0.25, 0.3); break;
+    case 'click': tone(out, t, 'sine', 880, 660, 0.06, 0.5); break;
+    case 'door': tone(out, t, 'sine', 180, 70, 0.14, 0.6); noiseBurst(out, t, 0.1, 'bandpass', 1500, 0, 1.5, 0.3, 0.08); break;
+    case 'shot': noiseBurst(out, t, 0.25, 'highpass', 1800, 0, 0.7, 1.0, 0.18); tone(out, t, 'sine', 160, 50, 0.18, 0.8); noiseBurst(out, t + 0.02, 0.6, 'lowpass', 900, 200, 0.6, 0.35, 0.5); break;
+    case 'boom': tone(out, t, 'sine', 90, 28, 0.9, 1.0); noiseBurst(out, t, 1.6, 'lowpass', 1400, 90, 0.5, 1.0, 1.4); break;
+    case 'hurt': tone(out, t, 'triangle', 300, 140, 0.18, 0.4); break;
+    case 'horn': tone(out, t, 'square', 392, 392, 0.4, 0.18); tone(out, t, 'square', 494, 494, 0.4, 0.14); break;
+  }
+}
+function updateAmbience() {
+  if (!SFX.ctx || !SFX.hum) return;
+  const t = SFX.ctx.currentTime, on = SFX.on && timeScale > 0;
+  let eng = 0;
+  for (const m of machines) if (m.crewed && (m.moving || (m.order && m.order.k === 'dig'))) eng += Math.pow(clamp(1 - dist(m.x, m.z, cam.x, cam.z) / 120, 0, 1), 1.5);
+  for (const s of structures) if (s.kind === 'generator' && s.on) eng += 0.5 * Math.pow(clamp(1 - dist(s.x, s.z, cam.x, cam.z) / 120, 0, 1), 1.5);
+  let rat = 0;
+  for (const s of structures) if (s.kind === 'plant' && s.running) rat = Math.max(rat, Math.pow(clamp(1 - dist(s.x, s.z, cam.x, cam.z) / 110, 0, 1), 1.5));
+  const z = clamp(40 / cam.size, 0.35, 1.3);
+  SFX.hum.g.gain.setTargetAtTime(on ? Math.min(0.22, eng * 0.09) * z : 0, t, 0.2);
+  SFX.rattle.gain.setTargetAtTime(on ? rat * 0.07 * z : 0, t, 0.2);
+}
+$('#sndBtn').addEventListener('click', () => {
+  const wasRunning = SFX.ctx && SFX.ctx.state === 'running';
+  if (wasRunning || !SFX.on) SFX.on = !SFX.on;
+  if (SFX.on) { audioInit(); setTimeout(() => { if (SFX.ctx) tone(SFX.master, SFX.ctx.currentTime + 0.01, 'sine', 880, 660, 0.12, 0.5); }, 60); }
+  if (!SFX.on && silentEl) silentEl.pause();
+  updateSoundLabel();
+});
+updateSoundLabel();
+
+// =============================================================== Jimbo, the 4x4 and hop-in driving (Road Crew style)
+const jim = { x: -19, z: 14, yaw: Math.PI, walk: 0, driving: null, mesh: makeJimbo() };
+scene.add(jim.mesh);
+let view = 'drive';
+const pressed = new Set(), touchIn = { lx: 0, ly: 0, swing: 0, on: false };
+const DRIVE = { suv: { max: 11, acc: 7, brake: 11, turn: 2.0, tracked: false, r: 2.0 }, loader: { max: 6, acc: 6, brake: 9, turn: 1.8, tracked: false, r: 1.9 }, excavator: { max: 2.6, acc: 3, brake: 6, turn: 1.0, tracked: true, r: 2.4 }, dozer: { max: 3.4, acc: 3.5, brake: 7, turn: 1.1, tracked: true, r: 2.3 } };
+const DRIVE_HELP = {
+  dozer: 'WASD drives. Space drops or lifts the blade. Blade down cuts the ground ahead and carries the dirt; drive over a hole or down a slope to fill it, and build ramps. Lifting the blade dumps the load. The blade stops at pay gravel and leaves pay piles alone, so no gold is ever wasted.',
+  suv: 'WASD or the stick drives. Take the hill road to town to sell gold. Space honks.',
+  excavator: 'WASD drives the tracks, Q/E (or ◀ ▶) swings, Space digs and dumps. Dumps sort themselves into pay dirt or waste piles. Dump next to the wash plant to fill its hopper.',
+  loader: 'Space scoops from a pile in front of you, then dumps. Dump at the wash plant to feed the hopper.',
+};
+const TOWN_LABELS = [['Assay Office', 0, -12, 'Sells gold'], ['Equipment Dealer', 13, 2, 'Deliveries'], ['Saloon', -13, 2, 'Opening soon'], ['Town square', 0, 0, null]];
+const TOWNSPOTS = [];
+(function buildTown() {
+  const y0 = hAt(TOWN.x, TOWN.z);
+  const bld = (dx, dz, w, d, h, wall, roof, yaw, porch) => {
+    const g = new THREE.Group();
+    add(g, box(w, h, d), M(wall), 0, h / 2, 0);
+    add(g, box(w + 0.6, 0.25, d + 0.6), M(roof), 0, h + 0.12, 0);
+    add(g, box(w * 0.9, h * 0.35, 0.2), M(wall), 0, h + 0.5, d / 2);
+    add(g, box(1.4, 2.2, 0.15), MAT.dark, 0, 1.1, d / 2 + 0.05);
+    if (porch) { add(g, box(w, 0.15, 2), MAT.wood, 0, 2.6, d / 2 + 1); for (const x of [-w / 2 + 0.3, w / 2 - 0.3]) add(g, box(0.18, 2.6, 0.18), MAT.wood, x, 1.3, d / 2 + 1.9); }
+    g.position.set(TOWN.x + dx, y0, TOWN.z + dz); g.rotation.y = yaw; scene.add(g);
+    TOWNSPOTS.push({ x: TOWN.x + dx, z: TOWN.z + dz, r: Math.max(w, d) * 0.55 });
+  };
+  bld(0, -12, 8, 6, 4, 0xd8c7a0, 0x6b4a2e, 0, true);           // assay office
+  bld(13, 2, 9, 7, 5, 0x8d6e4f, 0x3d4a57, -Math.PI / 2, false); // dealer shed
+  bld(-13, 2, 9, 7, 6.5, 0x9e3526, 0x3b2e24, Math.PI / 2, true); // saloon
+  bld(-6, 14, 5, 5, 3, 0xcfd8dc, 0x566573, Math.PI, false);
+  bld(7, 14, 5, 5, 3, 0xe9e3d5, 0x8b3a2b, Math.PI, false);
+  const tw = new THREE.Group();
+  for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) add(tw, box(0.25, 6, 0.25), MAT.wood, x, 3, z);
+  add(tw, cyl(1.8, 1.8, 2.4, 12), MAT.wood, 0, 7.2, 0);
+  tw.position.set(TOWN.x + 15, y0, TOWN.z - 13); scene.add(tw);
+  TOWNSPOTS.push({ x: TOWN.x + 15, z: TOWN.z - 13, r: 2 });
+  const well = add(scene, cyl(1, 1, 0.9, 12), M(0x8a8273), TOWN.x, y0 + 0.45, TOWN.z);
+  TOWNSPOTS.push({ x: TOWN.x, z: TOWN.z, r: 1.2 });
+})();
+const stakeMeshes = [];
+function refreshStakes() {
+  const taken = new Set([home]);
+  for (const g of ghosts.values()) if (g.home != null) taken.add(g.home);
+  for (const o of outfits) taken.add(o.slot);
+  stakeMeshes.forEach((g, k) => { g.visible = !taken.has(k); });
+}
+for (let k = 0; k < SLOTS; k++) {
+  const [x, z] = worldOf(k, -20, 8), g = new THREE.Group();
+  stakeMeshes.push(g);
+  add(g, box(0.25, 4, 0.25), MAT.wood, 0, 2, 0);
+  add(g, box(1.6, 1, 0.08), M(0xd4574a), 0.8, 3.4, 0);
+  g.position.set(x, hAt(x, z), z); scene.add(g);
+}
+function blockTown() {
+  for (const t of TOWNSPOTS) { const [i0, j0, i1, j1] = cellBox(t.x, t.z, t.r + 0.5); for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (dist(wx(i), wx(j), t.x, t.z) <= t.r + 0.5) blocked[I(i, j)] = 1; }
+}
+blockTown();
+function setView(v) {
+  view = v;
+  $('#viewBtn').textContent = v === 'drive' ? 'Boss view' : 'Drive view';
+  glCanvas.style.cursor = v === 'drive' ? 'crosshair' : '';
+  if (v === 'drive') { cam.size = Math.min(cam.size, 26); select(null); }
+  updateTouchUI(); refreshCmd();
+}
+$('#viewBtn').addEventListener('click', () => setView(view === 'drive' ? 'boss' : 'drive'));
+function nearestMachine(r) {
+  let best = null, bd = r;
+  for (const m of machines) { const d = dist(m.x, m.z, jim.x, jim.z); if (d < bd) { bd = d; best = m; } }
+  return best;
+}
+function enterMachine(m) {
+  jim.driving = m; m.driven = true; m.order = null; m.job = null; m.goal = null; m.speed = 0; m.manualT = -1;
+  if (m.type === 'loader') m.auto = false;
+  if (m.type === 'excavator') { m.swing = 0; m.bucketFull = false; }
+  sfx('door', m.x, m.z);
+}
+function takeWheel(m) { if (jim.driving) exitMachine(); enterMachine(m); jim.x = m.x; jim.z = m.z; setView('drive'); }
+function exitMachine() {
+  const m = jim.driving;
+  m.driven = false; m.speed = 0; m.manualT = -1; jim.driving = null;
+  const a = m.heading + Math.PI / 2;
+  jim.x = m.x + Math.sin(a) * 2.8; jim.z = m.z + Math.cos(a) * 2.8;
+  pushOut(jim, 0.5);
+  sfx('door', m.x, m.z);
+}
+function pushOut(e, r) {
+  const push = (ox, oz, or) => {
+    const dx = e.x - ox, dz = e.z - oz, d = Math.hypot(dx, dz), min = r + or;
+    if (d < min && d > 1e-4) { e.x += dx / d * (min - d); e.z += dz / d * (min - d); if (e.speed) e.speed *= 0.85; }
+  };
+  for (const s of structures) push(s.x, s.z, s.S.r * 0.8);
+  for (const t of TOWNSPOTS) push(t.x, t.z, t.r);
+  for (const m of machines) if (m !== e && m !== jim.driving) push(m.x, m.z, 1.8);
+  for (const g of ghosts.values()) { for (const m of g.ms) push(m.x, m.z, 1.8); for (const st of g.ss) push(st.x, st.z, st.r * 0.8); }
+  e.x = clamp(e.x, -HALF + 3, HALF - 3); e.z = clamp(e.z, -HALF + 3, HALF - 3);
+}
+function driveMachine(m, inp, dt) {
+  const D = DRIVE[m.type], fx = Math.sin(m.heading), fz = Math.cos(m.heading);
+  const slope = (hAt(m.x + fx * 1.6, m.z + fz * 1.6) - hAt(m.x - fx * 1.6, m.z - fz * 1.6)) / 3.2;
+  m.speed -= 7 * clamp(slope, -1, 1) * dt * (D.tracked ? 0.3 : 1);
+  if (inp.fwd) m.speed += inp.fwd * (inp.fwd * m.speed < 0 ? D.brake : D.acc) * dt;
+  else { const b = D.brake * dt; m.speed = Math.abs(m.speed) < b ? 0 : m.speed - Math.sign(m.speed) * b; }
+  m.speed = clamp(m.speed, -D.max * 0.5, D.max);
+  m.heading += D.tracked ? inp.turn * D.turn * dt * (m.speed < -0.1 ? -1 : 1) : inp.turn * D.turn * dt * clamp(m.speed / (D.max * 0.35), -1, 1);
+  const st = m.speed * dt, nx = m.x + Math.sin(m.heading) * st, nz = m.z + Math.cos(m.heading) * st;
+  const rise = Math.abs(st) > 1e-4 ? (hAt(nx, nz) - hAt(m.x, m.z)) / Math.abs(st) : 0;
+  if (hAt(nx, nz) < WATER_Y - 0.9) { m.speed = 0; hintOnce('deep', 'Too deep. Machines cannot drive through that water.'); }
+  else if (rise > 1.3) { m.speed = 0; hintOnce('wall', 'Too steep to climb. Dig a ramp or go around.'); }
+  else { m.x = nx; m.z = nz; }
+  pushOut(m, D.r);
+  m.moving = Math.abs(m.speed) > 0.2;
+}
+const hintT = {};
+function hintOnce(key, text) { const now = performance.now(); if ((hintT[key] || 0) > now) return; hintT[key] = now + 4000; toast(text, 2600); }
+function tip(m, reach) { const a = m.heading + m.swing; return [m.x + Math.sin(a) * reach, m.z + Math.cos(a) * reach]; }
+// the blade: cut what sticks up above the tracks, carry it, fill what dips below, spill the excess ahead
+function manualDozer(m, inp, dt) {
+  const fx = Math.sin(m.heading), fz = Math.cos(m.heading), rx = fz, rz = -fx;
+  m.load = m.load || 0;
+  if (inp.action) {
+    m.bladeDown = !m.bladeDown; sfx('click', m.x, m.z);
+    if (!m.bladeDown && m.load > 0.1) { deposit(m.x + fx * 3.2, m.z + fz * 3.2, m.load, 1); m.load = 0; sfx('dump', m.x, m.z); }
+  }
+  m.boom = m.bladeDown ? 1 : 0;
+  m.state = m.bladeDown ? `Blade down · ${m.load.toFixed(1)} m³ on the blade` : 'Blade up';
+  if (m.moving) spend(T.fuelExc * dt);
+  if (!m.bladeDown || m.speed < 0.15) return;
+  const base = hAt(m.x, m.z) - 0.08, stepLen = m.speed * dt, cellA = CELL * CELL, done = new Set();
+  let atPay = false;
+  for (let sd = -1.6; sd <= 1.61; sd += CELL * 0.7) {
+    const [i, j] = cellOf(m.x + fx * 2.7 + rx * sd, m.z + fz * 2.7 + rz * sd);
+    if (i < 1 || j < 1 || i > N - 2 || j > N - 2) continue;
+    const k = I(i, j);
+    if (done.has(k)) continue;
+    done.add(k);
+    if (H[k] > base) {
+      // the blade strips overburden and moves waste, but stops at pay gravel and never pushes pay piles,
+      // so dozing can't waste gold (pay dirt is the excavator's job)
+      const lk = loose[k] > 0.02 ? looseKind[k] : 0;
+      const floor = lk === 2 ? H[k] : Math.max(base, BEDR[k], Math.min(PAYTOP[k], H[k] - (lk ? loose[k] : 0)));
+      if (floor > base + 0.05) atPay = true;
+      const cut = Math.min(H[k] - floor, 0.6 * stepLen);
+      if (cut > 0) { H[k] -= cut; loose[k] = Math.max(0, loose[k] - cut); m.load += cut * cellA; }
+    } else if (m.load > 0.01) {
+      const fill = Math.min(base - H[k], 0.6 * stepLen, m.load / cellA);
+      H[k] += fill; loose[k] += fill; looseKind[k] = 1; m.load -= fill * cellA;
+    }
+  }
+  if (atPay) hintOnce('paytop', 'The blade stops at pay gravel so no gold gets wasted. Dig the pay dirt with the excavator.');
+  if (m.load > 6) { deposit(m.x + fx * 4, m.z + fz * 4, m.load - 6, 1); m.load = 6; }
+  const [i0, j0, i1, j1] = cellBox(m.x + fx * 2.7, m.z + fz * 2.7, 2.2);
+  markDirty(i0, j0, i1, j1);
+  if (Math.random() < dt * 6) puff(dustTex, m.x + fx * 3, hAt(m.x, m.z) + 0.6, m.z + fz * 3, 2.5, 1.2, 0.5);
+}
+function nearPlant(x, z, r) { return structures.find(s => s.kind === 'plant' && dist(x, z, s.x, s.z) < s.S.r + r); }
+function actLabel(m) { return m.type === 'dozer' ? (m.bladeDown ? 'Blade up' : 'Blade down') : m.type === 'excavator' ? (m.bucketFull ? 'Dump' : 'Dig') : m.type === 'loader' ? (m.cargo > 0 ? 'Dump' : 'Scoop') : 'Honk'; }
+function dropLoad(x, z, vol, gold, kind) {
+  const pl = nearPlant(x, z, 3.5);
+  if (pl && kind === 'pay') { pl.hopper += vol; pl.hopperGold += gold; sfx('dump', pl.x, pl.z); toast(`Into the hopper: ${vol.toFixed(1)} m³ of pay dirt.`, 1600); return; }
+  const p = piles.find(q => q.kind === kind && dist(q.x, q.z, x, z) < 4) || new Pile(kind, x, z);
+  p.add(vol, gold);
+  sfx('dump', x, z); puff(dustTex, x, hAt(x, z) + 1, z, 3.5, 1.6, 0.8);
+}
+function manualExcavator(m, inp, dt) {
+  m.swing += inp.swing * 1.5 * dt;
+  if (m.manualT < 0 && inp.action) m.manualT = 0;
+  if (m.manualT >= 0) {
+    const prev = m.manualT;
+    m.manualT += dt / 0.9;
+    if (prev < 0.5 && m.manualT >= 0.5) {
+      const [tx, tz] = tip(m, 6.2);
+      if (!m.bucketFull) {
+        const b = digAt(tx, tz, 1.6, T.bucket);
+        if (!b || b.vol < 0.05) toast('Nothing to dig there. That is bedrock or out of reach.', 1800);
+        else {
+          m.bucketFull = true; m.bucketVol = b.vol; m.bucketGold = b.gold; m.bucketGrade = b.gold / Math.max(0.01, b.vol);
+          sfx('dig', tx, tz); puff(dustTex, tx, hAt(tx, tz) + 0.6, tz, 3, 1.4, 0.6);
+          toast(m.bucketGrade >= T.cutoff ? `Pay dirt! ${m.bucketGrade.toFixed(1)} g per m³. Dump it beside the plant.` : 'Overburden, no gold worth washing. Dump it on the waste pile.', 1800);
+        }
+      } else {
+        dropLoad(tx, tz, m.bucketVol, m.bucketGold, m.bucketGrade >= T.cutoff ? 'pay' : 'waste');
+        m.bucketFull = false;
+      }
+    }
+    if (m.manualT >= 1) m.manualT = -1;
+  }
+  const t = m.manualT >= 0 ? Math.sin(Math.PI * m.manualT) : 0;
+  m.boom = lerp(-0.3, 0.35, t); m.stick = lerp(0.4, 1.0, t);
+  m.state = 'You are digging';
+  if (m.manualT >= 0) spend(T.fuelExc * dt);
+}
+function manualLoader(m, inp) {
+  if (!inp.action) return;
+  const [bx, bz] = [m.x + Math.sin(m.heading) * 3, m.z + Math.cos(m.heading) * 3];
+  if (m.cargo <= 0) {
+    const p = piles.filter(q => q.vol > 0.2 && dist(q.x, q.z, bx, bz) < 4.5).sort((a, b) => dist(a.x, a.z, bx, bz) - dist(b.x, b.z, bx, bz))[0];
+    if (!p) return toast('Drive the bucket up to a pile first.', 1600);
+    const [v, g] = p.take(T.loaderCap);
+    m.cargo = v; m.cargoGold = g; m.cargoKind = p.kind; sfx('dump', p.x, p.z);
+  } else {
+    dropLoad(bx, bz, m.cargo, m.cargoGold, m.cargoKind || 'pay');
+    m.cargo = 0; m.cargoGold = 0;
+  }
+}
+function readInput() {
+  const k = c => keys.has(c) ? 1 : 0, drive = view === 'drive';
+  const inp = {
+    fwd: drive ? clamp(k('w') + k('arrowup') - k('s') - k('arrowdown') - touchIn.ly, -1, 1) : 0,
+    turn: drive ? clamp(k('a') + k('arrowleft') - k('d') - k('arrowright') - touchIn.lx, -1, 1) : 0,
+    swing: drive ? clamp(k('q') - k('e') + touchIn.swing, -1, 1) : 0,
+    action: pressed.has('act'), hop: pressed.has('hop'), dash: pressed.has('dash'), bomb: pressed.has('bomb'), berm: pressed.has('berm'),
+  };
+  pressed.clear();
+  return inp;
+}
+let wasInTown = false;
+function updatePlayer(dt, live) {
+  const inp = readInput();
+  if (!live || jim.dead) { inp.fwd = inp.turn = inp.swing = 0; inp.action = inp.hop = inp.dash = inp.bomb = inp.berm = false; aim.firing = false; }
+  if (jim.ride) inp.fwd = inp.turn = 0;
+  if (aim.mouse && view === 'drive') aim.pt = aimGround(mouse[0], mouse[1]);
+  if (inp.hop) {
+    if (jim.ride) { jim.ride = null; const a = jim.yaw + Math.PI / 2; jim.x += Math.sin(a) * 2.8; jim.z += Math.cos(a) * 2.8; sfx('door', jim.x, jim.z); }
+    else if (jim.driving) exitMachine();
+    else { const m = nearestMachine(5); if (m) { enterMachine(m); toast(DRIVE_HELP[m.type], 4000); } else if (!tryGhostVehicle()) toast('Walk up to a machine or a 4x4 to hop in.', 1800); }
+    refreshCmd(); updateTouchUI();
+  }
+  const m = jim.driving;
+  if (m) {
+    driveMachine(m, inp, dt);
+    m.y = hAt(m.x, m.z);
+    if (m.type === 'excavator') manualExcavator(m, inp, dt);
+    else if (m.type === 'loader') { manualLoader(m, inp); m.state = 'You are driving'; if (m.moving) spend(T.fuelLoader * dt); }
+    else if (m.type === 'dozer') manualDozer(m, inp, dt);
+    else { m.state = m.cargoGold > 0.05 ? `Hauling ${m.cargoGold.toFixed(0)} lb` : 'You are driving'; if (inp.action) { if (nearPlant(m.x, m.z, 6) && ledger.goldSafe > 0.05) { m.cargoGold += ledger.goldSafe; toast(`Loaded ${ledger.goldSafe.toFixed(1)} g (${ledger.goldSafe.toFixed(0)} lb of concentrate) into the 4x4.`, 2400); ledger.goldSafe = 0; sfx('dump', m.x, m.z); } else sfx('horn', m.x, m.z); } }
+    if (m.type === 'excavator' && m.moving) spend(T.fuelExc * dt);
+    jim.x = m.x; jim.z = m.z;
+  } else {
+    const fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw), rx = Math.cos(cam.yaw), rz = -Math.sin(cam.yaw);
+    let mx = fx * inp.fwd - rx * inp.turn, mz = fz * inp.fwd - rz * inp.turn;
+    const mag = Math.hypot(mx, mz);
+    if (mag > 0.05) {
+      mx /= Math.max(1, mag); mz /= Math.max(1, mag);
+      const sp = (sprinting() ? 11 : 6) * weightFactor(), nx = jim.x + mx * sp * dt, nz = jim.z + mz * sp * dt;
+      if (hAt(nx, nz) > WATER_Y - 0.5) { jim.x = nx; jim.z = nz; }
+      jim.yaw = Math.atan2(mx, mz); jim.walk += dt * 10;
+    }
+    pushOut(jim, 0.5);
+    rideTick();
+    heroAbilities(inp, dt);
+    const legs = jim.mesh.userData.legs;
+    legs[0].rotation.x = Math.sin(jim.walk) * 0.5 * Math.min(1, mag); legs[1].rotation.x = -legs[0].rotation.x;
+  }
+  jim.mesh.visible = !m && !jim.dead;
+  jim.mesh.position.set(jim.x, hAt(jim.x, jim.z) + (jim.ride ? 1.4 : 0), jim.z); jim.mesh.rotation.y = jim.yaw;
+  if (view === 'drive') { const kf = 1 - Math.exp(-5 * dt); cam.x = lerp(cam.x, jim.x, kf); cam.z = lerp(cam.z, jim.z, kf); }
+  const it = inTown();
+  if (it && !wasInTown) toast(carried() > 0.05 ? `Welcome to town. The Assay Office will buy your ${carried().toFixed(1)} g.` : 'Welcome to town. Bring gold to the Assay Office.', 3000);
+  wasInTown = it;
+}
+
+// --- touch: left thumb stick + buttons in drive view
+const STICK_R = 50;
+let stickPtr = null;
+const stickEl = $('#stick');
+function stickHome() { stickEl.style.left = '90px'; stickEl.style.top = 'calc(100% - 100px)'; stickEl.firstChild.style.transform = ''; }
+function updateTouchUI() {
+  const on = touchIn.on && view === 'drive';
+  document.body.classList.toggle('drivetouch', on);
+  $('#stickZone').hidden = !on; $('#tbtns').hidden = !on;
+  if (!on) return;
+  const m = jim.driving;
+  $('#tbHop').textContent = m ? 'Hop out' : 'Hop in';
+  $('#tbAct').hidden = jim.dead; $('#tbAct').textContent = m ? actLabel(m) : ledger.goldSafe > 0.05 && nearPlant(jim.x, jim.z, 4) ? 'Load' : 'Shoot';
+  for (const id of ['tbDash', 'tbBomb', 'tbBerm']) $('#' + id).hidden = !!m || jim.dead;
+  $('#tbL').hidden = $('#tbR').hidden = !(m && m.type === 'excavator');
+}
+function enableTouch() { if (touchIn.on) return; touchIn.on = true; updateTouchUI(); }
+window.addEventListener('touchstart', enableTouch, { passive: true });
+if (window.matchMedia && matchMedia('(pointer: coarse)').matches) touchIn.on = true;
+const zone = $('#stickZone');
+zone.addEventListener('pointerdown', e => {
+  if (stickPtr !== null) return;
+  stickPtr = e.pointerId; try { zone.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+  const r = zone.getBoundingClientRect();
+  stickEl.style.left = (e.clientX - r.left) + 'px'; stickEl.style.top = (e.clientY - r.top) + 'px';
+  zone.dataset.x0 = e.clientX; zone.dataset.y0 = e.clientY;
+  e.preventDefault();
+});
+zone.addEventListener('pointermove', e => {
+  if (e.pointerId !== stickPtr) return;
+  let dx = e.clientX - +zone.dataset.x0, dy = e.clientY - +zone.dataset.y0;
+  const d = Math.hypot(dx, dy);
+  if (d > STICK_R) { dx *= STICK_R / d; dy *= STICK_R / d; }
+  stickEl.firstChild.style.transform = `translate(${dx}px, ${dy}px)`;
+  const dead = v => Math.abs(v) < 0.12 ? 0 : v;
+  touchIn.lx = dead(dx / STICK_R); touchIn.ly = dead(dy / STICK_R);
+});
+const endStick = e => { if (e.pointerId !== stickPtr) return; stickPtr = null; touchIn.lx = touchIn.ly = 0; stickHome(); };
+zone.addEventListener('pointerup', endStick); zone.addEventListener('pointercancel', endStick);
+function holdBtn(id, down, up) {
+  const b = $('#' + id);
+  b.addEventListener('pointerdown', e => { e.preventDefault(); b.classList.add('down'); down(); try { b.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } });
+  const rel = () => { b.classList.remove('down'); if (up) up(); };
+  b.addEventListener('pointerup', rel); b.addEventListener('pointercancel', rel);
+}
+holdBtn('tbAct', () => pressed.add('act'));
+holdBtn('tbHop', () => pressed.add('hop'));
+holdBtn('tbDash', () => { touchIn.run = true; }, () => { touchIn.run = false; });
+holdBtn('tbBomb', () => pressed.add('bomb'));
+holdBtn('tbBerm', () => pressed.add('berm'));
+holdBtn('tbL', () => { touchIn.swing = 1; }, () => { touchIn.swing = 0; });
+holdBtn('tbR', () => { touchIn.swing = -1; }, () => { touchIn.swing = 0; });
+
+// =============================================================== multiplayer race (artifact room: live presence, nothing stored)
+// Every player digs an identical claim (same seed) on their own device. Presence carries
+// name, team, gold washed and the shared start time; anyone in the room can start a race.
+const TEAMS = { solo: 'Free for all', gold: 'Team Gold', silver: 'Team Silver' };
+const NICK_KEY = 'bedrockClaim.nick';
+const mp = { lobby: null, checked: false, room: null, unsub: null, code: '', nick: 'Prospector', team: 'solo', minutes: 15, status: '', lastSent: '' };
+try { mp.nick = localStorage.getItem(NICK_KEY) || mp.nick; } catch (e) { /* storage unavailable */ }
+mp.code = Array.from({ length: 4 }, () => 'abcdefghjkmnpqrstuvwxyz'[Math.floor(Math.random() * 23)]).join('');
+if (window.claude && typeof window.claude.use === 'function') {
+  window.claude.use('room').then(r => { mp.lobby = r; mp.checked = true; if (drawer === 'race') renderDrawer(); }, () => { mp.checked = true; if (drawer === 'race') renderDrawer(); });
+} else mp.checked = true;
+function myPhase() { return !race.active ? 'lobby' : Date.now() < race.startAt ? 'count' : ledger.over ? 'done' : 'race'; }
+function pushPresence() {
+  if (!mp.room) return;
+  const pr = { nick: mp.nick, team: mp.team, gold: Math.round(ledger.goldWashed * 10) / 10, phase: myPhase(), startAt: race.active ? race.startAt : 0, minutes: race.active ? race.minutes : mp.minutes, slots: race.active ? race.slots || null : null, w: race.active ? worldState() : null };
+  let key = JSON.stringify(pr);
+  // presence is capped at 4 KB: shrink the terrain chunk, then the machine list, until it fits
+  while (key.length > 3800 && pr.w) {
+    if (pr.w.t && pr.w.t.length > 21) pr.w.t = pr.w.t.slice(0, Math.max(21, (pr.w.t.length >> 1) | 1));
+    else if (pr.w.t) delete pr.w.t;
+    else if (pr.w.m.length > 4) pr.w.m = pr.w.m.slice(0, pr.w.m.length - 2);
+    else break;
+    key = JSON.stringify(pr);
+  }
+  if (key === mp.lastSent) return;
+  mp.lastSent = key;
+  mp.room.presence(pr).catch(() => { mp.lastSent = ''; });
+}
+function mpPlayers() {
+  const mine = { nick: mp.nick, team: mp.team, gold: ledger.goldWashed, phase: myPhase(), me: true };
+  if (!mp.room) return [mine, ...outfits.map(o => ({ nick: o.name, team: 'solo', gold: o.sold, phase: 'race', me: false, ai: true }))];
+  return mp.room.peers().filter(p => p.kind === 'viewer').map(p => {
+    if (p.sameTab) return mine;
+    const pr = p.presence || {}, g = Number(pr.gold);
+    return { nick: String(pr.nick || 'Prospector').slice(0, 16), team: TEAMS[pr.team] ? pr.team : 'solo', gold: isFinite(g) ? Math.max(0, g) : 0, phase: String(pr.phase || 'lobby'), me: false };
+  });
+}
+function standings() {
+  const rows = mpPlayers().sort((a, b) => b.gold - a.gold), tbl = document.createElement('table');
+  tbl.className = 'rep';
+  rows.forEach((r, i) => {
+    const tr = tbl.insertRow(), a = tr.insertCell(), b = tr.insertCell();
+    a.textContent = `${i + 1}. ${r.nick}${r.me ? ' (you)' : ''}${r.team !== 'solo' ? ' · ' + TEAMS[r.team] : ''}${r.phase === 'race' || r.phase === 'count' ? ' · digging' : ''}`;
+    b.className = 'n'; b.textContent = r.gold.toFixed(1) + ' g';
+  });
+  const tg = rows.filter(r => r.team === 'gold').reduce((a, r) => a + r.gold, 0), ts = rows.filter(r => r.team === 'silver').reduce((a, r) => a + r.gold, 0);
+  if (rows.some(r => r.team !== 'solo')) {
+    const tr = tbl.insertRow(), a = tr.insertCell(), b = tr.insertCell();
+    a.textContent = `Team Gold ${tg.toFixed(1)} g vs Team Silver`; b.className = 'n'; b.textContent = ts.toFixed(1) + ' g';
+  }
+  return tbl;
+}
+// --- minimap: terrain is baked once, dots are redrawn with the UI tick
+const MINI = 132, miniBg = document.createElement('canvas');
+miniBg.width = miniBg.height = MINI;
+function bakeMini() {
+  const x = miniBg.getContext('2d'), img = x.createImageData(MINI, MINI);
+  for (let py = 0; py < MINI; py++) for (let px = 0; px < MINI; px++) {
+    const wxp = (px + 0.5) / MINI * SIZE - HALF, wzp = (py + 0.5) / MINI * SIZE - HALF, h = hAt(wxp, wzp), o = (py * MINI + px) * 4;
+    const [i, j] = cellOf(wxp, wzp), road = ROADK[I(i, j)];
+    let c = h < WATER_Y ? [70, 112, 138] : road ? [150, 125, 90] : [Math.min(255, 95 + h * 9), Math.min(255, 118 + h * 7), 62 + h * 3];
+    img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255;
+  }
+  x.putImageData(img, 0, 0);
+}
+function drawMini() {
+  const cv = $('#mini'), c = cv.getContext('2d'), sc = MINI / SIZE, P = (x, z) => [(x + HALF) * sc, (z + HALF) * sc];
+  c.drawImage(miniBg, 0, 0);
+  for (let k = 0; k < SLOTS; k++) { const [x, z] = P(...worldOf(k, -20, 8)); if (k !== home && !stakeMeshes[k].visible) continue; c.fillStyle = k === home ? '#e3b448' : '#d4574a'; c.fillRect(x - 3, z - 3, 6, 6); }
+  for (const g of ghosts.values()) { if (!g.jt) continue; const [x, z] = P(g.jt[0], g.jt[1]); c.fillStyle = TEAM_COL[g.team]; c.beginPath(); c.arc(x, z, 3, 0, 7); c.fill(); }
+  for (const o of outfits) { const [cx, cz] = P(...worldOf(o.slot, -20, 8)); c.fillStyle = o.css; c.fillRect(cx - 3, cz - 3, 6, 6); }
+  for (const u of aiUnits()) { const [x, z] = P(u.x, u.z); c.fillStyle = u.o.css; c.fillRect(x - (u.kind === 'truck' ? 2.5 : 1.5), z - (u.kind === 'truck' ? 2.5 : 1.5), u.kind === 'truck' ? 5 : 3, u.kind === 'truck' ? 5 : 3); }
+  const [tx, tz] = P(TOWN.x, TOWN.z); c.strokeStyle = '#efe5cf'; c.lineWidth = 1.5; c.beginPath(); c.arc(tx, tz, TOWN.r * sc, 0, 7); c.stroke();
+  for (const m of machines) { const [x, z] = P(m.x, m.z); c.fillStyle = m.type === 'suv' ? '#c4a86e' : '#f2c230'; c.fillRect(x - 1.5, z - 1.5, 3, 3); }
+  const [jx, jz] = P(jim.x, jim.z); c.fillStyle = '#ffffff'; c.beginPath(); c.arc(jx, jz, 3, 0, 7); c.fill();
+}
+$('#mini').addEventListener('click', e => {
+  const r = e.currentTarget.getBoundingClientRect();
+  cam.x = (e.clientX - r.left) / r.width * SIZE - HALF; cam.z = (e.clientY - r.top) / r.height * SIZE - HALF;
+  if (view === 'drive') setView('boss');
+});
+function renderBoard() {
+  const el = $('#board');
+  if (!mp.room && !race.active && !outfits.length) { el.hidden = true; return; }
+  el.hidden = false; el.textContent = '';
+  mpPlayers().sort((a, b) => b.gold - a.gold).slice(0, 4).forEach((r, i) => {
+    const d = document.createElement('div');
+    d.textContent = `${i + 1}. ${r.nick}${r.team !== 'solo' ? ' (' + (r.team === 'gold' ? 'G' : 'S') + ')' : ''}  ${r.gold.toFixed(1)} g`;
+    if (r.me) d.className = 'me';
+    el.append(d);
+  });
+}
+function renderPeerList() {
+  const el = $('#peerList');
+  if (!el) return;
+  el.textContent = '';
+  el.append(standings());
+  const n = mpPlayers().length, sb = $('#startBtn');
+  if (sb) sb.disabled = n > 4;
+  if (n > 4) { const w = document.createElement('p'); w.textContent = `${n} people are here. A race takes 4 at most; someone should pick another room code.`; el.append(w); }
+}
+function checkStart() {
+  if (!mp.room || (race.active && !ledger.over)) return;
+  for (const p of mp.room.peers()) {
+    if (p.sameTab) continue;
+    const pr = p.presence || {}, st = Number(pr.startAt) || 0;
+    if (st && st !== race.startAt && st > Date.now() - 15000 && st < Date.now() + 60000 && (pr.phase === 'count' || pr.phase === 'race')) { beginRace(st, Number(pr.minutes), pr.slots); return; }
+  }
+}
+function onRoomChange() { checkStart(); syncGhosts(); renderPeerList(); renderBoard(); if (drawer === 'season' && race.active) renderDrawer(); }
+async function joinRoom(code) {
+  code = String(code).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
+  if (!code) return toast('Type a room code first.', 2000);
+  mp.code = code; mp.status = 'Joining…'; renderDrawer();
+  try {
+    const r = await mp.lobby.join('bc-' + code);
+    mp.room = r; mp.status = ''; mp.lastSent = '';
+    mp.unsub = r.onPeers(onRoomChange, () => { mp.room = null; mp.status = 'Lost the connection to the room. Join again.'; if (drawer === 'race') renderDrawer(); });
+    pushPresence();
+  } catch (e) { mp.status = 'Could not join the room (' + ((e && e.code) || 'error') + ').'; }
+  renderDrawer();
+}
+function leaveRoom() {
+  if (mp.unsub) mp.unsub();
+  if (mp.room) mp.room.leave().catch(() => {});
+  mp.room = null; mp.unsub = null;
+  if (race.active) endRace(); else renderDrawer();
+}
+function resetClaim() {
+  for (const m of machines) scene.remove(m.mesh);
+  for (const s of structures) scene.remove(s.mesh);
+  machines.length = 0; structures.length = 0; piles.length = 0;
+  loose.fill(0); looseKind.fill(0); blocked.fill(0);
+  genGround(); blockTown();
+  Object.assign(ledger, { money: 25000, goldSafe: 0, goldWashed: 0, goldSold: 0, earned: 0, spent: 0, workers: 3, price: T.goldPrice, seasonT: 0, over: false, priceT: 0, priceN: 0 });
+  sel = null; toolMode = null; hideToast(); surveyBought = false; survey = false;
+  $('#surveyBtn').classList.remove('on'); $('#surveyBtn').textContent = 'Survey';
+  setupClaim();
+  for (const s of structures) if (s.kind === 'pump') s.wetOK = waterNear(s.x, s.z, 9) > 0;
+  markDirtyAll(); bakeMini();
+  for (const f of foes) scene.remove(f.mesh); foes.length = 0;
+  for (const l of loots) scene.remove(l.mesh); loots.length = 0;
+  Object.assign(jim, { hp: 100, dead: false, carry: 0, ride: null }); banditT = 20;
+}
+function beginRace(startAt, minutes, slots) {
+  if (!race.active) race.savedT = Object.assign({}, T);
+  const clean = {};
+  if (slots && typeof slots === 'object') for (const k in slots) { const v = slots[k]; if (Number.isInteger(v) && v >= 0 && v < SLOTS) clean[String(k).slice(0, 64)] = v; }
+  const me = myPeer();
+  home = me && clean[me] != null ? clean[me] : 0;
+  for (const peer of [...ghosts.keys()]) dropGhost(peer);
+  race = { active: true, startAt, minutes: [10, 15, 20, 30].includes(minutes) ? minutes : 15, savedT: race.savedT, slots: clean };
+  Object.assign(T, DEFAULT_T); T.seasonMin = race.minutes;
+  clearOutfits();
+  resetClaim();
+  setSpeed(1);
+  resetNet(); refreshStakes();
+  drawer = null; renderDrawer(); renderBoard(); pushPresence();
+}
+function endRace() {
+  if (race.savedT) Object.assign(T, race.savedT);
+  race = { active: false, startAt: race.startAt };
+  makeOutfits();
+  for (const peer of [...ghosts.keys()]) dropGhost(peer);
+  refreshStakes();
+  ledger.over = false; ledger.seasonT = 0;
+  drawer = 'race'; renderDrawer(); pushPresence();
+}
+function renderRaceDrawer(body, p, h3) {
+  $('#drawerTitle').textContent = 'Claim race';
+  body.append(p('Up to 4 prospectors each work an identical claim at the same time. Most gold washed in one year wins. Pick a team for 2 v 2, or play free for all.'));
+  if (!mp.lobby) { body.append(p(mp.checked ? 'Multiplayer works when this page is open on claude.ai and shared with your friends. It is not available in this view.' : 'Connecting…')); return; }
+  const field = (label, el) => { const d = document.createElement('label'); d.className = 'field'; const s = document.createElement('span'); s.textContent = label; d.append(s, el); return d; };
+  const nick = document.createElement('input'); nick.type = 'text'; nick.maxLength = 16; nick.value = mp.nick; nick.autocomplete = 'off';
+  nick.addEventListener('change', () => { mp.nick = nick.value.trim().slice(0, 16) || 'Prospector'; try { localStorage.setItem(NICK_KEY, mp.nick); } catch (e) { /* ignore */ } pushPresence(); renderPeerList(); });
+  const team = document.createElement('select');
+  for (const k in TEAMS) { const o = document.createElement('option'); o.value = k; o.textContent = TEAMS[k]; team.append(o); }
+  team.value = mp.team;
+  team.addEventListener('change', () => { mp.team = team.value; pushPresence(); renderPeerList(); });
+  body.append(field('Your name', nick), field('Team', team));
+  if (!mp.room) {
+    const code = document.createElement('input'); code.type = 'text'; code.maxLength = 8; code.value = mp.code; code.autocomplete = 'off'; code.autocapitalize = 'none';
+    body.append(h3('Room'), p('Everyone types the same room code.'), field('Room code', code),
+      (() => { const r = document.createElement('div'); r.className = 'row'; r.append(btn('Join room', () => joinRoom(code.value))); return r; })());
+    if (mp.status) body.append(p(mp.status));
+    return;
+  }
+  body.append(h3('Room ' + mp.code));
+  const list = document.createElement('div'); list.id = 'peerList'; body.append(list);
+  if (race.active) {
+    body.append(p(ledger.over ? 'Your year is over.' : 'Race in progress. Tuning and speed are locked.'),
+      (() => { const r = document.createElement('div'); r.className = 'row'; r.append(btn('Leave the race', endRace, 'warn')); return r; })());
+  } else {
+    const mins = document.createElement('select');
+    for (const m of [10, 15, 20, 30]) { const o = document.createElement('option'); o.value = m; o.textContent = `${m} minutes`; mins.append(o); }
+    mins.value = String(mp.minutes);
+    mins.addEventListener('change', () => { mp.minutes = +mins.value; pushPresence(); });
+    const start = btn('Start the race for everyone', () => beginRace(Date.now() + 6000, mp.minutes, assignSlots()), 'goldbtn'); start.id = 'startBtn';
+    body.append(field('One year lasts', mins), p('Starting wipes your current claim. Everyone in the room starts on a fresh claim at the same moment.'),
+      (() => { const r = document.createElement('div'); r.className = 'row'; r.append(start, btn('Leave room', leaveRoom)); return r; })());
+  }
+  renderPeerList();
+}
+
+// =============================================================== shared world (everyone's claims on one map)
+// Each player runs their own claim and machines. Presence carries where Jimbo and the machines are,
+// the buildings, and a rolling chunk of terrain edits; every other page draws those as ghosts.
+const TEAM_COL = { solo: '#6fb1d6', gold: '#e3b448', silver: '#c9ced6' };
+const ghosts = new Map();
+let netT = 0, netSeq = 0, known = Float32Array.from(H), mine = new Set(), pendingNet = new Set(), mineArr = [], mineCur = 0;
+function myPeer() { const me = mp.room && mp.room.peers().find(p => p.sameTab); return me ? me.peer : null; }
+function assignSlots() {
+  const ps = mp.room ? mp.room.peers().filter(p => p.kind === 'viewer') : [];
+  const info = ps.map(p => ({ peer: p.peer, team: p.sameTab ? mp.team : (p.presence && TEAMS[p.presence.team] ? p.presence.team : 'solo') })).sort((a, b) => a.peer < b.peer ? -1 : 1);
+  const out = {}, used = new Set();
+  const gold = info.filter(p => p.team === 'gold'), silver = info.filter(p => p.team === 'silver'), solo = info.filter(p => p.team === 'solo');
+  gold.forEach((p, i) => { out[p.peer] = i; used.add(i); });                 // teammates sit side by side
+  silver.forEach((p, i) => { out[p.peer] = 4 + i; used.add(4 + i); });
+  const n = solo.length;
+  solo.forEach((p, i) => { let k = Math.round(i * SLOTS / Math.max(1, n)) % SLOTS; while (used.has(k)) k = (k + 1) % SLOTS; out[p.peer] = k; used.add(k); });
+  return out;
+}
+function resetNet() { known = Float32Array.from(H); mine = new Set(); pendingNet = new Set(); mineArr = []; mineCur = 0; netBox = null; }
+const enc = k => Math.round(H[k] * 100) * 4 + (loose[k] > 0.05 ? looseKind[k] : 0);
+function netTick() {
+  if (netBox) {
+    const [i0, j0, i1, j1] = netBox; netBox = null;
+    for (let j = Math.max(0, j0 - 1); j <= Math.min(N - 1, j1 + 1); j++) for (let i = Math.max(0, i0 - 1); i <= Math.min(N - 1, i1 + 1); i++) {
+      const k = I(i, j);
+      if (Math.abs(H[k] - known[k]) > 0.01) { known[k] = H[k]; pendingNet.add(k); if (!mine.has(k)) { mine.add(k); mineArr.push(k); } }
+    }
+  }
+  const t = [++netSeq];
+  for (const k of pendingNet) { if (t.length > 300) break; t.push(k, enc(k)); pendingNet.delete(k); }
+  // nothing new: resend old edits a slice at a time so dropped updates and late arrivals catch up
+  while (t.length < 300 && mineArr.length) {
+    if (mineCur >= mineArr.length) { mineArr = [...mine]; mineCur = 0; if (!mineArr.length) break; }
+    const k = mineArr[mineCur++];
+    if (mine.has(k)) t.push(k, enc(k));
+    if (mineCur >= mineArr.length) break;
+  }
+  netChunk = t.length > 1 ? t : null;
+}
+let netChunk = null;
+const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100;
+function worldState() {
+  const w = {
+    h: home,
+    j: [r1(jim.x), r1(jim.z), r2(jim.yaw), jim.driving ? machines.indexOf(jim.driving) : jim.ride ? -2 : -1],
+    m: machines.slice(0, 20).map(m => [m.type, r1(m.x), r1(m.z), r2(m.heading), r2(m.swing || 0), r2(m.boom || 0), m.bucketFull || m.cargo > 0 || m.cargoGold > 0.05 || (m.load || 0) > 0.3 ? 1 : 0]),
+    s: structures.slice(0, 16).map(st => [st.kind, r1(st.x), r1(st.z), r2(st.heading)]),
+  };
+  if (netChunk) w.t = netChunk;
+  w.c = combatState();
+  return w;
+}
+function applyPatch(t) {
+  applyingRemote = true;
+  for (let n = 1; n + 1 < t.length && n < 700; n += 2) {
+    const k = t[n], v = t[n + 1];
+    if (!Number.isInteger(k) || k < 0 || k >= NN || !Number.isInteger(v)) continue;
+    const kind = ((v % 4) + 4) % 4, h = clamp((v - kind) / 400, -20, 40);
+    if (Math.abs(H[k] - h) < 0.005 && (kind ? loose[k] > 0.05 : true)) continue;
+    H[k] = h; known[k] = h; mine.delete(k);
+    if (kind) { looseKind[k] = kind; loose[k] = Math.max(loose[k], 0.3); } else loose[k] = 0;
+    const i = k % N, j = (k / N) | 0;
+    markDirty(i, j, i, j);
+  }
+  applyingRemote = false;
+}
+const MAKERS = { excavator: makeExcavator, loader: makeLoader, suv: makeSUV, dozer: makeDozer };
+const SMAKERS = { plant: makePlant, generator: makeGenerator, pump: makePump, bunkhouse: makeBunkhouse };
+function dropGhost(peer) {
+  const g = ghosts.get(peer);
+  if (!g) return;
+  scene.remove(g.jim); for (const m of g.ms) scene.remove(m.mesh); for (const st of g.ss) scene.remove(st.mesh);
+  ghosts.delete(peer);
+}
+function syncGhosts() {
+  if (!mp.room) return;
+  const seen = new Set();
+  for (const p of mp.room.peers()) {
+    if (p.sameTab || p.kind !== 'viewer') continue;
+    const pr = p.presence || {}, w = pr.w;
+    if (!race.active || !w || typeof w !== 'object' || Number(pr.startAt) !== race.startAt) continue;
+    seen.add(p.peer);
+    let g = ghosts.get(p.peer);
+    if (!g) { g = { jim: makeJimbo(pr.team === 'gold' ? 0xe3b448 : pr.team === 'silver' ? 0xc9ced6 : 0x3f7fb0), ms: [], ss: [], seq: null, jx: 0, jz: 0 }; scene.add(g.jim); ghosts.set(p.peer, g); }
+    const num = v => typeof v === 'number' && isFinite(v) ? v : 0;
+    g.nick = String(pr.nick || 'Prospector').slice(0, 16); g.team = TEAMS[pr.team] ? pr.team : 'solo';
+    g.home = Number.isInteger(w.h) ? w.h : null;
+    if (Array.isArray(w.j)) { const first = !g.jt; g.jt = [num(w.j[0]), num(w.j[1]), num(w.j[2])]; g.jd = num(w.j[3]); if (first) { g.jx = g.jt[0]; g.jz = g.jt[1]; } }
+    const ms = Array.isArray(w.m) ? w.m.slice(0, 20).filter(e => Array.isArray(e) && MAKERS[e[0]]) : [];
+    if (ms.length !== g.ms.length || ms.some((e, i) => g.ms[i].type !== e[0])) {
+      for (const m of g.ms) scene.remove(m.mesh);
+      g.ms = ms.map(e => { const mesh = MAKERS[e[0]](); scene.add(mesh); return { type: e[0], mesh, x: num(e[1]), z: num(e[2]), hd: num(e[3]) }; });
+    }
+    ms.forEach((e, i) => Object.assign(g.ms[i], { tx: num(e[1]), tz: num(e[2]), th: num(e[3]), sw: num(e[4]), bm: num(e[5]), load: !!e[6] }));
+    const ss = Array.isArray(w.s) ? w.s.slice(0, 16).filter(e => Array.isArray(e) && SMAKERS[e[0]]) : [];
+    if (ss.length !== g.ss.length || ss.some((e, i) => g.ss[i].kind !== e[0])) {
+      for (const st of g.ss) scene.remove(st.mesh);
+      g.ss = ss.map(e => { const mesh = SMAKERS[e[0]](); scene.add(mesh); return { kind: e[0], mesh, r: STYPE[e[0]].r }; });
+    }
+    ss.forEach((e, i) => { const st = g.ss[i]; st.x = num(e[1]); st.z = num(e[2]); st.mesh.position.set(st.x, hAt(st.x, st.z), st.z); st.mesh.rotation.y = num(e[3]); });
+    if (Array.isArray(w.t) && w.t[0] !== g.seq) { g.seq = w.t[0]; applyPatch(w.t); }
+    readGhostCombat(p.peer, g, w.c, num);
+  }
+  for (const peer of [...ghosts.keys()]) if (!seen.has(peer)) dropGhost(peer);
+  refreshStakes();
+}
+const angLerp = (a, b, t) => a + ((((b - a) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI) * t;
+function ghostTick(dt) {
+  const k = 1 - Math.exp(-8 * dt);
+  for (const g of ghosts.values()) {
+    if (g.jt) { g.jx = lerp(g.jx, g.jt[0], k); g.jz = lerp(g.jz, g.jt[1], k); }
+    g.jim.visible = !!g.jt && g.jd < 0 && !(g.hp <= 0);
+    g.jim.position.set(g.jx, hAt(g.jx, g.jz) + (g.jd === -2 ? 1.4 : 0), g.jz); if (g.jt) g.jim.rotation.y = g.jt[2];
+    for (const m of g.ms) {
+      if (m.tx == null) continue;
+      if (Math.hypot(m.tx - m.x, m.tz - m.z) > 30) { m.x = m.tx; m.z = m.tz; }
+      m.x = lerp(m.x, m.tx, k); m.z = lerp(m.z, m.tz, k); m.hd = angLerp(m.hd, m.th, k);
+      m.mesh.position.set(m.x, hAt(m.x, m.z), m.z); m.mesh.rotation.y = m.hd;
+      const u = m.mesh.userData;
+      if (m.type === 'excavator') { u.house.rotation.y = angLerp(u.house.rotation.y, m.sw, k); u.boom.rotation.x = m.bm; u.load.visible = m.load; }
+      else if (m.type === 'loader') { u.arms.rotation.x = m.load ? -0.45 : 0.15; u.load.visible = m.load; }
+      else if (m.type === 'dozer') { u.blade.position.y = m.bm > 0 ? 0.35 : 0.85; u.load.visible = m.load; }
+    }
+    if (g.jd >= 0 && g.ms[g.jd]) { g.jx = g.ms[g.jd].x; g.jz = g.ms[g.jd].z; }
+  }
+}
+
+// =============================================================== hero combat: revolver, dash, satchel, berm, bandits, loot
+// Jimbo is the hero. Every ability reuses the terrain: satchels blow craters, berms pile dirt, and dirt blocks bullets.
+Object.assign(jim, { hp: 100, dead: false, cd: { shoot: 0, bomb: 0, berm: 0 }, respawnT: 0, carry: 0, ride: null });
+const aim = { mouse: false, firing: false, pt: null };
+function sprinting() { return (keys.has('shift') || touchIn.run) && !jim.driving && !jim.dead && jim.carry <= 100; }
+// gold leaves the plant as heavy black-sand concentrate: about a pound per gram until the Assay Office cleans it
+function weightFactor() { return jim.carry <= 40 ? 1 : Math.max(0.35, 1 - (jim.carry - 40) / 100 * 0.6); }
+// where the cursor meets the ground: march the camera ray down the heightfield (much cheaper than a mesh raycast)
+function aimGround(cx, cy) {
+  setRay(cx, cy);
+  const o = ray.ray.origin, d = ray.ray.direction;
+  if (d.y >= 0) return null;
+  let t = (o.y - 30) / -d.y;
+  for (let n = 0; n < 400; n++, t += 0.6) { const x = o.x + d.x * t, y = o.y + d.y * t, z = o.z + d.z * t; if (y <= hAt(x, z)) return [x, z]; }
+  return null;
+}
+// ride in the back of a teammate's 4x4, or rob an enemy's parked one
+function ghostVehicleNear() {
+  let best = null, bd = 5;
+  for (const [peer, g] of ghosts) g.ms.forEach((m, idx) => { if (m.type !== 'suv') return; const d = dist(m.x, m.z, jim.x, jim.z); if (d < bd) { bd = d; best = { peer, g, m, idx }; } });
+  return best;
+}
+function tryGhostVehicle() {
+  const v = ghostVehicleNear();
+  if (!v) return false;
+  if (mp.team !== 'solo' && v.g.team === mp.team) { jim.ride = { peer: v.peer, idx: v.idx }; toast(`Riding with ${v.g.nick}. Shoot from the back. X hops off.`, 2600); sfx('door', jim.x, jim.z); }
+  else if (v.m.load) { myPicks.push([v.peer, 'v' + v.idx]); toast(`Robbing ${v.g.nick}'s 4x4…`, 1600); }
+  else toast(`${v.g.nick}'s 4x4 has no gold in it.`, 1600);
+  return true;
+}
+function rideTick() {
+  if (!jim.ride) return;
+  const g = ghosts.get(jim.ride.peer), m = g && g.ms[jim.ride.idx];
+  if (!m) { jim.ride = null; toast('Your ride is gone.', 1600); return; }
+  jim.x = m.x; jim.z = m.z;
+}
+const COOL = { shoot: 0.28, bomb: 8, berm: 9 };
+const foes = [], loots = [], bombs = [], tracers = [];
+let shotSeq = 0, lootSeq = 0, banditT = 20;
+const myShots = [], myGrants = [], myPicks = [];
+const tracerMat = new THREE.LineBasicMaterial({ color: 0xffe9a8, transparent: true });
+function tracer(ax, ay, az, bx, by, bz) {
+  let t = tracers.find(q => q.t <= 0);
+  if (!t) { if (tracers.length > 24) return; const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3)); t = { line: new THREE.Line(geo, tracerMat), t: 0 }; scene.add(t.line); tracers.push(t); }
+  const a = t.line.geometry.attributes.position.array; a.set([ax, ay, az, bx, by, bz]); t.line.geometry.attributes.position.needsUpdate = true; t.line.visible = true; t.t = 0.09;
+}
+// can a bullet get from a to b without hitting dirt?
+function clearShot(ax, az, bx, bz) {
+  const ha = hAt(ax, az) + 1.6, hb = hAt(bx, bz) + 1.2, L = dist(ax, az, bx, bz), n = Math.max(2, Math.ceil(L / (CELL * 0.6)));
+  for (let s = 1; s < n; s++) { const t = s / n; if (hAt(lerp(ax, bx, t), lerp(az, bz, t)) > lerp(ha, hb, t) + 0.05) return false; }
+  return true;
+}
+function hostiles() {
+  const out = [];
+  for (const f of foes) if (f.hp > 0) out.push({ kind: 'bandit', ref: f, x: f.x, z: f.z, dash: false });
+  for (const u of aiUnits()) out.push({ kind: 'ai', ref: u, x: u.x, z: u.z, dash: false, r: u.kind === 'truck' ? 1.3 : 0.55 });
+  for (const [peer, g] of ghosts) {
+    if (!g.jt || g.hp <= 0 || (mp.team !== 'solo' && g.team === mp.team)) continue;
+    const mx = g.jd >= 0 && g.ms[g.jd] ? g.ms[g.jd] : null;
+    out.push({ kind: 'player', peer, x: mx ? mx.x : g.jx, z: mx ? mx.z : g.jz, dash: !!g.dash });
+  }
+  return out;
+}
+function hitChance(d, dashing) { return clamp(0.9 - d * 0.016 - (dashing ? 0.2 : 0), 0.08, 0.92); }
+// SYNTHETIK-style: with a mouse the bullet goes exactly where the cursor points (plus a little spread);
+// touch keeps an aim assist that picks the nearest enemy.
+function shootAt(ax, az) {
+  if (jim.cd.shoot > 0) return;
+  jim.cd.shoot = COOL.shoot;
+  const moving = sprinting() ? 0.07 : 0.02, a = Math.atan2(ax - jim.x, az - jim.z) + rand(-moving, moving), dx = Math.sin(a), dz = Math.cos(a);
+  jim.yaw = a;
+  const x0 = jim.x + dx * 0.6, z0 = jim.z + dz * 0.6, y0 = hAt(jim.x, jim.z) + 1.6;
+  let best = null, bestT = 40;
+  for (const h of hostiles()) {
+    const rx = h.x - x0, rz = h.z - z0, t = rx * dx + rz * dz, perp = Math.abs(rx * dz - rz * dx);
+    if (t > 0 && t < bestT && perp < (h.r || 0.55)) { best = h; bestT = t; }
+  }
+  // where does the bullet hit dirt first?
+  let endT = best ? bestT : 40;
+  for (let t = 1; t < endT; t += CELL * 0.6) if (hAt(x0 + dx * t, z0 + dz * t) > y0 - 0.45 - t * 0.012) { endT = t; best = null; break; }
+  sfx('shot', jim.x, jim.z);
+  const ex = x0 + dx * endT, ez = z0 + dz * endT;
+  tracer(x0, y0, z0, ex, hAt(ex, ez) + 1.2, ez);
+  if (!best) { puff(dustTex, ex, hAt(ex, ez) + 0.5, ez, 1, 0.5, 0.3); return; }
+  if (best.kind === 'bandit') hurtBandit(best.ref, 25);
+  else if (best.kind === 'ai') hurtUnit(best.ref, 25, null);
+  else myShots.push([++shotSeq, best.peer, 25]);
+}
+function shoot() {
+  if (aim.mouse && aim.pt) return shootAt(aim.pt[0], aim.pt[1]);
+  if (jim.cd.shoot > 0) return;
+  jim.cd.shoot = COOL.shoot;
+  const list = hostiles().map(h => ({ ...h, d: dist(h.x, h.z, jim.x, jim.z) })).filter(h => h.d < 40).sort((a, b) => (clearShot(jim.x, jim.z, a.x, a.z) ? 0 : 50) + a.d - ((clearShot(jim.x, jim.z, b.x, b.z) ? 0 : 50) + b.d));
+  const tg = list[0], y0 = hAt(jim.x, jim.z) + 1.6;
+  sfx('shot', jim.x, jim.z);
+  if (!tg) { const ex = jim.x + Math.sin(jim.yaw) * 30, ez = jim.z + Math.cos(jim.yaw) * 30; tracer(jim.x, y0, jim.z, ex, hAt(ex, ez) + 1.2, ez); return; }
+  jim.yaw = Math.atan2(tg.x - jim.x, tg.z - jim.z);
+  const open = clearShot(jim.x, jim.z, tg.x, tg.z), hit = open && Math.random() < hitChance(tg.d, tg.dash);
+  const spread = hit ? 0 : 1.5;
+  tracer(jim.x, y0, jim.z, tg.x + rand(-spread, spread), hAt(tg.x, tg.z) + 1.2, tg.z + rand(-spread, spread));
+  if (!open) puff(dustTex, lerp(jim.x, tg.x, 0.6), hAt(lerp(jim.x, tg.x, 0.6), lerp(jim.z, tg.z, 0.6)) + 0.8, lerp(jim.z, tg.z, 0.6), 1.2, 0.6, 0.4);
+  if (!hit) return;
+  if (tg.kind === 'bandit') hurtBandit(tg.ref, 25);
+  else if (tg.kind === 'ai') hurtUnit(tg.ref, 25, null);
+  else myShots.push([++shotSeq, tg.peer, 25]);
+}
+function hurtBandit(f, dmg) {
+  f.hp -= dmg; puff(dustTex, f.x, hAt(f.x, f.z) + 1.3, f.z, 1, 0.4, 0.3);
+  if (f.hp <= 0) { f.mesh.rotation.z = Math.PI / 2; ledger.money += 400; ledger.earned += 400; toast('Bandit down. $400 bounty.', 1800); sfx('cash', jim.x, jim.z); }
+}
+function hurtMe(dmg, why) {
+  if (jim.dead) return;
+  jim.hp -= dmg; sfx('hurt', jim.x, jim.z);
+  if (jim.hp > 0) return;
+  jim.dead = true; jim.respawnT = 6; jim.ride = null;
+  if (jim.driving) exitMachine();
+  const g = jim.carry * 0.5;
+  if (g > 0.05) { jim.carry -= g; dropLoot(jim.x, jim.z, g); }
+  toast(`${why || 'You got shot'}. ${g > 0.05 ? `You dropped ${g.toFixed(1)} g. ` : ''}Back at your claim in 6 seconds.`, 4000);
+  updateTouchUI(); refreshCmd();
+}
+function dropLoot(x, z, g) {
+  const mesh = new THREE.Group();
+  add(mesh, box(0.7, 0.6, 0.7), M(0x7a5634), 0, 0.3, 0); add(mesh, box(0.4, 0.15, 0.4), M(0xe3b448), 0, 0.68, 0);
+  mesh.position.set(x, hAt(x, z), z); scene.add(mesh);
+  loots.push({ id: ++lootSeq, x, z, g, mesh, own: true });
+}
+function heroAbilities(inp, dt) {
+  if (aim.mouse && aim.pt) jim.yaw = Math.atan2(aim.pt[0] - jim.x, aim.pt[1] - jim.z);
+  const loadable = ledger.goldSafe > 0.05 && nearPlant(jim.x, jim.z, 4) && !hostiles().some(h => dist(h.x, h.z, jim.x, jim.z) < 30);
+  if (inp.action && loadable) { jim.carry += ledger.goldSafe; toast(`Loaded ${ledger.goldSafe.toFixed(1)} g. That is ${jim.carry.toFixed(0)} lb with the black-sand concentrate. ${jim.carry > 40 ? 'Heavy: the 4x4 carries it easier.' : ''}`, 3200); ledger.goldSafe = 0; sfx('dump', jim.x, jim.z); }
+  else if (inp.action || aim.firing) shoot();
+  if (inp.bomb) {
+    if (jim.cd.bomb > 0) toast(`Satchel ready in ${jim.cd.bomb.toFixed(0)} s.`, 900);
+    else {
+      jim.cd.bomb = COOL.bomb;
+      const tg = hostiles().map(h => ({ ...h, d: dist(h.x, h.z, jim.x, jim.z) })).filter(h => h.d < 18).sort((a, b) => a.d - b.d)[0];
+      let tx = tg ? tg.x : jim.x + Math.sin(jim.yaw) * 12, tz = tg ? tg.z : jim.z + Math.cos(jim.yaw) * 12;
+      if (aim.mouse && aim.pt) { const d = Math.min(20, dist(aim.pt[0], aim.pt[1], jim.x, jim.z)), a = Math.atan2(aim.pt[0] - jim.x, aim.pt[1] - jim.z); tx = jim.x + Math.sin(a) * d; tz = jim.z + Math.cos(a) * d; }
+      const mesh = add(scene, box(0.4, 0.3, 0.3), M(0x6b2a1a), jim.x, hAt(jim.x, jim.z) + 1.5, jim.z);
+      bombs.push({ x0: jim.x, z0: jim.z, x1: tx, z1: tz, t: 0, T: 0.9, mesh });
+    }
+  }
+  if (inp.berm) {
+    if (jim.cd.berm > 0) toast(`Berm ready in ${jim.cd.berm.toFixed(0)} s.`, 900);
+    else {
+      jim.cd.berm = COOL.berm;
+      const fx = Math.sin(jim.yaw), fz = Math.cos(jim.yaw);
+      for (const side of [-2.4, -1.2, 0, 1.2, 2.4]) deposit(jim.x + fx * 2.6 + fz * side, jim.z + fz * 2.6 - fx * side, 4.2, 1);
+      sfx('dump', jim.x, jim.z); puff(dustTex, jim.x + fx * 2.6, hAt(jim.x, jim.z) + 1, jim.z + fz * 2.6, 4, 1.4, 0.6);
+    }
+  }
+}
+// a crater, like the RTS's Crater_0, but it stops at bedrock
+function blast(x, z) {
+  const [i0, j0, i1, j1] = cellBox(x, z, 3.2);
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const d = dist(wx(i), wx(j), x, z); if (d > 3.2) continue;
+    const k = I(i, j), cut = 1.3 * (1 - (d / 3.2) ** 2);
+    H[k] = Math.max(BEDR[k] + 0.02, H[k] - cut); loose[k] = Math.max(0, loose[k] - cut);
+  }
+  markDirty(i0, j0, i1, j1);
+  sfx('boom', x, z);
+  puff(sparkTex, x, hAt(x, z) + 1.5, z, 7, 0.35, 0, true);
+  for (let n = 0; n < 7; n++) puff(smokeTex, x + rand(-2, 2), hAt(x, z) + rand(1, 3), z + rand(-2, 2), rand(4, 6), rand(2, 3.5), rand(0.6, 1.4));
+  for (const f of foes) if (f.hp > 0) { const d = dist(f.x, f.z, x, z); if (d < 5.5) hurtBandit(f, 90 * (1 - d / 5.5)); }
+  for (const u of aiUnits()) { const d = dist(u.x, u.z, x, z); if (d < 5.5) hurtUnit(u, 90 * (1 - d / 5.5), null); }
+  for (const h of hostiles()) if (h.kind === 'player') { const d = dist(h.x, h.z, x, z); if (d < 5.5) myShots.push([++shotSeq, h.peer, Math.round(90 * (1 - d / 5.5))]); }
+  const dm = dist(jim.x, jim.z, x, z);
+  if (dm < 5.5) hurtMe(90 * (1 - dm / 5.5), 'Caught in your own blast');
+}
+function spawnBandits() {
+  const a = Math.atan2(jim.x, jim.z) + rand(-0.6, 0.6), r = Math.min(dist(jim.x, jim.z, 0, 0) + 24, 70);
+  for (let n = 0; n < 2; n++) {
+    const x = Math.sin(a + n * 0.15) * r, z = Math.cos(a + n * 0.15) * r, mesh = makeJimbo(0x262626, 0x111111);
+    scene.add(mesh);
+    foes.push({ x, z, hp: 75, yaw: 0, cool: rand(1, 2), mesh, walk: 0 });
+  }
+  toast('Bandits! They want your gold. Click to shoot, Shift sprints, right click or G throws a satchel, B digs in.', 4500);
+}
+function combatTick(dt) {
+  for (const t of tracers) if (t.t > 0) { t.t -= 1 / 60; if (t.t <= 0) t.line.visible = false; }
+  if (!dt) return;
+  for (const k in jim.cd) jim.cd[k] = Math.max(0, jim.cd[k] - dt);
+  if (jim.dead) {
+    jim.respawnT -= dt;
+    if (jim.respawnT <= 0) { const [x, z] = worldOf(home, -30, -11); Object.assign(jim, { x, z, hp: 100, dead: false }); cam.x = x; cam.z = z; updateTouchUI(); refreshCmd(); }
+  } else if (jim.hp < 100) jim.hp = Math.min(100, jim.hp + dt * 2);
+  // satchels in flight
+  for (let n = bombs.length - 1; n >= 0; n--) {
+    const b = bombs[n]; b.t += dt;
+    const u = Math.min(1, b.t / b.T), x = lerp(b.x0, b.x1, u), z = lerp(b.z0, b.z1, u);
+    b.mesh.position.set(x, lerp(hAt(b.x0, b.z0), hAt(b.x1, b.z1), u) + 1.5 + 6 * u * (1 - u), z); b.mesh.rotation.x += dt * 9;
+    if (u >= 1) { scene.remove(b.mesh); bombs.splice(n, 1); blast(b.x1, b.z1); }
+  }
+  // bandits show up when you carry gold near town
+  const nearTown = dist(jim.x, jim.z, 0, 0) < 80;
+  if (!foes.some(f => f.hp > 0)) banditT -= dt;
+  if (banditT <= 0 && nearTown && carried() > 3 && !jim.dead) { banditT = 75; spawnBandits(); }
+  for (let n = foes.length - 1; n >= 0; n--) {
+    const f = foes[n];
+    if (f.hp <= 0) { f.dead = (f.dead || 0) + dt; if (f.dead > 8) { scene.remove(f.mesh); foes.splice(n, 1); } continue; }
+    const d = dist(f.x, f.z, jim.x, jim.z);
+    f.yaw = Math.atan2(jim.x - f.x, jim.z - f.z);
+    f.strafeT = (f.strafeT || 0) - dt; if (f.strafeT <= 0) { f.strafeT = rand(0.8, 1.8); f.side = Math.random() < 0.5 ? -1 : 1; }
+    const adv = !jim.dead && (d > 18 || !clearShot(f.x, f.z, jim.x, jim.z)) ? 1 : d < 10 ? -0.6 : 0;
+    if (!jim.dead) { const sx = Math.cos(f.yaw) * f.side, sz = -Math.sin(f.yaw) * f.side; f.x += (Math.sin(f.yaw) * adv * 4.5 + sx * 3) * dt; f.z += (Math.cos(f.yaw) * adv * 4.5 + sz * 3) * dt; f.walk += dt * 9; pushOut(f, 0.5); }
+    f.cool -= dt;
+    if (f.cool <= 0 && !jim.dead && d < 32) {
+      f.cool = rand(0.9, 1.5);
+      const open = clearShot(f.x, f.z, jim.x, jim.z), hit = open && Math.random() < hitChance(d, sprinting()) * 0.55;
+      sfx('shot', f.x, f.z);
+      tracer(f.x, hAt(f.x, f.z) + 1.6, f.z, jim.x + (hit ? 0 : rand(-1.5, 1.5)), hAt(jim.x, jim.z) + 1.2, jim.z + (hit ? 0 : rand(-1.5, 1.5)));
+      if (hit) hurtMe(14, 'A bandit got you');
+    }
+    if (dist(f.x, f.z, 0, 0) > 120 && jim.dead) f.hp = 0;
+    f.mesh.position.set(f.x, hAt(f.x, f.z), f.z); f.mesh.rotation.y = f.yaw;
+    const legs = f.mesh.userData.legs; legs[0].rotation.x = Math.sin(f.walk) * 0.5; legs[1].rotation.x = -legs[0].rotation.x;
+  }
+  // loot: walk over a sack to grab it
+  for (let n = loots.length - 1; n >= 0; n--) {
+    const l = loots[n];
+    l.mesh.rotation.y += dt;
+    if (jim.dead || dist(l.x, l.z, jim.x, jim.z) > 2.2) continue;
+    if (l.own) { jim.carry += l.g; scene.remove(l.mesh); loots.splice(n, 1); toast(`Picked up ${l.g.toFixed(1)} g.`, 1600); sfx('ding', jim.x, jim.z); }
+    else if (!myPicks.some(p => p[0] === l.peer && p[1] === l.id)) myPicks.push([l.peer, l.id]);
+  }
+}
+// --- combat over the network: shooters report hits, victims apply them; loot owners grant pickups
+function combatState() {
+  while (myShots.length > 8) myShots.shift();
+  while (myGrants.length > 8) myGrants.shift();
+  while (myPicks.length > 6) myPicks.shift();
+  return { hp: Math.round(jim.dead ? 0 : jim.hp), d: sprinting() ? 1 : 0, sh: myShots.slice(), lt: loots.filter(l => l.own).slice(0, 8).map(l => [l.id, r1(l.x), r1(l.z), r1(l.g)]), gv: myGrants.slice(), pk: myPicks.slice() };
+}
+function readGhostCombat(peer, g, c, num) {
+  if (!c || typeof c !== 'object') return;
+  g.hp = num(c.hp); g.dash = !!c.d;
+  const me = myPeer();
+  g.seenShots = g.seenShots || new Set();
+  for (const s of Array.isArray(c.sh) ? c.sh : []) {
+    if (!Array.isArray(s) || g.seenShots.has(s[0])) continue;
+    g.seenShots.add(s[0]);
+    if (g.jt) { const y = hAt(g.jx, g.jz) + 1.6; sfx('shot', g.jx, g.jz); if (s[1] === me) tracer(g.jx, y, g.jz, jim.x, hAt(jim.x, jim.z) + 1.2, jim.z); }
+    if (s[1] === me) hurtMe(clamp(num(s[2]), 0, 100), `${g.nick} got you`);
+  }
+  // their dropped sacks
+  g.loot = g.loot || new Map();
+  const live = new Set();
+  for (const l of Array.isArray(c.lt) ? c.lt.slice(0, 8) : []) {
+    if (!Array.isArray(l)) continue;
+    const id = num(l[0]); live.add(id);
+    if (!g.loot.has(id)) { const before = loots.length; dropLoot(num(l[1]), num(l[2]), num(l[3])); const L = loots[before]; L.own = false; L.peer = peer; L.id = id; g.loot.set(id, L); }
+  }
+  for (const [id, L] of g.loot) if (!live.has(id)) { scene.remove(L.mesh); const n = loots.indexOf(L); if (n >= 0) loots.splice(n, 1); g.loot.delete(id); }
+  // they granted us a sack
+  g.seenGrants = g.seenGrants || new Set();
+  for (const gr of Array.isArray(c.gv) ? c.gv : []) {
+    if (!Array.isArray(gr) || gr[1] !== me || g.seenGrants.has(gr[0])) continue;
+    g.seenGrants.add(gr[0]); jim.carry += clamp(num(gr[2]), 0, 1e4); toast(`Grabbed ${num(gr[2]).toFixed(1)} g from ${g.nick}.`, 2000); sfx('ding', jim.x, jim.z);
+  }
+  // they want one of ours: first come, first served
+  for (const pk of Array.isArray(c.pk) ? c.pk : []) {
+    if (!Array.isArray(pk) || pk[0] !== me) continue;
+    if (typeof pk[1] === 'string' && pk[1][0] === 'v') {
+      const m = machines[+pk[1].slice(1)];
+      if (m && m.type === 'suv' && m.cargoGold > 0.05 && jim.driving !== m && g.jt && dist(g.jx, g.jz, m.x, m.z) < 8) {
+        myGrants.push(['v' + (++lootSeq), peer, r1(m.cargoGold)]); toast(`${g.nick} robbed ${m.cargoGold.toFixed(1)} g out of your 4x4!`, 3000); m.cargoGold = 0;
+      }
+      continue;
+    }
+    const n = loots.findIndex(l => l.own && l.id === pk[1]);
+    if (n < 0) continue;
+    const L = loots[n]; scene.remove(L.mesh); loots.splice(n, 1); myGrants.push([L.id, peer, r1(L.g)]);
+  }
+}
+
+// =============================================================== rival outfits: AI crews that mine, convoy gold to town, and fight
+// Solo only for now: in a shared race every player would simulate different AI.
+const OUTFIT_DEFS = [{ name: 'McCready Outfit', color: 0x8a3324, css: '#c0563f', off: 3 }, { name: 'Dutch Hollow Co.', color: 0x2f5d8a, css: '#4f8fd0', off: 5 }];
+const outfits = [];
+function aiUnits() { const out = []; for (const o of outfits) if (o.convoy) { for (const u of [o.convoy.truck, ...o.convoy.guards]) if (u.hp > 0) out.push(u); } return out; }
+function makeOutfits() {
+  if (outfits.length || race.active) return;
+  for (const d of OUTFIT_DEFS) {
+    const slot = (home + d.off) % SLOTS, a = slot * SEG, at = (u, v) => worldOf(slot, u, v);
+    const o = { ...d, slot, stash: rand(4, 8), sold: 0, convoy: null, cool: rand(20, 50), digT: rand(2, 6), angry: 0, meshes: [] };
+    const put = (mesh, [x, z], yaw) => { mesh.position.set(x, hAt(x, z), z); mesh.rotation.y = yaw; scene.add(mesh); o.meshes.push(mesh); return mesh; };
+    put(makePlant(), at(-20, 8), a); put(makeBunkhouse(), at(-26, -20), a + Math.PI);
+    o.ex = put(makeExcavator(), at(-4, -14), a + Math.PI / 2);
+    const flag = new THREE.Group(); add(flag, box(0.25, 5, 0.25), MAT.wood, 0, 2.5, 0); add(flag, box(2, 1.2, 0.08), M(d.color), 1, 4.3, 0); put(flag, at(-32, 6), a);
+    outfits.push(o);
+  }
+  refreshStakes();
+}
+function clearOutfits() {
+  for (const o of outfits) { for (const m of o.meshes) scene.remove(m); if (o.convoy) endConvoy(o); }
+  outfits.length = 0;
+}
+function convoyRoute(o) { return [worldOf(o.slot, -32, -8), worldOf(o.slot, -36, 0), worldOf(o.slot, -98, 0), [Math.sin(o.slot * SEG) * 7, Math.cos(o.slot * SEG) * 7]]; }
+function sendConvoy(o) {
+  const route = convoyRoute(o), [x, z] = route[0];
+  const tmesh = makeSUV(); add(tmesh, box(1.2, 0.5, 1.2), M(o.color), 0, 2.75, -0.35); scene.add(tmesh);
+  const truck = { o, kind: 'truck', x, z, yaw: 0, hp: 150, mesh: tmesh, cargo: o.stash };
+  const guards = [-1, 1, 0].map((side, n) => { const mesh = makeJimbo(o.color, 0x2a1d12); scene.add(mesh); return { o, kind: 'guard', slotSide: side, slotBack: n === 2 ? 7 : 3, x: x + side * 2, z, yaw: 0, hp: 75, mesh, cool: rand(0.5, 1.5), walk: 0, side: 1, strafeT: 0 }; });
+  o.stash = 0;
+  o.convoy = { truck, guards, route, wi: 1, back: false };
+}
+function endConvoy(o) {
+  const c = o.convoy; if (!c) return;
+  for (const u of [c.truck, ...c.guards]) scene.remove(u.mesh);
+  o.convoy = null; o.cool = rand(25, 45);
+}
+function hurtUnit(u, dmg, byOutfit) {
+  if (u.hp <= 0) return;
+  u.hp -= dmg;
+  if (!byOutfit) u.o.angry = 30;
+  puff(dustTex, u.x, hAt(u.x, u.z) + 1.2, u.z, 1, 0.4, 0.3);
+  if (u.hp > 0) return;
+  if (u.kind === 'truck') {
+    u.mesh.rotation.z = 0.5; sfx('boom', u.x, u.z);
+    for (let n = 0; n < 6; n++) puff(smokeTex, u.x + rand(-1, 1), hAt(u.x, u.z) + rand(1, 3), u.z + rand(-1, 1), rand(3, 5), rand(2, 4), 1);
+    if (u.cargo > 0.05) { dropLoot(u.x + 2, u.z, u.cargo); if (!byOutfit) toast(`${u.o.name}'s convoy is down. Its gold spilled: ${u.cargo.toFixed(1)} g in a sack.`, 3200); }
+    u.cargo = 0;
+  } else { u.mesh.rotation.z = Math.PI / 2; if (!byOutfit) { ledger.money += 250; ledger.earned += 250; } }
+}
+function unitTarget(u) {
+  let best = null, bd = 32;
+  for (const v of aiUnits()) { if (v.o === u.o) continue; const d = dist(v.x, v.z, u.x, u.z); if (d < bd) { bd = d; best = v; } }
+  const dj = dist(jim.x, jim.z, u.x, u.z);
+  if (!jim.dead && (dj < 25 || (u.o.angry > 0 && dj < 32)) && dj < bd) { best = 'jim'; bd = dj; }
+  return best ? { t: best, d: bd } : null;
+}
+function outfitTick(dt) {
+  if (!dt) return;
+  for (const o of outfits) {
+    o.angry = Math.max(0, o.angry - dt);
+    o.stash += dt * rand(0.05, 0.09);
+    // their excavator really digs: pits and piles show up on their claim
+    o.digT -= dt;
+    o.ex.userData.house.rotation.y = Math.sin(simTime * 0.8 + o.slot) * 1.2;
+    if (o.digT <= 0) {
+      o.digT = rand(5, 8);
+      const [x, z] = worldOf(o.slot, -4 + rand(-3, 3), -4 + rand(-3, 3)), b = digAt(x, z, 3.5, 1.4);
+      if (b) { const [px, pz] = worldOf(o.slot, 6, -10); deposit(px + rand(-1, 1), pz + rand(-1, 1), b.vol, b.payVol > 0.3 ? 2 : 1); }
+    }
+    if (!o.convoy) { o.cool -= dt; if (o.cool <= 0 && o.stash > 15) sendConvoy(o); continue; }
+    const c = o.convoy, tr = c.truck, alive = c.guards.filter(g => g.hp > 0);
+    const threat = alive.some(g => g.target) || (tr.hp > 0 && unitTarget(tr));
+    // the truck drives the road; it stops while its guards fight
+    if (tr.hp > 0 && !threat) {
+      const [wxp, wzp] = c.route[c.wi], d = dist(tr.x, tr.z, wxp, wzp);
+      if (d < 1.5) {
+        if (c.wi === c.route.length - 1 && !c.back) { tr.o.sold += tr.cargo; tr.cargo = 0; c.back = true; c.route = c.route.slice().reverse(); c.wi = 1; }
+        else if (c.wi === c.route.length - 1 && c.back) { endConvoy(o); continue; }
+        else c.wi++;
+      } else {
+        const want = Math.atan2(wxp - tr.x, wzp - tr.z); tr.yaw = angLerp(tr.yaw, want, Math.min(1, dt * 3));
+        const sp = (alive.length ? 5.5 : 8) * dt; tr.x += Math.sin(tr.yaw) * sp; tr.z += Math.cos(tr.yaw) * sp;
+      }
+    }
+    if (tr.hp > 0) { tr.mesh.position.set(tr.x, hAt(tr.x, tr.z), tr.z); tr.mesh.rotation.y = tr.yaw; }
+    if (tr.hp <= 0 && !alive.length) { c.deadT = (c.deadT || 0) + dt; if (c.deadT > 10) endConvoy(o); continue; }
+    for (const g of c.guards) {
+      if (g.hp <= 0) continue;
+      const tg = unitTarget(g); g.target = tg;
+      if (tg) {
+        const tx = tg.t === 'jim' ? jim.x : tg.t.x, tz = tg.t === 'jim' ? jim.z : tg.t.z;
+        g.yaw = Math.atan2(tx - g.x, tz - g.z);
+        g.strafeT -= dt; if (g.strafeT <= 0) { g.strafeT = rand(0.8, 1.8); g.side = Math.random() < 0.5 ? -1 : 1; }
+        const adv = tg.d > 18 || !clearShot(g.x, g.z, tx, tz) ? 1 : tg.d < 10 ? -0.6 : 0;
+        g.x += (Math.sin(g.yaw) * adv * 4.5 + Math.cos(g.yaw) * g.side * 3) * dt; g.z += (Math.cos(g.yaw) * adv * 4.5 - Math.sin(g.yaw) * g.side * 3) * dt; g.walk += dt * 9;
+        g.cool -= dt;
+        if (g.cool <= 0 && tg.d < 32) {
+          g.cool = rand(0.9, 1.5);
+          const open = clearShot(g.x, g.z, tx, tz), hit = open && Math.random() < hitChance(tg.d, tg.t === 'jim' && sprinting()) * 0.5;
+          sfx('shot', g.x, g.z);
+          tracer(g.x, hAt(g.x, g.z) + 1.6, g.z, tx + (hit ? 0 : rand(-1.5, 1.5)), hAt(tx, tz) + 1.2, tz + (hit ? 0 : rand(-1.5, 1.5)));
+          if (hit) { if (tg.t === 'jim') hurtMe(14, `A ${o.name} guard got you`); else hurtUnit(tg.t, tg.t.kind === 'truck' ? 10 : 14, o); }
+        }
+      } else {
+        // keep formation around the truck (or walk home if it is gone)
+        const anchor = tr.hp > 0 ? tr : { x: c.route[0][0], z: c.route[0][1], yaw: Math.atan2(c.route[0][0] - g.x, c.route[0][1] - g.z) };
+        const sx = anchor.x - Math.sin(anchor.yaw) * g.slotBack + Math.cos(anchor.yaw) * g.slotSide * 2.6, sz = anchor.z - Math.cos(anchor.yaw) * g.slotBack - Math.sin(anchor.yaw) * g.slotSide * 2.6;
+        const d = dist(sx, sz, g.x, g.z);
+        if (d > 0.4) { g.yaw = Math.atan2(sx - g.x, sz - g.z); const sp = Math.min(d, 7 * dt); g.x += Math.sin(g.yaw) * sp; g.z += Math.cos(g.yaw) * sp; g.walk += dt * 9; }
+      }
+      pushOut(g, 0.5);
+      g.mesh.position.set(g.x, hAt(g.x, g.z), g.z); g.mesh.rotation.y = g.yaw;
+      const legs = g.mesh.userData.legs; legs[0].rotation.x = Math.sin(g.walk) * 0.5; legs[1].rotation.x = -legs[0].rotation.x;
+    }
+  }
+}
+
+// =============================================================== loop
+function syncMeshes(dt) {
+  for (const m of machines) {
+    m.mesh.position.set(m.x, m.y, m.z);
+    const tilt = Math.atan2(hAt(m.x + Math.sin(m.heading) * 2, m.z + Math.cos(m.heading) * 2) - hAt(m.x - Math.sin(m.heading) * 2, m.z - Math.cos(m.heading) * 2), 4);
+    m.mesh.rotation.set(-tilt, m.heading, 0, 'YXZ');
+    const u = m.mesh.userData;
+    if (m.type === 'excavator') { u.house.rotation.y = m.swing; u.boom.rotation.x = m.boom; u.stick.rotation.x = m.stick; u.load.visible = !!m.bucketFull; }
+    else if (m.type === 'loader') { u.arms.rotation.x = m.cargo > 0 ? -0.45 : 0.15; u.load.visible = m.cargo > 0; }
+    else if (m.type === 'dozer') { u.blade.position.y = m.bladeDown ? 0.35 : 0.85; u.load.visible = (m.load || 0) > 0.3; }
+    else { m.spin = (m.spin || 0) + (m.speed || 0) * dt / 0.6; for (const w of u.wheels) w.rotation.x = m.spin; }
+  }
+  for (const s of structures) if (s.kind === 'plant' && s.running) s.mesh.userData.trommel.rotation.y += dt * 2.5;
+}
+let last = performance.now(), uiT = 0;
+const perf = { frames: 0, t: 0, sim: 0, draw: 0 };
+function frame(now) {
+  const real = Math.min(0.1, (now - last) / 1000); last = now;
+  const t0 = performance.now();
+  keyPan(real);
+  const sc = race.active ? (Date.now() < race.startAt || ledger.over ? 0 : 1) : timeScale;
+  updatePlayer(real, sc > 0);
+  let acc = real * sc;
+  while (acc > 0) { const d = Math.min(acc, 0.05); step(d); acc -= d; }
+  syncMeshes(real * sc);
+  updateEffects(real * sc);
+  ghostTick(real);
+  combatTick(sc > 0 ? real : 0);
+  outfitTick(sc > 0 ? real * sc : 0);
+  netT -= real;
+  if (netT <= 0) { netT = 0.16; if (race.active) { netTick(); pushPresence(); } }
+  flushTerrain();
+  const t1 = performance.now();
+  placeCamera();
+  renderer.render(scene, camera);
+  drawHUD();
+  updateAmbience();
+  const t2 = performance.now();
+  perf.sim += t1 - t0; perf.draw += t2 - t1; perf.frames++; perf.t += real;
+  if (perf.t >= 0.5) { $('#perf').textContent = `${Math.round(perf.frames / perf.t)} fps · logic ${(perf.sim / perf.frames).toFixed(1)} ms · draw ${(perf.draw / perf.frames).toFixed(1)} ms`; perf.frames = 0; perf.t = 0; perf.sim = 0; perf.draw = 0; }
+  uiT -= real;
+  if (uiT <= 0) { uiT = 0.4; renderStats(); refreshCmd(); renderBoard(); pushPresence(); updateTouchUI(); drawMini(); }
+  requestAnimationFrame(frame);
+}
+function resize() { renderer.setSize(glCanvas.clientWidth, glCanvas.clientHeight, false); }
+window.addEventListener('resize', resize);
+
+setupClaim();
+makeOutfits();
+bakeMini();
+for (const s of structures) if (s.kind === 'pump') s.wetOK = waterNear(s.x, s.z, 9) > 0;
+window.__claim = { machines, structures, piles, ledger, T, digAt, jim, TOWN, worldOf, ghosts, H, I: (x, z) => I(Math.round(gx(x)), Math.round(gx(z))), get home() { return home; }, foes, loots, hurtMe, toScreen, aim, paytop: k => PAYTOP[k], outfits, sendConvoy, setBanditT: v => { banditT = v; } };
+resize();
+renderStats();
+refreshCmd();
+setView('drive');
+toast(touchIn.on ? 'You are Jimbo. Walk to the excavator with the left stick, tap Hop in, swing with ◀ ▶ and tap Dig. Boss view is up top.' : 'You are Jimbo. Walk to the excavator (WASD), hop in with X, swing with Q/E and dig with Space. Tab is the boss view.', 7000);
+requestAnimationFrame(frame);
+})();
+</script>
