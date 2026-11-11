@@ -112,7 +112,7 @@ body.drivetouch .cmdbar { display: none; }
 
   <header class="topbar">
     <div class="ledger">
-      <h1>Bedrock Claim</h1>
+      <h1>Bedrock Claim <span id="build" style="font:600 12px 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:#b9ab8c;vertical-align:middle;margin-left:6px"></span></h1>
       <div class="stats" id="stats"></div>
       <div class="perf" id="perf">measuring…</div>
       <div class="board" id="board" hidden></div>
@@ -268,6 +268,9 @@ genGround();
 const glCanvas = $('#gl'), hud = $('#hud'), hctx = hud.getContext('2d');
 // Graphics quality: 'high' (default) is the desktop renderer: soft sun shadows, ambient occlusion, sky reflections,
 // textured ground. 'low' skips all of that for weak machines and for tests. ?gfx=low|high or the Graphics button.
+// Shown next to the title so it is obvious which version is on screen. Bump the number and the note with every change that ships.
+const BUILD = { n: 7, note: 'rival crews at their base' };
+$('#build').textContent = `build ${BUILD.n} · ${BUILD.note}`;
 const GFX_KEY = 'bedrockClaim.gfx';
 const GFX = (() => { let v = new URLSearchParams(location.search).get('gfx'); if (!v) { try { v = localStorage.getItem(GFX_KEY); } catch (e) { /* storage unavailable */ } } return v === 'low' ? 'low' : 'high'; })();
 const HI = GFX === 'high';
@@ -2776,7 +2779,7 @@ setupClaim();
 makeOutfits();
 bakeMini();
 for (const s of structures) if (s.kind === 'pump') s.wetOK = waterNear(s.x, s.z, 9) > 0;
-window.__claim = { machines, structures, piles, ledger, T, digAt, jim, TOWN, worldOf, ghosts, H, I: (x, z) => I(Math.round(gx(x)), Math.round(gx(z))), get home() { return home; }, foes, loots, hurtMe, toScreen, aim, outfits, blast, CONVOY, outfitTick, cam, GFX, terrain, step, N, CELL, renderer, scene, sunL, hemiL, get gtao() { return gtao; }, swingShovel, hostiles, spawnBandits, combatTick, SHOVEL, ATK, FIGHT, startAttack, startRoll, tickFight, poseFighter, newFight, makeJimbo, keys, get hitStop() { return hitStop; }, get token() { return jimToken; }, paytop: k => PAYTOP[k], outfits, sendConvoy, setBanditT: v => { banditT = v; } };
+window.__claim = { machines, structures, piles, ledger, T, digAt, jim, TOWN, worldOf, ghosts, H, I: (x, z) => I(Math.round(gx(x)), Math.round(gx(z))), get home() { return home; }, BUILD, foes, loots, hurtMe, toScreen, aim, outfits, blast, CONVOY, outfitTick, cam, GFX, terrain, step, N, CELL, renderer, scene, sunL, hemiL, get gtao() { return gtao; }, swingShovel, hostiles, spawnBandits, combatTick, SHOVEL, ATK, FIGHT, startAttack, startRoll, tickFight, poseFighter, newFight, makeJimbo, keys, get hitStop() { return hitStop; }, get token() { return jimToken; }, paytop: k => PAYTOP[k], outfits, sendConvoy, setBanditT: v => { banditT = v; } };
 resize();
 renderStats();
 refreshCmd();
