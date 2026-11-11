@@ -132,6 +132,7 @@ body.drivetouch .cmdbar { display: none; }
       <button id="surveyBtn">Survey</button>
       <button data-drawer="tune">Tune</button>
       <button id="sndBtn" aria-pressed="true">Tap for sound</button>
+      <button id="gfxBtn" type="button">Graphics</button>
       <button data-drawer="help">Controls</button>
     </div>
   </header>
@@ -161,8 +162,13 @@ body.drivetouch .cmdbar { display: none; }
   </aside>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 (() => {
 'use strict';
 const $ = s => document.querySelector(s);
@@ -193,7 +199,8 @@ function saveTune() { try { localStorage.setItem(STORE_KEY, JSON.stringify(T)); 
 const PRICES = { excavator: 14000, dozer: 16000, loader: 6000, pump: 2500, generator: 8000, plant: 18000, bunkhouse: 5000, survey: 1500, hire: 600 };
 
 // =============================================================== ground: surface, overburden, pay gravel, bedrock
-const SIZE = 400, N = 321, CELL = SIZE / (N - 1), HALF = SIZE / 2, NN = N * N, WATER_Y = -1.4;
+// Dirt grid: 641 x 641 cells of 0.625 m (2 ft). ?grid=321 gives the old 1.25 m cells for slow machines and quick tests.
+const SIZE = 400, N = ({ 321: 321, 481: 481 })[new URLSearchParams(location.search).get('grid')] || 641, CELL = SIZE / (N - 1), HALF = SIZE / 2, NN = N * N, WATER_Y = -1.4;
 const H = new Float32Array(NN), H0 = new Float32Array(NN), PAYTOP = new Float32Array(NN), BEDR = new Float32Array(NN), GRADE = new Float32Array(NN);
 const loose = new Float32Array(NN), looseKind = new Uint8Array(NN);
 const I = (i, j) => j * N + i;
@@ -259,13 +266,77 @@ genGround();
 
 // =============================================================== three.js
 const glCanvas = $('#gl'), hud = $('#hud'), hctx = hud.getContext('2d');
-const renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: true });
+// Graphics quality: 'high' (default) is the desktop renderer: soft sun shadows, ambient occlusion, sky reflections,
+// textured ground. 'low' skips all of that for weak machines and for tests. ?gfx=low|high or the Graphics button.
+const GFX_KEY = 'bedrockClaim.gfx';
+const GFX = (() => { let v = new URLSearchParams(location.search).get('gfx'); if (!v) { try { v = localStorage.getItem(GFX_KEY); } catch (e) { /* storage unavailable */ } } return v === 'low' ? 'low' : 'high'; })();
+const HI = GFX === 'high';
+const s2l = v => { v = v < 0 ? 0 : v > 1 ? 1 : v; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };   // authored colours are sRGB; the renderer lights in linear
+const renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: !HI, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1.1;
+renderer.shadowMap.enabled = HI; renderer.shadowMap.type = THREE.PCFShadowMap;
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xb8b3a1);
+scene.background = new THREE.Color(0xb9c2c4);
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -600, 1200);
-scene.add(new THREE.HemisphereLight(0xf2ead8, 0x4d4130, 0.8));
-const sunL = new THREE.DirectionalLight(0xfff0d0, 0.85); sunL.position.set(-60, 120, -40); scene.add(sunL);
+const hemiL = new THREE.HemisphereLight(0xdde8f4, 0x6e5c46, HI ? 3.4 : 4.6); scene.add(hemiL);
+// the sun sits off to one side of the default camera so shadows fall across the view instead of hiding behind things
+const SUN_DIR = new THREE.Vector3(0.40, 0.62, -0.68).normalize(), SHADOW_PX = 4096;
+const sunL = new THREE.DirectionalLight(0xfff1d6, HI ? 6.2 : 4.4); sunL.position.copy(SUN_DIR).multiplyScalar(300); scene.add(sunL); scene.add(sunL.target);
+if (HI) { sunL.castShadow = true; sunL.shadow.mapSize.set(SHADOW_PX, SHADOW_PX); sunL.shadow.bias = -0.0006; sunL.shadow.normalBias = 0.25; sunL.shadow.radius = 2.5; }
+// the shadow box follows the camera and is snapped to whole shadow texels so edges do not crawl as you move
+const _lr = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), SUN_DIR).normalize(), _lu = new THREE.Vector3().crossVectors(SUN_DIR, _lr).normalize(), _lp = new THREE.Vector3();
+function placeSun(x, y, z, viewSize) {
+  if (!HI) return;
+  const r = Math.min(viewSize * 2.1 + 24, 340), sc = sunL.shadow.camera, texel = 2 * r / SHADOW_PX;
+  if (sc.right !== r) { sc.left = -r; sc.right = r; sc.top = r; sc.bottom = -r; sc.near = 1; sc.far = 1100; sc.updateProjectionMatrix(); }
+  _lp.set(x, y, z);
+  const a = Math.round(_lp.dot(_lr) / texel) * texel, c = Math.round(_lp.dot(_lu) / texel) * texel, d = _lp.dot(SUN_DIR);
+  sunL.target.position.set(0, 0, 0).addScaledVector(_lr, a).addScaledVector(_lu, c).addScaledVector(SUN_DIR, d);
+  sunL.position.copy(sunL.target.position).addScaledVector(SUN_DIR, 520);
+  sunL.target.updateMatrixWorld();
+}
+// sky light for reflections on paint, glass and water: a small gradient sky baked into an environment map
+if (HI) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+  const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 0, 128);
+  g.addColorStop(0, '#5f97d6'); g.addColorStop(0.42, '#a9cbe8'); g.addColorStop(0.5, '#efe6d2'); g.addColorStop(0.56, '#8a7558'); g.addColorStop(1, '#5a4a36');
+  x.fillStyle = g; x.fillRect(0, 0, 256, 128);
+  const sg = x.createRadialGradient(64, 34, 0, 64, 34, 26); sg.addColorStop(0, 'rgba(255,246,220,1)'); sg.addColorStop(1, 'rgba(255,246,220,0)'); x.fillStyle = sg; x.fillRect(0, 0, 256, 128);
+  const sky = new THREE.CanvasTexture(c); sky.mapping = THREE.EquirectangularReflectionMapping; sky.colorSpace = THREE.SRGBColorSpace;
+  const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromEquirectangular(sky).texture; scene.environmentIntensity = 0.55; pm.dispose(); sky.dispose();
+}
+// ground detail: a tiling noise texture (and its normal map) laid over the vertex colours, so dirt has grain up close
+function groundTextures() {
+  // sparse-convolution noise: thousands of soft blobs at three sizes, wrapped at the edges. No lattice, so no grid shows through.
+  const S = 512, h = new Float32Array(S * S);
+  let sd = 1234567; const rnd = () => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296; };
+  for (const [count, rad, amp] of [[260, 46, 0.22], [1900, 15, 0.15], [9000, 5, 0.10]]) for (let n = 0; n < count; n++) {
+    const cx = rnd() * S, cy = rnd() * S, r = rad * (0.6 + rnd() * 0.8), a = (rnd() < 0.5 ? -1 : 1) * amp * (0.5 + rnd() * 0.5), R = Math.ceil(r);
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+      const d2 = (dx * dx + dy * dy) / (r * r); if (d2 >= 1) continue;
+      const w = (1 - d2) * (1 - d2);
+      h[(((Math.floor(cy) + dy) % S + S) % S) * S + ((Math.floor(cx) + dx) % S + S) % S] += a * w;
+    }
+  }
+  { let lo = 1e9, hi = -1e9; for (let k = 0; k < h.length; k++) { lo = Math.min(lo, h[k]); hi = Math.max(hi, h[k]); } for (let k = 0; k < h.length; k++) h[k] = (h[k] - lo) / (hi - lo); }
+  for (let n = 0; n < 900; n++) {   // pebbles
+    const cx = Math.floor(rnd() * S), cy = Math.floor(rnd() * S), r = 1 + rnd() * 2.6, up = 0.10 + rnd() * 0.16;
+    for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) { const d = Math.hypot(dx, dy) / r; if (d < 1) h[((cy + dy + S) % S) * S + (cx + dx + S) % S] += up * (1 - d * d); }
+  }
+  const mk = () => { const c = document.createElement('canvas'); c.width = c.height = S; return c; };
+  const ca = mk(), cn = mk(), xa = ca.getContext('2d'), xn = cn.getContext('2d'), ia = xa.createImageData(S, S), inr = xn.createImageData(S, S);
+  for (let y = 0; y < S; y++) for (let x2 = 0; x2 < S; x2++) {
+    const k = y * S + x2, o = k * 4, hv = h[k];
+    const dx = (h[y * S + (x2 + 1) % S] - h[y * S + (x2 + S - 1) % S]) * 7, dy = (h[((y + 1) % S) * S + x2] - h[((y + S - 1) % S) * S + x2]) * 7, L = Math.hypot(dx, dy, 1);
+    const al = Math.round(255 * clamp(0.84 + (hv - 0.5) * 0.6, 0, 1));
+    ia.data[o] = ia.data[o + 1] = ia.data[o + 2] = al; ia.data[o + 3] = 255;
+    inr.data[o] = Math.round((-dx / L * 0.5 + 0.5) * 255); inr.data[o + 1] = Math.round((dy / L * 0.5 + 0.5) * 255); inr.data[o + 2] = Math.round((1 / L * 0.5 + 0.5) * 255); inr.data[o + 3] = 255;
+  }
+  xa.putImageData(ia, 0, 0); xn.putImageData(inr, 0, 0);
+  const tex = (c, cs) => { const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = cs; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t; };
+  return [tex(ca, THREE.NoColorSpace), tex(cn, THREE.NoColorSpace)];
+}
 
 const tGeo = new THREE.BufferGeometry();
 const tPos = new Float32Array(NN * 3), tCol = new Float32Array(NN * 3), tNrm = new Float32Array(NN * 3), tIdx = new Uint32Array((N - 1) * (N - 1) * 6);
@@ -274,10 +345,14 @@ for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const k = I(i, j); tPo
 tGeo.setAttribute('position', new THREE.BufferAttribute(tPos, 3));
 tGeo.setAttribute('color', new THREE.BufferAttribute(tCol, 3));
 tGeo.setAttribute('normal', new THREE.BufferAttribute(tNrm, 3));
+{ const GT = 7, tUV = new Float32Array(NN * 2); for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const k = I(i, j); tUV[k * 2] = wx(i) / GT; tUV[k * 2 + 1] = wx(j) / GT; } tGeo.setAttribute('uv', new THREE.BufferAttribute(tUV, 2)); }
 tGeo.setIndex(new THREE.BufferAttribute(tIdx, 1));
-const terrain = new THREE.Mesh(tGeo, new THREE.MeshLambertMaterial({ vertexColors: true }));
+const [groundTex, groundNrm] = HI ? groundTextures() : [null, null];
+const terrain = new THREE.Mesh(tGeo, HI ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, metalness: 0, map: groundTex, normalMap: groundNrm, normalScale: new THREE.Vector2(0.75, 0.75), envMapIntensity: 0.35 }) : new THREE.MeshLambertMaterial({ vertexColors: true }));
+terrain.castShadow = terrain.receiveShadow = HI; terrain.material.shadowSide = THREE.FrontSide;   // a heightfield has no back: let its lit side cast, so pits and piles shade themselves
 scene.add(terrain);
-const water = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE), new THREE.MeshLambertMaterial({ color: 0x3f6f8a, transparent: true, opacity: 0.78, depthWrite: false }));
+const water = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE), HI ? new THREE.MeshStandardMaterial({ color: 0x35627c, transparent: true, opacity: 0.82, depthWrite: false, roughness: 0.08, metalness: 0, envMapIntensity: 1.6 }) : new THREE.MeshLambertMaterial({ color: 0x3f6f8a, transparent: true, opacity: 0.78, depthWrite: false }));
+water.receiveShadow = HI;
 water.rotation.x = -Math.PI / 2; water.position.y = WATER_Y; scene.add(water);
 const base = new THREE.Mesh(new THREE.BoxGeometry(SIZE, 8, SIZE), new THREE.MeshLambertMaterial({ color: 0x5a4a36 }));
 base.position.y = -8; scene.add(base);
@@ -309,7 +384,7 @@ function colorVertex(i, j) {
     const heat = t < 0.5 ? [lerp(0.25, 0.85, t * 2), lerp(0.3, 0.7, t * 2), lerp(0.55, 0.15, t * 2)] : [lerp(0.85, 1, (t - 0.5) * 2), lerp(0.7, 0.85, (t - 0.5) * 2), lerp(0.15, 0.25, (t - 0.5) * 2)];
     c = [lerp(c[0], heat[0], 0.65), lerp(c[1], heat[1], 0.65), lerp(c[2], heat[2], 0.65)];
   }
-  tCol[k * 3] = c[0] + v; tCol[k * 3 + 1] = c[1] + v; tCol[k * 3 + 2] = c[2] + v;
+  tCol[k * 3] = s2l(c[0] + v); tCol[k * 3 + 1] = s2l(c[1] + v); tCol[k * 3 + 2] = s2l(c[2] + v);
 }
 for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { colorVertex(i, j); normalAt(i, j); }
 tGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), SIZE * 0.75);
@@ -373,6 +448,7 @@ function digAt(cx, cz, r, want) {
 }
 function relax(x, z, R, iters) {
   const [i0, j0, i1, j1] = cellBox(x, z, R), rep = T.repose * CELL;
+  iters = Math.round(iters * 1.25 / CELL);   // dirt moves one cell per pass: keep the same reach in metres on a finer grid
   for (let it = 0; it < iters; it++) {
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
       const k = I(i, j);
@@ -443,6 +519,7 @@ function lineOK(ax, az, bx, bz, slope) {
   }
   return true;
 }
+const PATH_CAP = Math.round(160000 * NN / 103041);
 function findPath(sx, sz, tx, tz, slope) {
   curStamp++;
   const [si, sj] = cellOf(sx, sz), [ti, tj] = cellOf(tx, tz);
@@ -453,7 +530,7 @@ function findPath(sx, sz, tx, tz, slope) {
   const pop = () => { const top = heapA[0]; hs--; if (hs > 0) { heapA[0] = heapA[hs]; heapF[0] = heapF[hs]; let p = 0; for (;;) { const l = p * 2 + 1, r = l + 1; let m = p; if (l < hs && heapF[l] < heapF[m]) m = l; if (r < hs && heapF[r] < heapF[m]) m = r; if (m === p) break; [heapA[p], heapA[m]] = [heapA[m], heapA[p]]; [heapF[p], heapF[m]] = [heapF[m], heapF[p]]; p = m; } } return top; };
   stamp[start] = curStamp; gScore[start] = 0; came[start] = -1; push(start, hfn(start));
   let best = start, bestH = hfn(start), iter = 0;
-  while (hs > 0 && iter++ < 160000) {
+  while (hs > 0 && iter++ < PATH_CAP) {
     const k = pop();
     if (closed[k] === curStamp) continue;
     closed[k] = curStamp;
@@ -484,12 +561,12 @@ function findPath(sx, sz, tx, tz, slope) {
 }
 
 // =============================================================== models
-const M = c => new THREE.MeshLambertMaterial({ color: c });
-const MAT = { yel: M(0xd9a22a), dark: M(0x2a2b2e), steel: M(0x8a8f96), rubber: M(0x1c1c1e), wood: M(0x7a5634), roof: M(0x4a3b2e), gen: M(0x3d5a3c), rust: M(0x8a5a34), pump: M(0x2f6fa8), dirt: M(0x6a4a2c),
-  glass: new THREE.MeshLambertMaterial({ color: 0x9fc7d8, transparent: true, opacity: 0.55 }), sluice: new THREE.MeshBasicMaterial({ color: 0x6fb1d6 }) };
+const M = (c, rough = 0.78, metal = 0) => HI ? new THREE.MeshStandardMaterial({ color: c, roughness: rough, metalness: metal }) : new THREE.MeshLambertMaterial({ color: c });
+const MAT = { yel: M(0xd9a22a, 0.42), dark: M(0x2a2b2e, 0.6), steel: M(0x8a8f96, 0.4, 0.35), rubber: M(0x1c1c1e, 0.95), wood: M(0x7a5634), roof: M(0x4a3b2e), gen: M(0x3d5a3c), rust: M(0x8a5a34), pump: M(0x2f6fa8), dirt: M(0x6a4a2c),
+  glass: HI ? new THREE.MeshStandardMaterial({ color: 0x9fc7d8, transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0, envMapIntensity: 2 }) : new THREE.MeshLambertMaterial({ color: 0x9fc7d8, transparent: true, opacity: 0.55 }), sluice: new THREE.MeshBasicMaterial({ color: 0x6fb1d6 }) };
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const cyl = (a, b, h, s = 12) => new THREE.CylinderGeometry(a, b, h, s);
-function add(g, geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); g.add(m); return m; }
+function add(g, geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.castShadow = HI && !mat.transparent; m.receiveShadow = HI; g.add(m); return m; }
 function makeExcavator() {
   const g = new THREE.Group();
   add(g, box(0.7, 0.8, 4.2), MAT.dark, 1.25, 0.4, 0); add(g, box(0.7, 0.8, 4.2), MAT.dark, -1.25, 0.4, 0);
@@ -601,7 +678,7 @@ function radialTexture(stops) {
   const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
   for (const [o, col] of stops) gr.addColorStop(o, col);
   x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
-  return new THREE.CanvasTexture(c);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 const smokeTex = radialTexture([[0, 'rgba(70,68,64,0.8)'], [0.6, 'rgba(80,78,74,0.3)'], [1, 'rgba(80,78,74,0)']]);
 const dustTex = radialTexture([[0, 'rgba(150,120,85,0.9)'], [0.6, 'rgba(140,112,80,0.35)'], [1, 'rgba(130,105,75,0)']]);
@@ -863,6 +940,7 @@ function placeCamera() {
   const ty = Math.max(0, hAt(cam.x, cam.z)), d = 400;
   camera.position.set(cam.x + Math.sin(cam.yaw) * Math.cos(cam.pitch) * d, ty + Math.sin(cam.pitch) * d, cam.z + Math.cos(cam.yaw) * Math.cos(cam.pitch) * d);
   camera.lookAt(cam.x, ty, cam.z);
+  placeSun(cam.x, ty, cam.z, cam.size);
   const w = glCanvas.clientWidth || 1, h = glCanvas.clientHeight || 1, asp = w / h;
   camera.left = -cam.size * asp; camera.right = cam.size * asp; camera.top = cam.size; camera.bottom = -cam.size;
   camera.updateProjectionMatrix();
@@ -2480,7 +2558,7 @@ function frame(now) {
   flushTerrain();
   const t1 = performance.now();
   placeCamera();
-  renderer.render(scene, camera);
+  if (composer) composer.render(); else renderer.render(scene, camera);
   drawHUD();
   updateAmbience();
   const t2 = performance.now();
@@ -2490,14 +2568,32 @@ function frame(now) {
   if (uiT <= 0) { uiT = 0.4; renderStats(); refreshCmd(); renderBoard(); pushPresence(); updateTouchUI(); drawMini(); }
   requestAnimationFrame(frame);
 }
-function resize() { renderer.setSize(glCanvas.clientWidth, glCanvas.clientHeight, false); }
+// high quality draws through a small chain: scene (4x MSAA, HDR) -> ambient occlusion -> tone mapping
+let composer = null, gtao = null;
+if (HI) {
+  composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 }));
+  composer.addPass(new RenderPass(scene, camera));
+  gtao = new GTAOPass(scene, camera, 4, 4, undefined, { radius: 1.5, distanceExponent: 1.4, thickness: 1.6, scale: 1.25, samples: 16, screenSpaceRadius: false }, { lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 8, radiusExponent: 2, rings: 2, samples: 16 });
+  gtao.blendIntensity = 0.9;
+  // dust and smoke are flat sprites: keep them out of the occlusion depth pass
+  gtao._overrideVisibility = function () { const cache = this._visibilityCache; this.scene.traverse(o => { if ((o.isPoints || o.isLine || o.isSprite) && o.visible) { o.visible = false; cache.push(o); } }); };
+  composer.addPass(gtao);
+  composer.addPass(new OutputPass());
+}
+function resize() {
+  const w = glCanvas.clientWidth, h = glCanvas.clientHeight;
+  renderer.setSize(w, h, false);
+  if (composer) { composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h); }
+}
+$('#gfxBtn').textContent = HI ? 'Graphics: High' : 'Graphics: Low';
+$('#gfxBtn').addEventListener('click', () => { try { localStorage.setItem(GFX_KEY, HI ? 'low' : 'high'); } catch (e) { /* storage unavailable */ } const u = new URL(location.href); u.searchParams.delete('gfx'); location.href = u.toString(); });
 window.addEventListener('resize', resize);
 
 setupClaim();
 makeOutfits();
 bakeMini();
 for (const s of structures) if (s.kind === 'pump') s.wetOK = waterNear(s.x, s.z, 9) > 0;
-window.__claim = { machines, structures, piles, ledger, T, digAt, jim, TOWN, worldOf, ghosts, H, I: (x, z) => I(Math.round(gx(x)), Math.round(gx(z))), get home() { return home; }, foes, loots, hurtMe, toScreen, aim, swingShovel, hostiles, spawnBandits, combatTick, SHOVEL, paytop: k => PAYTOP[k], outfits, sendConvoy, setBanditT: v => { banditT = v; } };
+window.__claim = { machines, structures, piles, ledger, T, digAt, jim, TOWN, worldOf, ghosts, H, I: (x, z) => I(Math.round(gx(x)), Math.round(gx(z))), get home() { return home; }, foes, loots, hurtMe, toScreen, aim, cam, GFX, terrain, step, N, CELL, renderer, scene, sunL, hemiL, get gtao() { return gtao; }, swingShovel, hostiles, spawnBandits, combatTick, SHOVEL, paytop: k => PAYTOP[k], outfits, sendConvoy, setBanditT: v => { banditT = v; } };
 resize();
 renderStats();
 refreshCmd();
