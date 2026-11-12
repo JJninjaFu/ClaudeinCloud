@@ -269,7 +269,7 @@ const glCanvas = $('#gl'), hud = $('#hud'), hctx = hud.getContext('2d');
 // Graphics quality: 'high' (default) is the desktop renderer: soft sun shadows, ambient occlusion, sky reflections,
 // textured ground. 'low' skips all of that for weak machines and for tests. ?gfx=low|high or the Graphics button.
 // Shown next to the title so it is obvious which version is on screen. Bump the number and the note with every change that ships.
-const BUILD = { n: 7, note: 'rival crews at their base' };
+const BUILD = { n: 8, note: 'bandits live at the saloon' };
 $('#build').textContent = `build ${BUILD.n} · ${BUILD.note}`;
 const GFX_KEY = 'bedrockClaim.gfx';
 const GFX = (() => { let v = new URLSearchParams(location.search).get('gfx'); if (!v) { try { v = localStorage.getItem(GFX_KEY); } catch (e) { /* storage unavailable */ } } return v === 'low' ? 'low' : 'high'; })();
@@ -1086,9 +1086,10 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 function keyPan(dt) {
   const s = 600 * dt;
+  // Z and V turn the view everywhere. C (block) and Q (satchel, excavator swing) are not camera keys.
   if (keys.has('z')) cam.yaw += dt * 1.4;
-  if (keys.has('c')) cam.yaw -= dt * 1.4;
-  if (view === 'drive') { if (!jim.driving || jim.driving.type !== 'excavator') { if (keys.has('q')) cam.yaw += dt * 1.4; if (keys.has('e')) cam.yaw -= dt * 1.4; } return; }
+  if (keys.has('v')) cam.yaw -= dt * 1.4;
+  if (view === 'drive') return;
   if (keys.has('w') || keys.has('arrowup')) panBy(0, s);
   if (keys.has('s') || keys.has('arrowdown')) panBy(0, -s);
   if (keys.has('d') || keys.has('arrowright')) panBy(-s, 0);
@@ -1360,7 +1361,7 @@ function renderDrawer() {
   } else {
     $('#drawerTitle').textContent = 'How to mine';
     const dl = document.createElement('dl'); dl.className = 'keys';
-    for (const [k, v] of [['Tap', 'Select a machine, building or pile'], ['Tap ground', 'Drive the selected machine there'], ['Dig here', 'Excavator digs that spot down to bedrock'], ['Drag', 'Pan'], ['Pinch', 'Zoom and rotate'], ['Wheel', 'Zoom (mouse)'], ['Tab', 'Switch drive view and boss view'], ['WASD', 'Walk or drive (pan in boss view)'], ['X / F', 'Hop in or out'], ['Space', 'Dig, dump, scoop (pause in boss view)'], ['Q / E', 'Swing the excavator (rotate the view otherwise)'], ['Z / C', 'Rotate the view'], ['Mouse', 'Face the cursor. Left click swings the shovel; keep holding and it becomes a heavy overhead chop. Hold right click to block, and block just as a hit lands to parry it'], ['Space on foot', 'Same as left click. With no one around it digs a scoop and throws it to your right. Next to the wash plant it loads your gold'], ['Shift', 'Sprint (not when carrying over 100 lb)'], ['G or Q', 'Throw a satchel charge (blows a crater)'], ['R', 'Dodge roll the way you are moving. Nothing can hit you for a moment'], ['C', 'Block (same as holding right click)'], ['Stamina', 'The yellow bar. Swings, rolls and blocked hits spend it. At zero you are winded and cannot swing'], ['B', 'Dig in: throw up a dirt berm for cover'], ['P', 'Pause']]) {
+    for (const [k, v] of [['Tap', 'Select a machine, building or pile'], ['Tap ground', 'Drive the selected machine there'], ['Dig here', 'Excavator digs that spot down to bedrock'], ['Drag', 'Pan'], ['Pinch', 'Zoom and rotate'], ['Wheel', 'Zoom (mouse)'], ['Tab', 'Switch drive view and boss view'], ['WASD', 'Walk or drive (pan in boss view)'], ['X / F', 'Hop in or out'], ['Space', 'Dig, dump, scoop (pause in boss view)'], ['Q / E', 'Swing the excavator (in boss view they turn the view)'], ['Z / V', 'Turn the view (or drag with the middle mouse button)'], ['Mouse', 'Face the cursor. Left click swings the shovel; keep holding and it becomes a heavy overhead chop. Hold right click to block, and block just as a hit lands to parry it'], ['Space on foot', 'Same as left click. With no one around it digs a scoop and throws it to your right. Next to the wash plant it loads your gold'], ['Shift', 'Sprint (not when carrying over 100 lb)'], ['G or Q', 'Throw a satchel charge (blows a crater)'], ['R', 'Dodge roll the way you are moving. Nothing can hit you for a moment'], ['C', 'Block (same as holding right click)'], ['Stamina', 'The yellow bar. Swings, rolls and blocked hits spend it. At zero you are winded and cannot swing'], ['B', 'Dig in: throw up a dirt berm for cover'], ['P', 'Pause']]) {
       const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v; dl.append(dt, dd);
     }
     body.append(dl, h3('The ground'),
@@ -1958,7 +1959,7 @@ function resetClaim() {
   setupClaim();
   for (const s of structures) if (s.kind === 'pump') s.wetOK = waterNear(s.x, s.z, 9) > 0;
   markDirtyAll(); bakeMini();
-  for (const f of foes) scene.remove(f.mesh); foes.length = 0;
+  resetBandits();
   for (const l of loots) scene.remove(l.mesh); loots.length = 0;
   Object.assign(jim, { hp: 100, dead: false, carry: 0, ride: null }); banditT = 20;
 }
@@ -2395,7 +2396,8 @@ function fightBars(c) {
   }
 }
 function hurtBandit(f, dmg) {
-  f.hp -= dmg; puff(dustTex, f.x, hAt(f.x, f.z) + 1.3, f.z, 1, 0.4, 0.3);
+  f.hp -= dmg; for (const o of foes) if (o.hp > 0) { o.mode = 'hunt'; o.mad = 40; }   // hit one and both come for you
+  if (f.hp <= 0) f.deadT = 0; puff(dustTex, f.x, hAt(f.x, f.z) + 1.3, f.z, 1, 0.4, 0.3);
   if (f.hp <= 0) { f.mesh.rotation.z = Math.PI / 2; ledger.money += 400; ledger.earned += 400; toast('Bandit down. $400 bounty.', 1800); sfx('cash', jim.x, jim.z); }
 }
 function hurtMe(dmg, why) {
@@ -2463,14 +2465,23 @@ function blast(x, z) {
   const dm = dist(jim.x, jim.z, x, z);
   if (dm < 5.5) hurtMe(90 * (1 - dm / 5.5), 'Caught in your own blast');
 }
-function spawnBandits() {
-  const a = Math.atan2(jim.x, jim.z) + rand(-0.6, 0.6), r = Math.min(dist(jim.x, jim.z, 0, 0) + 24, 70);
-  for (let n = 0; n < 2; n++) {
-    const x = Math.sin(a + n * 0.15) * r, z = Math.cos(a + n * 0.15) * r, mesh = makeJimbo(0x262626, 0x111111);
+// The two bandits live in town: they loaf on the saloon porch where you can see them, and they
+// walk out from there when you bring gold near. Nothing is created when they attack.
+const BANDIT = { rehire: 90, unseen: 60, quit: 105 };
+function makeBandits() {
+  for (const dz of [0.4, 3.6]) {
+    const hx = TOWN.x - 6.6, hz = TOWN.z + dz, mesh = makeJimbo(0x262626, 0x111111);
     scene.add(mesh);
-    foes.push(newFight({ x, z, hp: 75, yaw: 0, cool: rand(0.4, 1.2), mesh, walk: 0, isBandit: true, why: 'A bandit laid you out' }));
+    foes.push(newFight({ x: hx, z: hz, hx, hz, hp: 75, yaw: Math.PI / 2, cool: rand(0.4, 1.2), mesh, walk: 0, isBandit: true, mode: 'idle', mad: 0, deadT: 0, why: 'A bandit laid you out' }));
   }
-  toast('Bandits! Click swings, hold for a heavy chop. Hold right click to block, R rolls clear, G throws a satchel. Watch your stamina.', 5200);
+}
+function resetBandits() {
+  for (const f of foes) { newFight(f); Object.assign(f, { x: f.hx, z: f.hz, hp: 75, yaw: Math.PI / 2, mode: 'idle', mad: 0, deadT: 0 }); f.mesh.visible = true; f.mesh.rotation.z = 0; }
+}
+function spawnBandits() {                                                     // kept under the old name: sends the porch crew after you
+  let any = false;
+  for (const f of foes) if (f.hp > 0) { if (f.mode !== 'hunt') { f.cool = rand(0.4, 1.2); any = true; } f.mode = 'hunt'; }
+  return any;
 }
 function combatTick(dt) {
   if (!dt) return;
@@ -2491,15 +2502,29 @@ function combatTick(dt) {
   }
   // bandits show up when you carry gold near town
   const nearTown = dist(jim.x, jim.z, 0, 0) < 80;
-  if (!foes.some(f => f.hp > 0)) banditT -= dt;
-  if (banditT <= 0 && nearTown && carried() > 3 && !jim.dead) { banditT = 75; spawnBandits(); }
-  for (let n = foes.length - 1; n >= 0; n--) {
-    const f = foes[n];
-    if (f.hp <= 0) { f.dead = (f.dead || 0) + dt; if (f.dead > 8) { scene.remove(f.mesh); foes.splice(n, 1); } continue; }
+  if (!foes.some(f => f.hp > 0 && f.mode === 'hunt')) banditT -= dt;
+  if (banditT <= 0 && nearTown && carried() > 3 && !jim.dead && foes.some(f => f.hp > 0)) {
+    banditT = 75;
+    if (spawnBandits()) toast('Two men step off the saloon porch. They want your gold. Click swings, hold for a heavy chop, right click blocks, R rolls clear.', 5200);
+  }
+  const farFromSaloon = dist(jim.x, jim.z, TOWN.x - 8, TOWN.z + 2) > BANDIT.unseen;
+  for (const f of foes) {
+    if (f.hp <= 0) {                                                          // down: the body lies a while, a new man turns up at the saloon when you are not around
+      f.deadT += dt; if (f.deadT > 8) f.mesh.visible = false;
+      if (f.deadT > BANDIT.rehire && farFromSaloon) { newFight(f); Object.assign(f, { x: f.hx, z: f.hz, hp: 75, yaw: Math.PI / 2, mode: 'idle', mad: 0, deadT: 0 }); f.mesh.visible = true; f.mesh.rotation.z = 0; }
+      else continue;
+    }
     const d = dist(f.x, f.z, jim.x, jim.z);
-    if (!jim.dead) foeBrain(f, jim.x, jim.z, d, dt, true); else { f.block = false; f.atk = null; }
-    tickFight(f, dt); pushOut(f, 0.5); poseFighter(f.mesh, f, dt);
-    if (dist(f.x, f.z, 0, 0) > 120 && jim.dead) f.hp = 0;
+    f.mad = Math.max(0, f.mad - dt);
+    if (f.mode === 'hunt' && (jim.dead || (f.mad <= 0 && (carried() <= 3 || dist(jim.x, jim.z, TOWN.x, TOWN.z) > BANDIT.quit)))) { f.mode = 'idle'; f.block = false; if (jimToken === f) jimToken = null; }
+    if (f.mode === 'hunt') foeBrain(f, jim.x, jim.z, d, dt, true);
+    else if (canAct(f)) {                                                     // walk back to the porch and stand there
+      f.block = false;
+      const hd = dist(f.x, f.z, f.hx, f.hz);
+      if (hd > 0.4) { const a = Math.atan2(f.hx - f.x, f.hz - f.z); f.yaw = angLerp(f.yaw, a, Math.min(1, dt * 8)); f.x += Math.sin(a) * 3.4 * dt; f.z += Math.cos(a) * 3.4 * dt; f.walk += dt * 9; }
+      else { f.yaw = angLerp(f.yaw, Math.PI / 2, Math.min(1, dt * 4)); f.walk = 0; }
+    }
+    tickFight(f, dt); if (f.mode === 'hunt' || dist(f.x, f.z, f.hx, f.hz) > 3) pushOut(f, 0.5); poseFighter(f.mesh, f, dt);
     f.mesh.position.set(f.x, hAt(f.x, f.z), f.z); f.mesh.rotation.y = f.yaw;
     const legs = f.mesh.userData.legs; legs[0].rotation.x = Math.sin(f.walk) * 0.5; legs[1].rotation.x = -legs[0].rotation.x;
   }
@@ -2777,9 +2802,10 @@ window.addEventListener('resize', resize);
 
 setupClaim();
 makeOutfits();
+makeBandits();
 bakeMini();
 for (const s of structures) if (s.kind === 'pump') s.wetOK = waterNear(s.x, s.z, 9) > 0;
-window.__claim = { machines, structures, piles, ledger, T, digAt, jim, TOWN, worldOf, ghosts, H, I: (x, z) => I(Math.round(gx(x)), Math.round(gx(z))), get home() { return home; }, BUILD, foes, loots, hurtMe, toScreen, aim, outfits, blast, CONVOY, outfitTick, cam, GFX, terrain, step, N, CELL, renderer, scene, sunL, hemiL, get gtao() { return gtao; }, swingShovel, hostiles, spawnBandits, combatTick, SHOVEL, ATK, FIGHT, startAttack, startRoll, tickFight, poseFighter, newFight, makeJimbo, keys, get hitStop() { return hitStop; }, get token() { return jimToken; }, paytop: k => PAYTOP[k], outfits, sendConvoy, setBanditT: v => { banditT = v; } };
+window.__claim = { machines, structures, piles, ledger, T, digAt, jim, TOWN, worldOf, ghosts, H, I: (x, z) => I(Math.round(gx(x)), Math.round(gx(z))), get home() { return home; }, BUILD, foes, loots, hurtMe, toScreen, aim, outfits, blast, CONVOY, outfitTick, cam, GFX, terrain, step, N, CELL, renderer, scene, sunL, hemiL, get gtao() { return gtao; }, swingShovel, hostiles, spawnBandits, resetBandits, BANDIT, combatTick, SHOVEL, ATK, FIGHT, startAttack, startRoll, tickFight, poseFighter, newFight, makeJimbo, keys, get hitStop() { return hitStop; }, get token() { return jimToken; }, paytop: k => PAYTOP[k], outfits, sendConvoy, setBanditT: v => { banditT = v; } };
 resize();
 renderStats();
 refreshCmd();
