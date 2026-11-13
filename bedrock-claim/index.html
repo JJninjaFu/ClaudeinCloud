@@ -94,6 +94,17 @@ table.rep td.n { text-align: right; color: var(--gold); font-weight: 600; }
 .tb.alt { background: #efe5cf; }
 .tb.down { transform: translateY(2px); filter: brightness(.85); }
 body.drivetouch .cmdbar { display: none; }
+/* tidy HUD (default on phones): the top-left panel folds to the essentials, the top buttons fold into Menu */
+.ledger h1 { cursor: pointer; }
+.hudtoggle { background: none; border: 0; min-height: 0; padding: 0 2px 0 6px; color: var(--muted); font-size: 15px; vertical-align: middle; }
+#menuBtn { display: none; }
+body.hudcompact #menuBtn { display: inline-block; }
+body.hudcompact .controls:not(.open) > :not(#menuBtn) { display: none; }
+body.hudcompact .controls:not(.open) { padding: 4px; }
+body.hudcompact #perf, body.hudcompact #board, body.hudcompact #mini, body.hudcompact #build { display: none !important; }
+body.hudcompact .stats > span:nth-child(4), body.hudcompact .stats > span:nth-child(6), body.hudcompact .stats > span:nth-child(7) { display: none; }
+body.hudcompact .ledger { padding: 4px 10px 5px; }
+body.hudcompact .ledger h1 { font-size: 15px; }
 .keys { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 14px; margin: 0; }
 .keys dt { color: var(--gold); font-weight: 600; }
 .keys dd { margin: 0; }
@@ -112,13 +123,14 @@ body.drivetouch .cmdbar { display: none; }
 
   <header class="topbar">
     <div class="ledger">
-      <h1>Bedrock Claim <span id="build" style="font:600 12px 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:#b9ab8c;vertical-align:middle;margin-left:6px"></span></h1>
+      <h1 id="hudTitle">Bedrock Claim <span id="build" style="font:600 12px 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:#b9ab8c;vertical-align:middle;margin-left:6px"></span><button id="hudToggle" class="hudtoggle" type="button" aria-label="Show or hide details" aria-expanded="true">▾</button></h1>
       <div class="stats" id="stats"></div>
       <div class="perf" id="perf">measuring…</div>
       <div class="board" id="board" hidden></div>
       <canvas id="mini" width="132" height="132" aria-label="Map of the claims"></canvas>
     </div>
-    <div class="controls">
+    <div class="controls" id="controls">
+      <button id="menuBtn" type="button" aria-expanded="false">Menu</button>
       <div class="seg" id="speedSeg" role="group" aria-label="Game speed">
         <button data-speed="0">Pause</button>
         <button data-speed="1" class="on">1×</button>
@@ -269,7 +281,22 @@ const glCanvas = $('#gl'), hud = $('#hud'), hctx = hud.getContext('2d');
 // Graphics quality: 'high' (default) is the desktop renderer: soft sun shadows, ambient occlusion, sky reflections,
 // textured ground. 'low' skips all of that for weak machines and for tests. ?gfx=low|high or the Graphics button.
 // Shown next to the title so it is obvious which version is on screen. Bump the number and the note with every change that ships.
-const BUILD = { n: 8, note: 'bandits live at the saloon' };
+const BUILD = { n: 9, note: 'tidier screen on phones' };
+// tidy HUD: tap the title to fold the top-left panel; Menu folds the top buttons. Phones start folded.
+const HUD_KEY = 'bedrockClaim.hudCompact';
+let hudCompact = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || innerWidth < 760;
+try { const v = localStorage.getItem(HUD_KEY); if (v != null) hudCompact = v === '1'; } catch (e) { /* storage unavailable */ }
+function applyHud() {
+  document.body.classList.toggle('hudcompact', hudCompact);
+  $('#hudToggle').textContent = hudCompact ? '▸' : '▾';
+  $('#hudToggle').setAttribute('aria-expanded', String(!hudCompact));
+  if (!hudCompact) $('#controls').classList.remove('open');
+}
+$('#hudTitle').addEventListener('click', () => { hudCompact = !hudCompact; try { localStorage.setItem(HUD_KEY, hudCompact ? '1' : '0'); } catch (e) { /* ignore */ } applyHud(); });
+$('#menuBtn').addEventListener('click', e => { e.stopPropagation(); const open = $('#controls').classList.toggle('open'); $('#menuBtn').setAttribute('aria-expanded', String(open)); $('#menuBtn').textContent = open ? 'Close' : 'Menu'; });
+// picking anything from the open menu folds it back up
+$('#controls').addEventListener('click', e => { if (hudCompact && e.target.closest('button') && e.target.id !== 'menuBtn') { $('#controls').classList.remove('open'); $('#menuBtn').textContent = 'Menu'; $('#menuBtn').setAttribute('aria-expanded', 'false'); } });
+applyHud();
 $('#build').textContent = `build ${BUILD.n} · ${BUILD.note}`;
 const GFX_KEY = 'bedrockClaim.gfx';
 const GFX = (() => { let v = new URLSearchParams(location.search).get('gfx'); if (!v) { try { v = localStorage.getItem(GFX_KEY); } catch (e) { /* storage unavailable */ } } return v === 'low' ? 'low' : 'high'; })();
