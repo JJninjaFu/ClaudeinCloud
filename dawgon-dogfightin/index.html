@@ -141,6 +141,11 @@ select,input[type=text],textarea{background:#1d1c1a;border:1px solid var(--line)
     <span class="legend"><i style="background:#f5b800"></i>weight<i style="background:#59b0ff"></i>lift</span></div>
   <div id="bWarn"></div>
   <div id="bStats"></div>
+  <div id="mpBox">
+    <div class="row" id="mpOff"><input type="text" id="mpName" maxlength="10" placeholder="Your name" aria-label="Your name"><button id="mpHost">Host</button><input type="text" id="mpCode" maxlength="4" placeholder="CODE" aria-label="Room code" style="flex:0 0 78px;text-transform:uppercase"><button id="mpJoin">Join</button></div>
+    <div class="row" id="mpOn" hidden><span id="mpInfo" class="legend" style="flex:1;font-size:14px;color:var(--ink)"></span><button id="mpLeave">Leave</button></div>
+    <div class="legend" id="mpMsg">Dogfight friends: one of you taps Host and shares the 4-letter code.</div>
+  </div>
   <div class="row"><select id="bFoes" aria-label="Opponents"><option value="0">No bandits (free flight)</option><option value="1">Fight 1 bandit</option><option value="2">Fight 2 bandits</option><option value="3">Fight 3 bandits</option></select>
     <select id="bFoeType" aria-label="Their plane"><option value="mine">in my plane</option><option value="Fighter">in Fighters</option><option value="Jet">in Jets</option><option value="Biplane">in Biplanes</option><option value="Trainer">in Trainers</option><option value="Flying Wing">in Flying Wings</option></select></div>
   <div class="row"><select id="bStart" aria-label="Where to start"><option value="runway">Start on the runway</option><option value="air">Start in the air (3,000 ft)</option></select><button id="bFly" class="big">Fly</button></div>
@@ -156,6 +161,7 @@ select,input[type=text],textarea{background:#1d1c1a;border:1px solid var(--line)
     <li><b>Controller:</b> left stick · right stick rudder · RT/LT throttle · RB fire · A brake · Y camera · X assist · B restart · Start hangar</li>
     <li><b>Take off:</b> full throttle, wait for speed, ease the nose up. <b>Assist</b> steadies the plane and stops most stalls; turn it off for raw controls.</li>
     <li><b>Dogfight:</b> add guns in the hangar, pick how many bandits to fight, and press Fly. Put the circle on the yellow diamond and fire. Wings can be shot off, engines can be knocked out. Bandits leave you alone until you are off the ground.</li>
+    <li><b>Friends:</b> type a name, tap Host and send your friends the 4-letter code, or type their code and tap Join. Up to 4 pilots, each in a plane they built. Press Fly whenever you are ready; you can go back to the hangar, change planes and fly again without leaving the room.</li>
     <li>With no bandits, fly through the yellow rings for a lap time. Land back on the runway if you can.</li>
   </ul>
   <div class="row"><button class="big" id="helpOk">Got it</button></div>
@@ -583,12 +589,13 @@ function resetFlight() {
   P.q.set(0, 0, 0, 1); P.w.set(0, 0, 0); P.cmd.p = P.cmd.r = P.cmd.y = 0; P.iP = 0; P.stall = 0; P.airT = 0; P.landed = false;
   if (air) { const v = clamp(Math.max(SPEC.stats.vs * 1.5, 34), 30, 160); P.pos.set(0, 914, 2700); P.vel.set(0, 0, -v); P.thr = SPEC.eng.T0 > 0 ? .7 : 0; P.gear = 0; P.onGround = false; P.flown = true; }
   else { P.pos.set(SPAWN.x, SPEC.restY, SPAWN.z); P.vel.set(0, 0, 0); P.thr = 0; P.gear = 1; P.onGround = true; P.flown = false; }
-  P.thrEff = P.thr; resetDamage(ME); bullets.length = 0; G.fight = (O.foes | 0) > 0; G.won = false; G.kills = 0; spawnBots(); G.crashWhy = ''; G.ring = 0; G.ringT = 0; G.ringOn = false; G.t = 0;
+  if (mp.on) P.pos.x += ((mp.players.get(mp.myId) || { slot: 0 }).slot - 1.5) * (air ? 220 : 9);
+  P.thrEff = P.thr; resetDamage(ME); bullets.length = 0; G.fight = mp.on || (O.foes | 0) > 0; G.won = false; G.kills = 0; spawnBots(); G.crashWhy = ''; G.ring = 0; G.ringT = 0; G.ringOn = false; G.t = 0;
   camDir.set(0, 0, -1); updateRings();
 }
 function crash(why) {
   if (G.mode !== 'fly') return;
-  G.mode = 'crashed'; ME.dead = true; G.crashWhy = why; boom.t = 0; boom.mesh.position.copy(P.pos); boom.mesh.visible = true; plane.visible = false; Sound.boom();
+  G.mode = 'crashed'; ME.dead = true; G.crashWhy = why; if (mp.on) netOut({ t: 'dead', by: ME.lastBy && ME.lastBy.id ? ME.lastBy.id : null }); boom.t = 0; boom.mesh.position.copy(P.pos); boom.mesh.visible = true; plane.visible = false; Sound.boom();
   $('crashS').textContent = why; setTimeout(() => { if (G.mode === 'crashed') $('crash').hidden = false; }, API.fast ? 0 : 900);
 }
 const boom = { t: 9, mesh: new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true })) };
@@ -685,7 +692,7 @@ function physStep(C, dt, inp) {
 }
 
 function flightTick(dt, inp) {
-  G.t += dt; ME.assist = O.assist;
+  G.t += dt; ME.assist = O.assist; G.firing = !!inp.fire;
   const live = bots.filter(b => !b.dead);
   if (API.auto) inp = brain(ME, live[0] || null, live.length > 0, dt);
   for (const b of live) b.inp = brain(b, ME, P.flown, dt);
@@ -751,19 +758,20 @@ function segDist2(p1, q1, p2, q2) {
 }
 const b0 = new V3(), b1 = new V3(), c0 = new V3(), c1 = new V3(), bq = new Q4();
 function stepBullets(dt) {
+  const targets = mp.on ? [ME, ...mp.crafts.values()] : [ME, ...bots];
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i]; b0.copy(b.p); b.p.addScaledVector(b.v, dt); b.v.y -= G0 * dt; b.life -= dt;
     let gone = b.life <= 0;
     if (!gone && b.p.y < Math.max(SEA, groundH(b.p.x, b.p.z))) { gone = true; puff(b.p, 0, 3, 0, .5, .6, 2.2, 0xb9a98a); }
-    if (!gone) for (let k = -1; k < bots.length && !gone; k++) {
-      const X = k < 0 ? ME : bots[k]; if (X === b.by || X.dead || (!X.me && !b.by.me)) continue; // bandits do not shoot each other
+    if (!gone && !b.cos) for (const X of targets) {
+      if (gone) break; if (X === b.by || X.dead || (!X.me && !b.by.me)) continue; // bandits do not shoot each other
       const reach = X.sp.size + BUL.speed * dt + 60 * dt; if (X.st.pos.distanceToSquared(b.p) > reach * reach) continue;
       bq.copy(X.st.q).invert(); c0.copy(b0).sub(X.st.pos).applyQuaternion(bq); c1.copy(b.p).sub(X.st.pos).applyQuaternion(bq); // the shot, seen from the target plane
       let zone = null, best = 1e9; const hb = X.sp.hitBody;
       t1.set(hb.a[0], hb.a[1], hb.a[2]); t2.set(hb.b[0], hb.b[1], hb.b[2]);
       let d2 = segDist2(c0, c1, t1, t2); if (d2 < hb.rad * hb.rad) { best = d2 / (hb.rad * hb.rad); const e = X.sp.eng.type; zone = (e === 'prop' && segT < .25) || (e === 'jet' && segT > .7) ? 'eng' : 'body'; }
       for (const h of X.sp.halves) { if (X.lost[h.i]) continue; t1.set(h.a[0], h.a[1], h.a[2]); t2.set(h.b[0], h.b[1], h.b[2]); d2 = segDist2(c0, c1, t1, t2) / (h.rad * h.rad); if (d2 < 1 && d2 < best) { best = d2; zone = h.i; } }
-      if (zone != null) { gone = true; puff(b.p, X.st.vel.x, X.st.vel.y + 2, X.st.vel.z, .35, .5, 2.4, 0xffd24a); if (b.by.me) { G.hitT = .15; Sound.hit(); } damage(X, zone, BUL.dmg, b.by); }
+      if (zone != null) { gone = true; puff(b.p, X.st.vel.x, X.st.vel.y + 2, X.st.vel.z, .35, .5, 2.4, 0xffd24a); if (b.by.me) { G.hitT = .15; Sound.hit(); } if (X.remote) mp.hitQ.push([X.id, zone]); else damage(X, zone, BUL.dmg, b.by); } // a friend's plane decides its own damage: we only report the hit
     }
     if (gone) bullets.splice(i, 1);
   }
@@ -773,7 +781,7 @@ function damage(X, zone, amt, by) {
   if (zone === 'eng') { X.hp.eng -= amt; X.hp.body -= amt * .3; if (X.hp.eng <= 0 && X.engOK) { X.engOK = 0; if (X.me) toast('Engine out', 'No power. Glide it down.', 4, '#e8402f'); } }
   else if (zone === 'body') X.hp.body -= amt;
   else { X.hp.half[zone] -= amt; if (X.hp.half[zone] <= 0 && !X.lost[zone]) loseHalf(X, zone); }
-  if (X.hp.body <= 0) X.crash(X.me ? 'Shot down by a bandit.' : 'shot');
+  if (X.hp.body <= 0) X.crash(X.me ? 'Shot down by ' + (by && by.name ? by.name : 'a bandit') + '.' : 'shot');
 }
 function loseHalf(X, i) {
   X.lost[i] = true; X.panels = X.sp.panels.filter(p => p.hi < 0 || !X.lost[p.hi]); X.contacts = X.sp.contacts.filter(c => c.hi == null || !X.lost[c.hi]);
@@ -783,7 +791,7 @@ function loseHalf(X, i) {
 function clearBots() { for (const b of bots) { scene.remove(b.grp); disposeTree(b.grp); } bots.length = 0; }
 // Bandits start miles out to the north, already flying, so nobody pops into view.
 function spawnBots() {
-  clearBots(); if (G.mode !== 'fly') return;
+  clearBots(); if (G.mode !== 'fly' || mp.on) return;
   for (let i = 0; i < (O.foes | 0); i++) {
     const d = sanitize(JSON.parse(JSON.stringify(O.foeType === 'mine' || !PRESETS[O.foeType] ? D : PRESETS[O.foeType]))); if (d.guns < 2) d.guns = 2; d.col = ['#8f1f1a', '#2a2825'];
     const sp = buildSpec(d), grp = new THREE.Group(); scene.add(grp);
@@ -839,6 +847,149 @@ function brain(C, T, engaged, dt) {
   if (ai.avoid > 0) { ai.avoid -= dt; inp.roll = clamp(-bank * 2.5, -1, 1); inp.pitch = Math.abs(bank) < 1.1 ? 1 : 0; inp.yaw = 0; inp.fire = false; inp.thrAbs = 1; }
   return inp;
 }
+
+
+/* ================= multiplayer: PeerJS rooms, everyone flies their own plane =================
+   Each pilot simulates only their own plane and sends its state 15 times a second. The host just relays.
+   The shooter decides whether a bullet hit; the plane that was hit decides what the damage does. */
+const NETID = 'dawgon-v1-', CODE_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const mp = { on: false, host: false, peer: null, conns: new Map(), hostConn: null, myId: null, code: '', players: new Map(), crafts: new Map(), sendT: 0, kills: 0, hitQ: [], joinTimer: 0, hiTimer: 0 };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const cleanName = s => String(s || '').replace(/[<>&"']/g, '').trim().slice(0, 10) || 'Pilot';
+function loadPeer() {
+  if (window.Peer) return Promise.resolve();
+  const srcs = ['https://unpkg.com/peerjs@1.5/dist/peerjs.min.js', 'https://cdn.jsdelivr.net/npm/peerjs@1.5/dist/peerjs.min.js'];
+  return new Promise((res, rej) => { const tryOne = i => { if (i >= srcs.length) return rej(new Error('load')); const s = document.createElement('script'); s.src = srcs[i]; s.onload = () => (window.Peer ? res() : tryOne(i + 1)); s.onerror = () => { s.remove(); tryOne(i + 1); }; document.head.appendChild(s); }; tryOne(0); });
+}
+function netErr(err) {
+  const t = err && err.type;
+  if (t === 'network' || t === 'server-error' || t === 'socket-error' || t === 'socket-closed') return "Couldn't reach the matchmaking server. Try again in a moment.";
+  if (t === 'browser-incompatible') return "This browser can't do multiplayer. Try Safari or Chrome.";
+  return 'Connection problem' + (t ? ' (' + t + ')' : '') + '. Try again.';
+}
+function mpMsg(t) { $('mpMsg').textContent = t || ''; }
+function mpBusy(b) { $('mpHost').disabled = b; $('mpJoin').disabled = b; }
+function mpUI() {
+  $('mpOff').hidden = mp.on; $('mpOn').hidden = !mp.on; $('bFoes').disabled = $('bFoeType').disabled = mp.on;
+  if (mp.on) { $('mpInfo').innerHTML = 'Room <b style="font-family:var(--f-mono);color:var(--yellow)">' + esc(mp.code) + '</b>: ' + [...mp.players.values()].map(p => esc(p.name)).join(', '); mpMsg(mp.host ? 'Send the code to your friends, then press Fly.' : 'You are in. Press Fly.'); }
+}
+function takeName() { const raw = $('mpName').value.trim(); if (!raw) { mpMsg('Type your name first.'); $('mpName').focus(); return null; } const n = cleanName(raw); store.set('bnd-name', n); return n; }
+function freeSlot() { const used = new Set([...mp.players.values()].map(p => p.slot)); for (let i = 0; i < 4; i++) if (!used.has(i)) return i; return -1; }
+const rosterMsg = () => ({ t: 'roster', code: mp.code, players: [...mp.players.values()].map(p => ({ id: p.id, name: p.name, slot: p.slot, d: p.d || null })) });
+function netSendAll(m, except) { for (const [id, c] of mp.conns) if (c.open && id !== except) try { c.send(m); } catch (e) {} }
+function netOut(m) { if (!mp.on) return; if (mp.host) netSendAll(Object.assign({ id: 'host' }, m)); else if (mp.hostConn && mp.hostConn.open) try { mp.hostConn.send(m); } catch (e) {} }
+async function mpHost() {
+  const name = takeName(); if (!name) return;
+  mpMsg('Opening a room…'); mpBusy(true);
+  try { await loadPeer(); } catch (e) { mpBusy(false); return mpMsg("Couldn't load the multiplayer engine. Check your connection."); }
+  const tryCode = n => {
+    const code = Array.from({ length: 4 }, () => CODE_ABC[Math.floor(Math.random() * CODE_ABC.length)]).join('');
+    const peer = new Peer(NETID + code, { debug: 0 }); let opened = false;
+    peer.on('open', () => { opened = true; Object.assign(mp, { on: true, host: true, peer, code, myId: 'host', kills: 0 }); mp.players.clear(); mp.conns.clear(); mp.players.set('host', { id: 'host', name, slot: 0, d: D }); mpBusy(false); mpUI(); });
+    peer.on('connection', conn => { conn.on('data', d => hostOnData(conn, d)); conn.on('close', () => hostDrop(conn.peer)); conn.on('error', () => hostDrop(conn.peer)); });
+    peer.on('error', err => { if (!opened) { try { peer.destroy(); } catch (e) {} if (err.type === 'unavailable-id' && n < 4) return tryCode(n + 1); mpBusy(false); return mpMsg(netErr(err)); } if (err.type !== 'peer-unavailable') mpMsg(netErr(err)); });
+    peer.on('disconnected', () => { if (mp.on && mp.host && mp.peer === peer && !peer.destroyed) try { peer.reconnect(); } catch (e) {} });
+  };
+  tryCode(0);
+}
+function hostOnData(conn, d) {
+  if (!mp.on || !mp.host || !d || typeof d !== 'object') return; const id = conn.peer;
+  if (d.t === 'hi') {
+    if (!mp.players.has(id)) { const slot = freeSlot(); if (slot < 0) { try { conn.send({ t: 'full' }); } catch (e) {} return; } mp.conns.set(id, conn); mp.players.set(id, { id, name: cleanName(d.name), slot, d: null }); if (G.mode !== 'build') toast(cleanName(d.name) + ' joined', '', 2.5); }
+    netSendAll(rosterMsg()); mpUI(); return;
+  }
+  if (!mp.players.has(id)) return; d.id = id; applyMsg(d); netSendAll(d, id);
+}
+function hostDrop(id) { if (!mp.players.has(id)) return; mp.players.delete(id); mp.conns.delete(id); dropCraft(id); netSendAll(rosterMsg()); mpUI(); }
+async function mpJoin() {
+  const name = takeName(); if (!name) return;
+  const code = $('mpCode').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (code.length !== 4) return mpMsg('Room codes are 4 letters and numbers.');
+  mpMsg('Joining ' + code + '…'); mpBusy(true);
+  try { await loadPeer(); } catch (e) { mpBusy(false); return mpMsg("Couldn't load the multiplayer engine. Check your connection."); }
+  const peer = new Peer({ debug: 0 }); let joined = false, done = false;
+  const fail = m => { if (joined || done) return; done = true; clearTimeout(mp.joinTimer); mpBusy(false); try { peer.destroy(); } catch (e) {} mpMsg(m); };
+  clearTimeout(mp.joinTimer); mp.joinTimer = setTimeout(() => fail("Couldn't connect. Check the code, or try on Wi-Fi."), 15000);
+  peer.on('error', err => { if (!joined) return fail(err.type === 'peer-unavailable' ? 'No room with that code. Double-check it with the host.' : netErr(err)); });
+  peer.on('open', id => {
+    if (done) return;
+    const conn = peer.connect(NETID + code, { reliable: true, serialization: 'json' });
+    conn.on('open', () => {
+      if (done) return; joined = true; clearTimeout(mp.joinTimer); mpBusy(false);
+      Object.assign(mp, { on: true, host: false, peer, hostConn: conn, myId: id, code, kills: 0 }); mp.players.clear();
+      const hi = () => { try { conn.send({ t: 'hi', name }); } catch (e) {} }; hi(); let tries = 0;
+      clearInterval(mp.hiTimer); mp.hiTimer = setInterval(() => { if (!mp.on || mp.hostConn !== conn || mp.players.has(id) || ++tries > 8) return clearInterval(mp.hiTimer); hi(); }, 1000);
+      mpUI();
+    });
+    conn.on('data', d => clientOnData(d));
+    conn.on('close', () => { if (mp.on && !mp.host && mp.hostConn === conn) { mpLeave(); mpMsg('Lost the connection to the host.'); if (G.mode !== 'build') toast('Lost the host', 'You are flying solo now.', 4); } });
+  });
+}
+function clientOnData(d) {
+  if (!mp.on || mp.host || !d || typeof d !== 'object') return;
+  if (d.t === 'full') { mpLeave(); return mpMsg('That room is full (4 pilots max).'); }
+  if (d.t === 'roster') {
+    const seen = new Set();
+    for (const q of d.players || []) { if (!q || typeof q.id !== 'string') continue; seen.add(q.id); const old = mp.players.get(q.id); mp.players.set(q.id, { id: q.id, name: cleanName(q.name), slot: q.slot | 0, d: q.id === mp.myId ? D : (old && old.d) || q.d || null }); }
+    for (const id of [...mp.players.keys()]) if (!seen.has(id)) { mp.players.delete(id); dropCraft(id); }
+    mpUI(); return;
+  }
+  if (d.id === mp.myId || typeof d.id !== 'string') return; applyMsg(d);
+}
+function mpLeave() {
+  clearInterval(mp.hiTimer); clearTimeout(mp.joinTimer); try { if (mp.peer) mp.peer.destroy(); } catch (e) {}
+  for (const id of [...mp.crafts.keys()]) dropCraft(id);
+  Object.assign(mp, { on: false, host: false, peer: null, hostConn: null, myId: null, code: '', kills: 0 }); mp.players.clear(); mp.conns.clear(); mp.hitQ.length = 0; mpBusy(false); mpUI(); mpMsg('');
+}
+function dropCraft(id) { const r = mp.crafts.get(id); if (!r) return; scene.remove(r.grp); disposeTree(r.grp); mp.crafts.delete(id); }
+function getRemote(id) {
+  let r = mp.crafts.get(id); if (r) return r;
+  const pl = mp.players.get(id); if (!pl || !pl.d) return null;
+  const sp = buildSpec(sanitize(pl.d)), grp = new THREE.Group(); grp.visible = false; scene.add(grp);
+  r = { st: newState(), sp, grp, v: buildMesh(grp, sp, false), me: false, remote: true, id, name: pl.name, assist: false, ai: null, snap: null, crash() {}, tp: new V3(), tq: new Q4() };
+  resetDamage(r); r.dead = true; mp.crafts.set(id, r); return r;
+}
+const okNum = v => typeof v === 'number' && isFinite(v), ok3 = a => Array.isArray(a) && a.length >= 3 && a.every(okNum);
+function applyMsg(d) {
+  const pl = mp.players.get(d.id); if (!pl) return;
+  if (d.t === 'pl') { if (d.d && typeof d.d === 'object') { pl.d = d.d; dropCraft(d.id); } return; }
+  if (d.t === 's') { if (!ok3(d.p) || !ok3(d.v) || !Array.isArray(d.q) || d.q.length < 4 || !d.q.every(okNum)) return; const r = getRemote(d.id); if (!r) return; const first = !r.snap || !r.snap.a; r.snap = d; d.age = 0; if (first && d.a) { r.st.pos.set(d.p[0], d.p[1], d.p[2]); r.st.q.set(d.q[0], d.q[1], d.q[2], d.q[3]).normalize(); } return; }
+  if (d.t === 'hit') {
+    if (d.to !== mp.myId || !Array.isArray(d.z) || G.mode !== 'fly' || !P.flown || G.t < 3) return; // nobody gets shot sitting on the runway
+    for (const z of d.z.slice(0, 40)) if (z === 'body' || z === 'eng' || (Number.isInteger(z) && z >= 0 && z < SPEC.halves.length)) damage(ME, z, BUL.dmg, mp.crafts.get(d.id) || { id: d.id, name: pl.name });
+    return;
+  }
+  if (d.t === 'dead') {
+    const r = mp.crafts.get(d.id); if (r && !r.dead) { fireball(r.st.pos, true); r.dead = true; r.grp.visible = false; if (r.snap) r.snap.a = 0; }
+    if (d.by === mp.myId) { mp.kills++; G.kills++; Sound.ding(); }
+    const who = d.by === mp.myId ? 'You' : (mp.players.get(d.by) || {}).name;
+    if (G.mode !== 'build') toast(who ? who + ' shot down ' + pl.name : pl.name + ' crashed', '', 3, d.by === mp.myId ? '#5cc96b' : '');
+  }
+}
+function snapshot() {
+  const r2 = v => Math.round(v * 100) / 100, r4 = v => Math.round(v * 1e4) / 1e4; let l = 0; ME.lost.forEach((x, i) => { if (x) l |= 1 << i; });
+  return { t: 's', p: [r2(P.pos.x), r2(P.pos.y), r2(P.pos.z)], q: [r4(P.q.x), r4(P.q.y), r4(P.q.z), r4(P.q.w)], v: [r2(P.vel.x), r2(P.vel.y), r2(P.vel.z)], th: r2(P.thrEff), g: P.gear > .5 ? 1 : 0,
+    f: G.firing && ME.ammo > 0 && G.mode === 'fly' ? 1 : 0, l, e: ME.engOK, a: G.mode === 'fly' ? 1 : 0, h: Math.round(ME.hp.body / SPEC.hpBody * 100), k: mp.kills, c: [r2(P.cmd.p), r2(P.cmd.r), r2(P.cmd.y)] };
+}
+function netTick(dt) {
+  mp.sendT -= dt;
+  if (mp.sendT <= 0) {
+    mp.sendT = 1 / 15; netOut(snapshot());
+    if (mp.hitQ.length) { const by = new Map(); for (const [id, z] of mp.hitQ) { if (!by.has(id)) by.set(id, []); by.get(id).push(z); } mp.hitQ.length = 0; for (const [to, z] of by) netOut({ t: 'hit', to, z }); }
+  }
+  for (const r of mp.crafts.values()) {
+    const s = r.snap; if (!s) continue; s.age = Math.min(.6, s.age + dt);
+    const alive = !!s.a; r.dead = !alive; r.grp.visible = alive; if (!alive) continue;
+    // show them where they should be by now, easing toward it so a late packet does not make them jump
+    r.tp.set(s.p[0] + s.v[0] * s.age, s.p[1] + s.v[1] * s.age, s.p[2] + s.v[2] * s.age); r.tq.set(s.q[0], s.q[1], s.q[2], s.q[3]).normalize();
+    const S = r.st; if (S.pos.distanceToSquared(r.tp) > 250 * 250) { S.pos.copy(r.tp); S.q.copy(r.tq); } else { S.pos.lerp(r.tp, 1 - Math.exp(-dt * 14)); S.q.slerp(r.tq, 1 - Math.exp(-dt * 12)); }
+    S.vel.set(s.v[0], s.v[1], s.v[2]); S.thrEff = +s.th || 0; S.gear = s.g ? 1 : 0; if (Array.isArray(s.c)) { S.cmd.p = +s.c[0] || 0; S.cmd.r = +s.c[1] || 0; S.cmd.y = +s.c[2] || 0; }
+    r.engOK = s.e ? 1 : 0; r.hp.body = (okNum(s.h) ? s.h : 100) / 100 * r.sp.hpBody;
+    for (let i = 0; i < r.sp.halves.length; i++) { const gone = !!((s.l | 0) >> i & 1); if (gone !== !!r.lost[i]) { r.lost[i] = gone; for (const o of r.v.halfObjs[i]) o.visible = !gone; if (gone) fireball(S.pos, false); } }
+    if (s.f) { r.fireT -= dt; if (r.fireT <= 0) { r.fireT = 1 / BUL.rate; for (const g of r.sp.gunPts) { if (bullets.length >= BUL.max) bullets.shift(); const dir = new V3(-g[0], -g[1], -320 - g[2]).normalize().applyQuaternion(S.q).multiplyScalar(BUL.speed).add(S.vel); bullets.push({ p: new V3(g[0], g[1], g[2]).applyQuaternion(S.q).add(S.pos), v: dir, life: BUL.life, by: r, cos: true }); } } } // their tracers, for show only
+  }
+}
+$('mpHost').addEventListener('click', mpHost); $('mpJoin').addEventListener('click', mpJoin); $('mpLeave').addEventListener('click', mpLeave); $('mpName').value = store.get('bnd-name', '');
 
 function updateRings() { ringMeshes.forEach((m, i) => { m.visible = i >= G.ring && !G.fight; m.material.color.setHex(i === G.ring ? 0xf5b800 : 0xff6b1a); m.material.opacity = i === G.ring ? .95 : .35; }); }
 
@@ -973,16 +1124,18 @@ function updateHUD(dt) {
   const scr = v => { const p = t3.copy(v).project(camera), bh = p.z > 1; let x = (p.x * .5 + .5) * W2, y = (-p.y * .5 + .5) * H2; if (bh) { x = W2 - x; y = H2 - y; } return { x, y, bh }; };
   if (flying && SPEC.ng > 0) { fwd.set(0, 0, -1).applyQuaternion(P.q); const a = scr(t1.copy(P.pos).addScaledVector(fwd, 320)); sg.hidden = a.bh; sg.style.left = a.x + 'px'; sg.style.top = a.y + 'px'; sg.classList.toggle('hit', G.hitT > 0); } else sg.hidden = true;
   let near = null, nd = 900;
+  const foes = mp.on ? [...mp.crafts.values()] : bots;
   foeEls.forEach((e, i) => {
-    const b = bots[i]; if (!flying || !b || b.dead) { e.hidden = true; return; }
+    const b = foes[i]; if (!flying || !b || b.dead) { e.hidden = true; return; }
     const d = P.pos.distanceTo(b.st.pos), a = scr(b.st.pos), off = a.bh || a.x < 24 || a.x > W2 - 24 || a.y < 56 || a.y > H2 - 24;
     if (a.bh) { const cx = W2 / 2, cy = H2 / 2, dx = a.x - cx, dy = a.y - cy, k = Math.max(Math.abs(dx) / (cx - 24), Math.abs(dy) / (cy - 56), .001); a.x = cx + dx / k; a.y = cy + dy / k; }
-    e.hidden = false; e.classList.toggle('off', off); e.style.left = clamp(a.x, 24, W2 - 24) + 'px'; e.style.top = clamp(a.y, 56, H2 - 24) + 'px'; e.firstChild.textContent = d * FT > 2640 ? (d * FT / 5280).toFixed(1) + ' mi' : Math.round(d * FT / 10) * 10 + ' ft';
+    e.hidden = false; e.classList.toggle('off', off); e.style.left = clamp(a.x, 24, W2 - 24) + 'px'; e.style.top = clamp(a.y, 56, H2 - 24) + 'px'; e.firstChild.textContent = (b.name ? b.name + ' ' : '') + (d * FT > 2640 ? (d * FT / 5280).toFixed(1) + ' mi' : Math.round(d * FT / 10) * 10 + ' ft');
     if (!off && d < nd) { nd = d; near = b; }
   });
   if (near && SPEC.ng > 0) { const tof = nd / BUL.speed, a = scr(t1.copy(near.st.vel).sub(P.vel).multiplyScalar(tof).add(near.st.pos).setY(t1.y + .5 * G0 * tof * tof)); ld.hidden = a.bh; ld.style.left = a.x + 'px'; ld.style.top = a.y + 'px'; } else ld.hidden = true;
   const rm = $('ringMark');
-  if (G.fight) { rm.hidden = true; $('hRing').textContent = flying ? (G.won ? 'SKY CLEAR' : 'BANDITS ' + bots.filter(b => !b.dead).length + (P.flown ? '' : '  (they wait until you are airborne)')) : ''; }
+  if (mp.on) { rm.hidden = true; $('hRing').textContent = 'ROOM ' + mp.code + '   You ' + mp.kills + [...mp.crafts.values()].map(r => '  ·  ' + r.name + ' ' + (r.snap ? r.snap.k | 0 : 0)).join(''); }
+  else if (G.fight) { rm.hidden = true; $('hRing').textContent = flying ? (G.won ? 'SKY CLEAR' : 'BANDITS ' + bots.filter(b => !b.dead).length + (P.flown ? '' : '  (they wait until you are airborne)')) : ''; }
   else if (G.ring < RINGS.length && G.mode === 'fly') {
     $('hRing').textContent = 'RING ' + (G.ring + 1) + '/' + RINGS.length + (G.ringOn ? '  ' + G.ringT.toFixed(1) + ' s' : '');
     const p = t1.copy(RINGS[G.ring]).project(camera), W = innerWidth, H = innerHeight, behind = p.z > 1;
@@ -1091,9 +1244,9 @@ function setMode(m) {
   G.mode = m; const fly = m !== 'build';
   $('builder').hidden = fly; $('hud').hidden = !fly; $('crash').hidden = true; $('touch').hidden = !isTouch; $('tTilt').hidden = !isTouch;
   ME.v.cgBall.visible = ME.v.npBall.visible = !fly; plane.visible = true; if (!fly) { clearBots(); bullets.length = 0; }
-  for (const e of document.querySelectorAll('.cmb')) e.hidden = !(fly && (SPEC.ng > 0 || O.foes > 0)); $('fireB').hidden = !SPEC.ng; boom.mesh.visible = false; resize();
+  for (const e of document.querySelectorAll('.cmb')) e.hidden = !(fly && (SPEC.ng > 0 || O.foes > 0 || mp.on)); $('fireB').hidden = !SPEC.ng; boom.mesh.visible = false; resize();
 }
-function startFlight() { Sound.init(); SPEC = buildSpec(D); rebuildPlane(); setMode('fly'); resetFlight(); $('tAssist').classList.toggle('on', O.assist); toast(O.start === 'air' ? 'You have the plane' : 'Cleared for takeoff', O.start === 'air' ? (G.fight ? 'Bandits inbound from the north.' : '') : (isTouch ? 'Slide THR up, then ease the stick down to lift off.' : 'Hold W for power, then Down arrow to lift off.'), 5); }
+function startFlight() { Sound.init(); SPEC = buildSpec(D); rebuildPlane(); setMode('fly'); resetFlight(); if (mp.on) { const me = mp.players.get(mp.myId); if (me) me.d = D; netOut({ t: 'pl', d: D }); } $('tAssist').classList.toggle('on', O.assist); toast(O.start === 'air' ? 'You have the plane' : 'Cleared for takeoff', O.start === 'air' ? (mp.on ? 'Friends are out there. Good hunting.' : G.fight ? 'Bandits inbound from the north.' : '') : (isTouch ? 'Slide THR up, then ease the stick down to lift off.' : 'Hold W for power, then Down arrow to lift off.'), 5); }
 function restart() { if (G.mode === 'build') return; setMode('fly'); resetFlight(); }
 function toHangar() { if (G.mode === 'build') return; setMode('build'); parkPlane(); $('hStall').hidden = true; Sound.update(false); }
 
@@ -1134,7 +1287,7 @@ function syncCraft(C, dt, build) {
   if (!build && !C.dead && (C.engOK === 0 || C.hp.body < C.sp.hpBody * .45)) { C.smokeT -= dt; if (C.smokeT <= 0) { C.smokeT = .05; puff(S.pos, 0, 1.5, 0, 1.8, 1, 5.5, C.engOK ? 0x8a8782 : 0x2a2826); } }
 }
 function syncVisuals(dt) {
-  syncCraft(ME, dt, G.mode === 'build'); for (const b of bots) if (!b.dead) syncCraft(b, dt, false);
+  syncCraft(ME, dt, G.mode === 'build'); for (const b of bots) if (!b.dead) syncCraft(b, dt, false); for (const r of mp.crafts.values()) if (!r.dead) syncCraft(r, dt, false);
   stepPuffs(dt);
   let n = 0; for (const b of bullets) { trPos[n++] = b.p.x; trPos[n++] = b.p.y; trPos[n++] = b.p.z; trPos[n++] = b.p.x - b.v.x * .04; trPos[n++] = b.p.y - b.v.y * .04; trPos[n++] = b.p.z - b.v.z * .04; }
   trGeo.setDrawRange(0, n / 3); trGeo.attributes.position.needsUpdate = true;
@@ -1148,17 +1301,18 @@ function frame(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   if (API.paused) return;
   if (G.mode === 'fly') flightTick(dt, readInput(dt)); else readInput(dt);
+  if (mp.on) netTick(dt);
   syncVisuals(dt); updateCamera(dt); if (G.mode !== 'build') { updateHUD(dt); Sound.update(G.mode === 'fly'); }
   renderer.render(scene, camera);
 }
 
 /* ================= test hook ================= */
 const API = window.__fly = {
-  G, P, O, ME, bots, bullets, BUL, damage, brain, PRESETS, RINGS, paused: false, fast: false, auto: false, groundH, buildSpec, sanitize, encodeDesign, decodeDesign,
+  G, P, O, ME, mp, netTick, bots, bullets, BUL, damage, brain, PRESETS, RINGS, paused: false, fast: false, auto: false, groundH, buildSpec, sanitize, encodeDesign, decodeDesign,
   get spec() { return SPEC; }, get design() { return D; },
   load(d) { loadDesign(typeof d === 'string' ? PRESETS[d] : d); }, start(where) { if (where) O.start = where; startFlight(); }, hangar: toHangar,
   // run the sim headless; input is an object or a function of (state) returning {pitch, roll, yaw, thrAbs, brake}
-  sim(seconds, input) { const h = 1 / 60; for (let t = 0; t < seconds && G.mode === 'fly'; t += h) { const i = Object.assign({ pitch: 0, roll: 0, yaw: 0, thrUp: 0, thrAbs: null, brake: false, fire: false }, typeof input === 'function' ? input(API.state()) : input); flightTick(h, i); } return API.state(); },
+  sim(seconds, input) { const h = 1 / 60; for (let t = 0; t < seconds && G.mode === 'fly'; t += h) { const i = Object.assign({ pitch: 0, roll: 0, yaw: 0, thrUp: 0, thrAbs: null, brake: false, fire: false }, typeof input === 'function' ? input(API.state()) : input); flightTick(h, i); if (mp.on) netTick(h); } return API.state(); },
   state() { fwd.set(0, 0, -1).applyQuaternion(P.q); const rt = t2.set(1, 0, 0).applyQuaternion(P.q); return { mode: G.mode, t: G.t, x: P.pos.x, y: P.pos.y, z: P.pos.z, agl: P.pos.y - Math.max(SEA, groundH(P.pos.x, P.pos.z)), V: P.vel.length(), vy: P.vel.y, pitch: Math.asin(clamp(fwd.y, -1, 1)), bank: Math.atan2(-rt.y, Math.hypot(rt.x, rt.z)) * (new V3(0, 1, 0).applyQuaternion(P.q).y < 0 ? -1 : 1) + (new V3(0, 1, 0).applyQuaternion(P.q).y < 0 ? Math.PI * Math.sign(-rt.y || 1) : 0), hdg: Math.atan2(fwd.x, -fwd.z), thr: P.thr, onGround: P.onGround, stall: P.stall, ring: G.ring, why: G.crashWhy, g: P.g }; },
   frame() { syncVisuals(1 / 60); updateCamera(1); if (G.mode !== 'build') updateHUD(1 / 60); renderer.render(scene, camera); }
 };
