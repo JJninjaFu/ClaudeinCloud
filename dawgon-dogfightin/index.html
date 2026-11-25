@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no">
 <title>DawgOn Dogfightin!</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -9,9 +9,11 @@
   --f-display:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;--f-body:'IBM Plex Sans Condensed',system-ui,sans-serif;--f-mono:'IBM Plex Mono',ui-monospace,monospace;color-scheme:dark}
 [hidden]{display:none!important}
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;overflow:hidden;background:#8fb4d6;color:var(--ink);font-family:var(--f-body);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+html,body{height:100%;margin:0;overflow:hidden;background:#8fb4d6;color:var(--ink);font-family:var(--f-body);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;touch-action:manipulation;-webkit-text-size-adjust:100%}
 #c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
-button,select,input{font:inherit;color:inherit}
+button,select,input,textarea{font:inherit;color:inherit}
+/* iPhone Safari zooms the whole page when you tap a field with text under 16px, so keep them at 16 */
+select,input[type=text],textarea{font-size:16px!important}
 button{cursor:pointer;border:0;background:#3a3733;border-radius:6px;padding:8px 12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-size:13px}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
 button.big{background:var(--yellow);color:#1d1c1a;font-family:var(--f-display);font-weight:900;font-size:26px;padding:8px 22px;letter-spacing:.03em}
@@ -925,6 +927,8 @@ function resize() {
   camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
+// iPhone: no pinch page zoom (the game areas block the pinch that would undo it); double-tap zoom is off via touch-action
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
 
 /* ================= main loop ================= */
 function syncVisuals(dt) {
