@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no">
 <title>DawgOn Dogfightin!</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -9,9 +9,11 @@
   --f-display:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;--f-body:'IBM Plex Sans Condensed',system-ui,sans-serif;--f-mono:'IBM Plex Mono',ui-monospace,monospace;color-scheme:dark}
 [hidden]{display:none!important}
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;overflow:hidden;background:#8fb4d6;color:var(--ink);font-family:var(--f-body);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+html,body{height:100%;margin:0;overflow:hidden;background:#8fb4d6;color:var(--ink);font-family:var(--f-body);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;touch-action:manipulation;-webkit-text-size-adjust:100%}
 #c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
-button,select,input{font:inherit;color:inherit}
+button,select,input,textarea{font:inherit;color:inherit}
+/* iPhone Safari zooms the whole page when you tap a field with text under 16px, so keep them at 16 */
+select,input[type=text],textarea{font-size:16px!important}
 button{cursor:pointer;border:0;background:#3a3733;border-radius:6px;padding:8px 12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-size:13px}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
 button.big{background:var(--yellow);color:#1d1c1a;font-family:var(--f-display);font-weight:900;font-size:26px;padding:8px 22px;letter-spacing:.03em}
@@ -75,7 +77,15 @@ select,input[type=text],textarea{background:#1d1c1a;border:1px solid var(--line)
 .tbtn.down{background:var(--yellow);color:#1d1c1a}
 #rudL{right:calc(166px + env(safe-area-inset-right));bottom:calc(22px + env(safe-area-inset-bottom))}
 #rudR{right:calc(88px + env(safe-area-inset-right));bottom:calc(22px + env(safe-area-inset-bottom))}
-#brk{right:calc(88px + env(safe-area-inset-right));bottom:calc(90px + env(safe-area-inset-bottom));width:148px}
+#brk{right:calc(88px + env(safe-area-inset-right));bottom:calc(90px + env(safe-area-inset-bottom));width:148px;height:44px}
+#fireB{right:calc(88px + env(safe-area-inset-right));bottom:calc(144px + env(safe-area-inset-bottom));width:148px;height:74px;background:rgba(232,64,47,.82);font-family:var(--f-display);font-weight:900;font-size:26px;letter-spacing:.06em}
+#sight{position:absolute;width:28px;height:28px;margin:-14px;border:2px solid rgba(243,239,230,.9);border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+#sight:after{content:'';position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;background:#f3efe6;border-radius:50%}
+#sight.hit{border-color:var(--red);box-shadow:0 0 0 3px rgba(232,64,47,.5)}
+.foe{position:absolute;width:34px;height:34px;margin:-17px;border:2px solid var(--red);box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+.foe.off{background:var(--red);border-color:#1d1c1a;width:24px;height:24px;margin:-12px;border-radius:4px}
+.foe b{position:absolute;left:50%;top:100%;margin-top:3px;transform:translateX(-50%);font-family:var(--f-mono);font-size:11px;white-space:nowrap;text-shadow:0 1px 3px #000;color:#ffd0c8}
+#lead{position:absolute;width:14px;height:14px;margin:-7px;border:2px solid var(--yellow);transform:rotate(45deg);box-shadow:0 0 0 1px rgba(0,0,0,.4)}
 
 .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(18,17,15,.6);overflow:auto;z-index:5}
 .card{background:var(--panel-solid);border-radius:10px;padding:18px 20px;max-width:520px;width:100%;border-top:5px solid var(--yellow);max-height:100%;overflow:auto}
@@ -94,10 +104,15 @@ select,input[type=text],textarea{background:#1d1c1a;border:1px solid var(--line)
     <span>SPEED</span><b id="hSpd">0 mph</b>
     <span>ALT</span><b id="hAlt">0 ft</b>
     <span>CLIMB</span><b id="hVs">0</b>
+    <span class="cmb">AMMO</span><b class="cmb" id="hAmmo">0</b>
+    <span class="cmb">HULL</span><b class="cmb" id="hHull">100%</b>
   </div>
   <div id="center"><div id="hRing"></div><div id="hMsg"></div><div id="hSub"></div></div>
   <div id="hStall" hidden>STALL</div>
   <div id="ringMark" hidden><b></b></div>
+  <div class="foe" hidden><b></b></div><div class="foe" hidden><b></b></div><div class="foe" hidden><b></b></div>
+  <div id="lead" hidden></div>
+  <div id="sight" hidden></div>
   <div id="topBtns">
     <button id="tAssist" title="Flight assist (T)">Assist</button>
     <button id="tTilt" title="Steer by tilting the phone">Tilt</button>
@@ -112,6 +127,7 @@ select,input[type=text],textarea{background:#1d1c1a;border:1px solid var(--line)
     <button class="tbtn" id="rudL">◄ Rud</button>
     <button class="tbtn" id="rudR">Rud ►</button>
     <button class="tbtn" id="brk">Brake</button>
+    <button class="tbtn" id="fireB">Fire</button>
   </div>
 </div>
 
@@ -125,6 +141,8 @@ select,input[type=text],textarea{background:#1d1c1a;border:1px solid var(--line)
     <span class="legend"><i style="background:#f5b800"></i>weight<i style="background:#59b0ff"></i>lift</span></div>
   <div id="bWarn"></div>
   <div id="bStats"></div>
+  <div class="row"><select id="bFoes" aria-label="Opponents"><option value="0">No bandits (free flight)</option><option value="1">Fight 1 bandit</option><option value="2">Fight 2 bandits</option><option value="3">Fight 3 bandits</option></select>
+    <select id="bFoeType" aria-label="Their plane"><option value="mine">in my plane</option><option value="Fighter">in Fighters</option><option value="Jet">in Jets</option><option value="Biplane">in Biplanes</option><option value="Trainer">in Trainers</option><option value="Flying Wing">in Flying Wings</option></select></div>
   <div class="row"><select id="bStart" aria-label="Where to start"><option value="runway">Start on the runway</option><option value="air">Start in the air (3,000 ft)</option></select><button id="bFly" class="big">Fly</button></div>
 </div>
 
@@ -134,10 +152,11 @@ select,input[type=text],textarea{background:#1d1c1a;border:1px solid var(--line)
   <ul>
     <li><b>Balance:</b> the yellow ball is the weight, the blue ball is the lift. Keep yellow a little <b>ahead</b> of blue. Slide the wing back and forth to fix it.</li>
     <li><b>Phone:</b> left thumb is the stick (pull down to raise the nose). Slide the THR bar for power. Rud buttons steer on the ground. Tilt turns on tilt steering.</li>
-    <li><b>Keys:</b> arrows = stick (down arrow raises the nose) · W/S throttle · A/D rudder · Space brake · C camera · T assist · R restart · B hangar</li>
-    <li><b>Controller:</b> left stick · right stick rudder · RT/LT throttle · A brake · Y camera · X assist · B restart · Start hangar</li>
+    <li><b>Keys:</b> arrows = stick (down arrow raises the nose) · W/S throttle · A/D rudder · Space fire · X brake · C camera · T assist · R restart · B hangar</li>
+    <li><b>Controller:</b> left stick · right stick rudder · RT/LT throttle · RB fire · A brake · Y camera · X assist · B restart · Start hangar</li>
     <li><b>Take off:</b> full throttle, wait for speed, ease the nose up. <b>Assist</b> steadies the plane and stops most stalls; turn it off for raw controls.</li>
-    <li>Fly through the yellow rings for a lap time. Land back on the runway if you can.</li>
+    <li><b>Dogfight:</b> add guns in the hangar, pick how many bandits to fight, and press Fly. Put the circle on the yellow diamond and fire. Wings can be shot off, engines can be knocked out. Bandits leave you alone until you are off the ground.</li>
+    <li>With no bandits, fly through the yellow rings for a lap time. Land back on the runway if you can.</li>
   </ul>
   <div class="row"><button class="big" id="helpOk">Got it</button></div>
 </div></div>
@@ -324,6 +343,7 @@ const PRESETS = {
     { k: 'wing', nm: 'Tail', pos: .92, yoff: .2, span: 2.9, chord: .9, taper: .7, sweep: 5, dih: 0, ctrl: 'pitch' },
     { k: 'fin', nm: 'Fin', pos: .9, span: 1.2, chord: 1.1, taper: .5, sweep: 20, twin: false, ctrl: 'yaw' }] }
 };
+const PGUNS = { Trainer: 2, Fighter: 4, Glider: 0, Jet: 4, 'Flying Wing': 2, Biplane: 2 }; for (const k in PGUNS) PRESETS[k].guns = PGUNS[k];
 const RANGE = {
   body: { len: [4, 14, .1], wid: [.8, 2, .05] }, eng: { hp: [60, 2000, 10], kn: [3, 36, .5] },
   wing: { pos: [.05, .98, .01], yoff: [-1, 2.4, .05], span: [1.5, 22, .1], chord: [.4, 4, .05], taper: [.2, 1, .05], sweep: [-20, 55, 1], dih: [-10, 60, 1] },
@@ -335,7 +355,7 @@ function sanitize(d) {
   d = d || {}; const db = d.body || {}, de = d.eng || {};
   o.body.len = num(db.len, RANGE.body.len, b.body.len); o.body.wid = num(db.wid, RANGE.body.wid, b.body.wid);
   o.eng.type = ['none', 'prop', 'jet'].includes(de.type) ? de.type : 'prop';
-  o.eng.hp = num(de.hp, RANGE.eng.hp, 180); o.eng.kn = num(de.kn, RANGE.eng.kn, 10);
+  o.eng.hp = num(de.hp, RANGE.eng.hp, 180); o.eng.kn = num(de.kn, RANGE.eng.kn, 10); o.guns = Math.round(num(d.guns, [0, 6], 2));
   const hex = /^#[0-9a-f]{6}$/i; o.col = [0, 1].map(i => d.col && hex.test(d.col[i]) ? d.col[i] : b.col[i]);
   for (const s of (Array.isArray(d.surfs) ? d.surfs : []).slice(0, 6)) {
     if (!s) continue; const fin = s.k === 'fin', R = fin ? RANGE.fin : RANGE.wing, n = { k: fin ? 'fin' : 'wing', nm: String(s.nm || (fin ? 'Fin' : 'Wing')).slice(0, 12) };
@@ -367,10 +387,11 @@ function buildSpec(d) {
   add(110, 0, .1, .36 * L, .5, .9, 1.2);
   const eng = { type: d.eng.type, T0: 0, P: 0, D: 0 };
   if (eng.type === 'prop') {
-    const hp = d.eng.hp; eng.P = hp * 745.7; eng.D = 1.6 + .0011 * hp;
+    const hp = d.eng.hp; eng.P = hp * 745.7; eng.D = 1.5 + .0008 * hp;
     eng.T0 = .72 * Math.cbrt(eng.P * eng.P * 2 * RHO0 * Math.PI * eng.D * eng.D / 4);
     add(40 + .5 * hp, 0, 0, .13 * L, .8, .8, 1.2); add(.22 * hp, 0, 0, .4 * L, 1, .4, 1);
   } else if (eng.type === 'jet') { const kn = d.eng.kn; eng.T0 = kn * 1000; add(120 + 20 * kn, 0, 0, .74 * L, .8, .8, 2); add(28 * kn, 0, 0, .45 * L, 1, .5, 2); }
+  const ng = d.guns | 0; if (ng) add(45 * ng, 0, 0, .34 * L, 2, .2, 1);
   const halves = []; let maxSpan = 0;
   for (const sf of d.surfs) {
     const fin = sf.k === 'fin', hb = fin ? sf.span : sf.span / 2, S = hb * sf.chord * (1 + sf.taper) / 2;
@@ -384,7 +405,7 @@ function buildSpec(d) {
       const n = fin ? [1, 0, 0] : [-side * Math.sin(dih), Math.cos(dih), 0];
       const pt = (s, cf) => { const c = sf.chord * (1 - (1 - sf.taper) * s / hb), z = z0 + s * tanS + (cf - .25) * c; return fin ? [side, yb + s, z] : [side * s * Math.cos(dih), yb + s * Math.sin(dih), z]; };
       const cm = pt(sc, .4); add((fin ? 12 : 14) * S, cm[0], cm[1], cm[2], fin ? .1 : hb, fin ? hb : .1, csc);
-      halves.push({ sf, fin, side, hb, S, AR, n, pt, dih });
+      halves.push({ i: halves.length, sf, fin, side, hb, S, AR, n, pt, dih });
     }
   }
   let m = 0, cx = 0, cy = 0, cz = 0;
@@ -402,7 +423,7 @@ function buildSpec(d) {
   // lifting panels
   const panels = [], auth = [0, 0, 0];
   let rollN = 0, rollD = 0;
-  let npN = 0, npD = 0, yawN = 0, wingS = 0, clS = 0, cd0S = 0, aMain = 15 * DEG, bigS = 0;
+  let npN = 0, npD = 0, yawN = 0, wingS = 0, clS = 0, cd0S = 0, aMain = 15 * DEG, bigS = 0, mainSf = null;
   for (const h of halves) {
     const K = h.fin ? 2 : 3, a = 2 * Math.PI * h.AR / (h.AR + 2), as = (15 + 10 * clamp((4 - h.AR) / 3, 0, 1)) * DEG;
     const inc = h.fin || h.sf.ctrl === 'pitch' || h.sf.ctrl === 'vtail' ? 0 : 2 * DEG;
@@ -411,14 +432,14 @@ function buildSpec(d) {
     for (let i = 0; i < K; i++) {
       const s0 = h.hb * i / K, s1 = h.hb * (i + 1) / K, sm = (s0 + s1) / 2, c = h.sf.chord * (1 - (1 - h.sf.taper) * sm / h.hb), Sp = c * (s1 - s0), q = h.pt(sm, .25);
       const r = [q[0] - cg[0], q[1] - cg[1], q[2] - cg[2]];
-      const p = { r, n, f, s, S: Sp, a, as, inc, cd0: .009, ki: 1 / (Math.PI * h.AR * .8), fk: 1, fd: 1.8, cs: null, wing: !h.fin };
+      const p = { r, n, f, s, S: Sp, a, as, inc, cd0: .009, ki: 1 / (Math.PI * h.AR * .8), fk: 1, fd: 1.8, cs: null, wing: !h.fin, hi: h.i };
       tau[0] += Sp * (r[1] * n[2] - r[2] * n[1]); tau[1] += Sp * (r[2] * n[0] - r[0] * n[2]); tau[2] += Sp * (r[0] * n[1] - r[1] * n[0]);
       panels.push(p); mine.push(p); rollD += a * Sp * n[1] * n[1] * r[0] * r[0];
       npN += a * Sp * n[1] * n[1] * q[2]; npD += a * Sp * n[1] * n[1]; yawN += a * Sp * n[0] * n[0] * r[2];
       cd0S += .009 * Sp;
       if (!h.fin) { wingS += Sp * n[1] * n[1]; clS += Sp * n[1] * n[1] * Math.min(1.5, a * (as + inc)); }
     }
-    if (!h.fin && h.S > bigS) { bigS = h.S; aMain = as; }
+    if (!h.fin && h.S > bigS) { bigS = h.S; aMain = as; mainSf = h.sf; }
     const ax = CTRL[h.sf.ctrl] || CTRL.none, eps = h.S * .02;
     h.cs = [ax[0] * sgn(tau[0], eps), ax[1] * sgn(-tau[2], eps), ax[2] * sgn(-tau[1], eps)];
     h.ctrl = !!(h.cs[0] || h.cs[1] || h.cs[2]);
@@ -434,7 +455,7 @@ function buildSpec(d) {
   // the body itself: a little lift and a lot of sideways drag
   const fa = (S, nrm, zf) => {
     const AR = (nrm[1] ? W : Hh) / (.7 * L), a = 2 * Math.PI * AR / (AR + 2), q = [0, 0, zf * L];
-    panels.push({ r: [0, -cg[1], q[2] - cg[2]], n: nrm, f: [0, 0, -1], s: nrm[1] ? [-1, 0, 0] : [0, 1, 0], S, a, as: 20 * DEG, inc: 0, cd0: 0, ki: .3, fk: .35, fd: .8, cs: null, wing: false });
+    panels.push({ r: [0, -cg[1], q[2] - cg[2]], n: nrm, f: [0, 0, -1], s: nrm[1] ? [-1, 0, 0] : [0, 1, 0], S, a, as: 20 * DEG, inc: 0, cd0: 0, ki: .3, fk: .35, fd: .8, cs: null, wing: false, hi: -1 });
     if (nrm[1]) { npN += a * S * q[2]; npD += a * S; } else yawN += a * S * (q[2] - cg[2]);
   };
   fa(.7 * L * W, [0, 1, 0], .36); fa(.7 * L * Hh, [1, 0, 0], .38);
@@ -447,13 +468,18 @@ function buildSpec(d) {
     { wheel: true, brake: true, r: rel([mainX, gy, mainZ]) }, { wheel: true, brake: true, r: rel([-mainX, gy, mainZ]) }, { wheel: true, steer: true, r: rel([0, gy, noseZ]) },
     { name: 'The nose', hard: true, r: rel([0, 0, 0]) }, { name: 'The tail', r: rel([0, pf.yc(1), L]) }, { name: 'The belly', r: rel([0, -Hh / 2, .45 * L]) }, { name: 'The roof', hard: true, r: rel([0, Hh / 2 + .35, .36 * L]) }
   ];
-  for (const h of halves) contacts.push({ name: h.fin ? 'A fin' : 'A wingtip', hard: true, r: rel(h.pt(h.hb, .4)) });
+  for (const h of halves) contacts.push({ name: h.fin ? 'A fin' : 'A wingtip', hard: true, r: rel(h.pt(h.hb, .4)), hi: h.i });
+  // what bullets can hit: a capsule along the body and one along each wing half or fin
+  for (const h of halves) { h.a = rel(h.pt(0, .4)); h.b = rel(h.pt(h.hb, .4)); h.rad = Math.max(.4, h.sf.chord * (1 + h.sf.taper) / 4 * .9); h.hp0 = 18 + h.S * 6; }
+  const hitBody = { a: rel([0, 0, .04 * L]), b: rel([0, pf.yc(1) * .5, .96 * L]), rad: W * .62 };
+  const gunPts = [];
+  for (let i = 0; i < ng; i++) { const side = i % 2 ? -1 : 1, h = halves.find(h => !h.fin && h.sf === mainSf && h.side === side); gunPts.push(rel(h ? h.pt(Math.min(h.hb * .85, W / 2 + .7 + (i >> 1) * .5), 0) : [side * W * .3, 0, .1 * L])); }
   const np = npD > 0 ? npN / npD : cg[2], mac = wingS > 0 && maxSpan > 0 ? wingS / maxSpan : 1;
   const thrustAt = (V, thr) => eng.type === 'prop' ? thr * Math.min(eng.T0, .82 * eng.P / Math.max(V, 1)) : eng.type === 'jet' ? thr * eng.T0 : 0;
   const vs = clS > 0 ? Math.sqrt(2 * m * G0 / (RHO0 * clS)) : 999;
   let vmax = 0;
   if (eng.T0 > 0 && wingS > 0) for (let V = 12; V < 520; V += 2) { const q = .5 * RHO0 * V * V, D = q * (cda + cd0S) + (m * G0) * (m * G0) / (q * Math.PI * Math.max(1, maxSpan * maxSpan) * .8); if (thrustAt(V, 1) >= D) vmax = V; }
-  return { d, pf, m, cg, I, panels, halves, auth, eng, cda, gearCda, contacts, wr, gy, mainX, mainZ, noseZ, thrustAt, aLim: aMain - 3 * DEG, rollPow: rollD > 0 ? rollN / rollD : 0, qRef: .5 * RHO0 * 6.25 * vs * vs,
+  return { d, pf, m, cg, I, ng, gunPts, hitBody, hpBody: 60 + m / 25, panels, halves, auth, eng, cda, gearCda, contacts, wr, gy, mainX, mainZ, noseZ, thrustAt, aLim: aMain - 3 * DEG, rollPow: rollD > 0 ? rollN / rollD : 0, qRef: .5 * RHO0 * 6.25 * vs * vs,
     restY: -(gy - cg[1]) - .07, size: Math.max(L, maxSpan), span: maxSpan,
     stats: { m, wingS, vs, vmax, tw: eng.T0 / (m * G0), np, margin: (np - cg[2]) / mac, yawStab: yawN / Math.max(1, wingS * Math.max(1, maxSpan)), auth } };
 }
@@ -475,12 +501,14 @@ function loft(pt, n, hb, sf, st) { // st: [[chordFraction, thicknessScale], ...]
   g = g.toNonIndexed(); g.computeVertexNormals(); return g;
 }
 const plane = new THREE.Group(); scene.add(plane);
-let SPEC = null, D = null, flaps = [], propObj = null, propDisc = null, jetGlow = null, gearGrp = null, cgBall = null, npBall = null;
+let SPEC = null, D = null;
 function disposeTree(o) { o.traverse(c => { if (c.geometry) c.geometry.dispose(); if (c.material) c.material.dispose(); }); }
-function rebuildPlane() {
+function rebuildPlane() { ME.sp = SPEC; ME.v = buildMesh(plane, SPEC, true); resetDamage(ME); }
+// Builds a plane's model into a group. Used for your plane and for every bandit.
+function buildMesh(plane, sp, balls) {
   while (plane.children.length) { const c = plane.children[0]; plane.remove(c); disposeTree(c); }
-  flaps = []; propObj = propDisc = jetGlow = null;
-  const sp = SPEC, d = sp.d, pf = sp.pf, { L, W, Hh } = pf, cg = sp.cg;
+  const flaps = [], halfObjs = sp.halves.map(() => []); let propObj = null, propDisc = null, jetGlow = null, gearGrp = null, cgBall = null, npBall = null;
+  const d = sp.d, pf = sp.pf, { L, W, Hh } = pf, cg = sp.cg;
   const root = new THREE.Group(); root.position.set(-cg[0], -cg[1], -cg[2]); plane.add(root);
   const mBody = new THREE.MeshPhongMaterial({ color: d.col[0], shininess: 35 });
   const mWing = new THREE.MeshPhongMaterial({ color: d.col[1], shininess: 25, flatShading: true, side: THREE.DoubleSide });
@@ -497,7 +525,7 @@ function rebuildPlane() {
   }
   for (const h of sp.halves) {
     const sf = h.sf, full = [[0, .25], [.3, 1], [1, .1]], front = [[0, .25], [.3, 1], [.72, .5]], back = [[.72, .5], [1, .1]];
-    root.add(new THREE.Mesh(loft(h.pt, h.n, h.hb, sf, h.ctrl ? front : full), mWing));
+    const wm = new THREE.Mesh(loft(h.pt, h.n, h.hb, sf, h.ctrl ? front : full), mWing); root.add(wm); halfObjs[h.i].push(wm);
     if (h.ctrl) {
       const a = h.pt(0, .72), b = h.pt(h.hb, .72), n = new V3(h.n[0], h.n[1], h.n[2]);
       let hx = new V3(b[0] - a[0], b[1] - a[1], b[2] - a[2]).normalize(), hz = new V3().crossVectors(hx, n);
@@ -505,11 +533,11 @@ function rebuildPlane() {
       const ny = new V3().crossVectors(hz, hx), mtx = new THREE.Matrix4().makeBasis(hx, ny, hz), inv = mtx.clone().transpose();
       const g = loft((s, cf) => { const p = h.pt(s, cf); return [p[0] - a[0], p[1] - a[1], p[2] - a[2]]; }, h.n, h.hb, sf, back); g.applyMatrix4(inv); g.computeVertexNormals();
       const piv = new THREE.Group(); piv.position.set(a[0], a[1], a[2]); piv.quaternion.setFromRotationMatrix(mtx);
-      const fl = new THREE.Mesh(g, mFlap); piv.add(fl); root.add(piv); flaps.push({ mesh: fl, cs: h.cs });
+      const fl = new THREE.Mesh(g, mFlap); piv.add(fl); root.add(piv); flaps.push({ mesh: fl, cs: h.cs }); halfObjs[h.i].push(piv);
     }
     if (!h.fin && Math.abs(sf.yoff) > 1.05) { // struts for wings mounted off the body
       const y0 = h.pt(0, .4)[1], zz = h.pt(0, .4)[2], st = new THREE.Mesh(new THREE.BoxGeometry(.06, Math.abs(y0) - Hh * .3, .16), mDark);
-      st.position.set(h.side * W * .4, y0 / 2 + Math.sign(y0) * Hh * .15, zz); root.add(st);
+      st.position.set(h.side * W * .4, y0 / 2 + Math.sign(y0) * Hh * .15, zz); root.add(st); halfObjs[h.i].push(st);
     }
   }
   if (sp.eng.type === 'prop') {
@@ -529,13 +557,24 @@ function rebuildPlane() {
     st.position.set(w[0] * .775, sp.gy + sp.wr + len / 2, w[1]); st.rotation.z = Math.atan2(w[0] * .45, len); gearGrp.add(st);
   }
   const ball = (c, z) => { const b = new THREE.Mesh(new THREE.SphereGeometry(.22 + sp.size * .012, 12, 8), new THREE.MeshBasicMaterial({ color: c, depthTest: false, transparent: true })); b.renderOrder = 9; b.position.set(0, 0, z); plane.add(b); return b; };
-  cgBall = ball(0xf5b800, 0); npBall = ball(0x59b0ff, sp.stats.np - cg[2]);
+  for (const g of sp.gunPts) { const b = new THREE.Mesh(new THREE.BoxGeometry(.08, .08, 1), mDark); b.position.set(g[0], g[1], g[2] - .25); plane.add(b); }
+  if (balls) { cgBall = ball(0xf5b800, 0); npBall = ball(0x59b0ff, sp.stats.np - cg[2]); }
+  return { flaps, halfObjs, propObj, propDisc, jetGlow, gearGrp, cgBall, npBall };
 }
 
 /* ================= flight state ================= */
-const O = Object.assign({ assist: true, tilt: false, cam: 0, start: 'runway' }, store.get('bnd-opts', {})); O.tilt = false;
-const G = { mode: 'build', t: 0, ring: 0, ringT: 0, ringOn: false, msgT: 0, crashWhy: '' };
-const P = { pos: new V3(), vel: new V3(), q: new Q4(), w: new V3(), thr: 0, thrEff: 0, cmd: { p: 0, r: 0, y: 0 }, cmdT: { p: 0, r: 0, y: 0 }, iP: 0, gear: 1, onGround: true, airT: 0, flown: false, stall: 0, vsTouch: 0, g: 1, landed: false };
+const O = Object.assign({ assist: true, tilt: false, cam: 0, start: 'runway', foes: 0, foeType: 'Fighter' }, store.get('bnd-opts', {})); O.tilt = false;
+const G = { mode: 'build', t: 0, ring: 0, ringT: 0, ringOn: false, msgT: 0, crashWhy: '', fight: false, won: false, kills: 0, hitT: 0 };
+const newState = () => ({ pos: new V3(), vel: new V3(), q: new Q4(), w: new V3(), thr: 0, thrEff: 0, cmd: { p: 0, r: 0, y: 0 }, cmdT: { p: 0, r: 0, y: 0 }, iP: 0, gear: 1, onGround: true, airT: 0, flown: false, stall: 0, vsTouch: 0, g: 1, landed: false });
+const newAI = i => ({ t: i * 7.3, ph: i * 2.1, jt: 0, jdir: 1, avoid: 0, hold: false, pb: null, lr: 0 });
+// A craft is one plane in the world: its state, its spec, its model and its damage. ME is yours.
+const P = newState();
+const ME = { st: P, sp: null, v: null, grp: plane, me: true, assist: true, ai: newAI(0), crash: why => crash(why) };
+function resetDamage(C) {
+  const sp = C.sp; C.hp = { body: sp.hpBody, eng: 45, half: sp.halves.map(h => h.hp0) }; C.lost = []; C.panels = sp.panels; C.contacts = sp.contacts;
+  C.engOK = 1; C.ammo = sp.ng * 300; C.fireT = 0; C.smokeT = 0; C.dead = false; C.lastBy = null;
+  if (C.v) for (const a of C.v.halfObjs) for (const o of a) o.visible = true;
+}
 const SPAWN = new V3(0, 0, 540);
 const t1 = new V3(), t2 = new V3(), t3 = new V3(), qi = new Q4(), dq = new Q4(), Fw = new V3(), Tb = new V3(), vb = new V3();
 
@@ -544,27 +583,27 @@ function resetFlight() {
   P.q.set(0, 0, 0, 1); P.w.set(0, 0, 0); P.cmd.p = P.cmd.r = P.cmd.y = 0; P.iP = 0; P.stall = 0; P.airT = 0; P.landed = false;
   if (air) { const v = clamp(Math.max(SPEC.stats.vs * 1.5, 34), 30, 160); P.pos.set(0, 914, 2700); P.vel.set(0, 0, -v); P.thr = SPEC.eng.T0 > 0 ? .7 : 0; P.gear = 0; P.onGround = false; P.flown = true; }
   else { P.pos.set(SPAWN.x, SPEC.restY, SPAWN.z); P.vel.set(0, 0, 0); P.thr = 0; P.gear = 1; P.onGround = true; P.flown = false; }
-  P.thrEff = P.thr; G.crashWhy = ''; G.ring = 0; G.ringT = 0; G.ringOn = false; G.t = 0;
+  P.thrEff = P.thr; resetDamage(ME); bullets.length = 0; G.fight = (O.foes | 0) > 0; G.won = false; G.kills = 0; spawnBots(); G.crashWhy = ''; G.ring = 0; G.ringT = 0; G.ringOn = false; G.t = 0;
   camDir.set(0, 0, -1); updateRings();
 }
 function crash(why) {
   if (G.mode !== 'fly') return;
-  G.mode = 'crashed'; G.crashWhy = why; boom.t = 0; boom.mesh.position.copy(P.pos); boom.mesh.visible = true; plane.visible = false; Sound.boom();
+  G.mode = 'crashed'; ME.dead = true; G.crashWhy = why; boom.t = 0; boom.mesh.position.copy(P.pos); boom.mesh.visible = true; plane.visible = false; Sound.boom();
   $('crashS').textContent = why; setTimeout(() => { if (G.mode === 'crashed') $('crash').hidden = false; }, API.fast ? 0 : 900);
 }
 const boom = { t: 9, mesh: new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true })) };
 boom.mesh.visible = false; scene.add(boom.mesh);
 
 // One physics step. Body axes: +x right, +y up, -z forward.
-function physStep(dt, inp) {
-  const sp = SPEC, m = sp.m, I = sp.I;
+function physStep(C, dt, inp) {
+  const sp = C.sp, P = C.st, m = sp.m, I = sp.I;
   P.thr = clamp(inp.thrAbs != null ? inp.thrAbs : P.thr + (inp.thrUp || 0) * .7 * dt, 0, 1);
   P.thrEff += (P.thr - P.thrEff) * Math.min(1, dt * (sp.eng.type === 'jet' ? 1.2 : 4));
   qi.copy(P.q).invert(); vb.copy(P.vel).applyQuaternion(qi);
   const V = P.vel.length(), rho = RHO0 * Math.exp(-Math.max(0, P.pos.y) / 9000), qd = .5 * rho * V * V;
   // assist or raw stick
   const c = P.cmdT;
-  if (!O.assist || P.onGround || V < 9) { const kq = Math.min(1, sp.qRef / (qd + 1)); c.p = inp.pitch * kq; c.r = inp.roll * kq; c.y = inp.yaw * kq; P.iP *= .98; } // stick gets heavy at speed
+  if (!C.assist || P.onGround || V < 9) { const kq = Math.min(1, sp.qRef / (qd + 1)); c.p = inp.pitch * kq; c.r = inp.roll * kq; c.y = inp.yaw * kq; P.iP *= .98; } // stick gets heavy at speed
   else {
     const al = Math.atan2(-vb.y, -vb.z), be = Math.atan2(vb.x, -vb.z), A = sp.auth;
     const kR = clamp(5 * I[2] / (qd * A[1] + 1e-6), .03, 3), kP = clamp(6 * I[0] / (qd * A[0] + 1e-6), .05, 4);
@@ -578,7 +617,7 @@ function physStep(dt, inp) {
 
   let fx = 0, fy = 0, fz = 0, tx = 0, ty = 0, tz = 0, stS = 0, stW = 0;
   const wx = P.w.x, wy = P.w.y, wz = P.w.z;
-  for (const p of sp.panels) {
+  for (const p of C.panels) {
     const rx = p.r[0], ry = p.r[1], rz = p.r[2], n = p.n, f = p.f, s = p.s;
     let vx = vb.x + wy * rz - wz * ry, vy = vb.y + wz * rx - wx * rz, vz = vb.z + wx * ry - wy * rx;
     const vs = vx * s[0] + vy * s[1] + vz * s[2]; vx -= vs * s[0]; vy -= vs * s[1]; vz -= vs * s[2];
@@ -597,7 +636,7 @@ function physStep(dt, inp) {
   P.stall = stS > 0 ? stW / stS : 0;
   const vbl = vb.length(), kd = .5 * rho * vbl * (sp.cda + sp.gearCda * P.gear);
   fx -= kd * vb.x; fy -= kd * vb.y; fz -= kd * vb.z;
-  const T = sp.thrustAt(Math.max(0, -vb.z), .03 + .97 * P.thrEff) * (rho / RHO0);
+  const T = sp.thrustAt(Math.max(0, -vb.z), .03 + .97 * P.thrEff) * (rho / RHO0) * C.engOK;
   fz -= T; tx += sp.cg[1] * T; // thrust line sits at y = 0 of the design, the balance point a little off it
   const aeroY = fy;
   Fw.set(fx, fy, fz).applyQuaternion(P.q); Fw.y -= m * G0; Tb.set(tx, ty, tz);
@@ -605,16 +644,16 @@ function physStep(dt, inp) {
   // ground
   let wheels = 0;
   const gearOK = P.gear > .9;
-  for (const cp of sp.contacts) {
+  for (const cp of C.contacts) {
     if (cp.wheel && !gearOK) continue;
     t1.set(cp.r[0], cp.r[1], cp.r[2]); t2.copy(t1).applyQuaternion(P.q);
     const px = P.pos.x + t2.x, py = P.pos.y + t2.y, pz = P.pos.z + t2.z, gh = groundH(px, pz);
-    if (py < SEA && gh < SEA) { crash('Splashed down in the water.'); return; }
+    if (py < SEA && gh < SEA) { C.crash('Splashed down in the water.'); return; }
     const pen = gh - py; if (pen <= 0) continue;
     t3.crossVectors(P.w, t1).applyQuaternion(P.q).add(P.vel); // velocity of this point
     const vn = t3.y, vh = Math.hypot(t3.x, t3.z);
-    if (cp.wheel) { if (vn < -7.5) { crash('Hit the ground too hard (' + Math.round(-vn * FT * 60) + ' ft/min).'); return; } }
-    else if (vn < (cp.hard ? -4 : -5.5) || (cp.hard && vh > 24) || pen > 1.2) { crash(cp.name + ' hit the ground at ' + Math.round(V * MPH) + ' mph.'); return; }
+    if (cp.wheel) { if (vn < -7.5) { C.crash('Hit the ground too hard (' + Math.round(-vn * FT * 60) + ' ft/min).'); return; } }
+    else if (vn < (cp.hard ? -4 : -5.5) || (cp.hard && vh > 24) || pen > 1.2) { C.crash(cp.name + ' hit the ground at ' + Math.round(V * MPH) + ' mph.'); return; }
     const k = cp.wheel ? m * 40 : m * 150, cdm = cp.wheel ? m * 6 : m * 12, N = Math.max(0, k * pen - cdm * vn);
     let Fx2 = 0, Fz2 = 0;
     if (cp.wheel) {
@@ -623,14 +662,14 @@ function physStep(dt, inp) {
       t1.set(Math.sin(st), 0, -Math.cos(st)).applyQuaternion(P.q); t1.y = 0; t1.normalize(); // wheel forward on the ground (yaw + is right, which is -y rotation)
       const sx = -t1.z, sz = t1.x, vl = t3.x * t1.x + t3.z * t1.z, vsd = t3.x * sx + t3.z * sz;
       const mu = (cp.brake && inp.brake ? .6 : 0) + (onRunway(px, pz) ? .025 : .07);
-      const fl = -clamp(vl * 4, -1, 1) * mu * N, fs = -clamp(vsd * 3, -1, 1) * .9 * N;
+      const fl = -clamp(vl * 4, -1, 1) * mu * N, fs = -clamp(vsd * 3, -1, 1) * .6 * N; // low enough that a swerve slides instead of tipping the plane onto a wingtip
       Fx2 = t1.x * fl + sx * fs; Fz2 = t1.z * fl + sz * fs;
     } else if (vh > .01) { const fr = -Math.min(1, vh * 2) * .55 * N / vh; Fx2 = t3.x * fr; Fz2 = t3.z * fr; }
     Fw.x += Fx2; Fw.y += N; Fw.z += Fz2;
     t3.set(Fx2, N, Fz2).applyQuaternion(qi); t1.set(cp.r[0], cp.r[1], cp.r[2]); Tb.add(t1.cross(t3));
   }
   const was = P.onGround; P.onGround = wheels > 0;
-  if (P.onGround && !was && P.airT > 2) { P.vsTouch = -P.vel.y; toast('Touchdown', Math.round(P.vsTouch * FT * 60) + ' ft/min' + (P.vsTouch < 1.2 ? ', smooth' : P.vsTouch < 3 ? '' : ', firm'), 3); Sound.chirp(); }
+  if (C.me && P.onGround && !was && P.airT > 2) { P.vsTouch = -P.vel.y; toast('Touchdown', Math.round(P.vsTouch * FT * 60) + ' ft/min' + (P.vsTouch < 1.2 ? ', smooth' : P.vsTouch < 3 ? '' : ', firm'), 3); Sound.chirp(); }
   if (P.onGround) P.airT = 0; else { P.airT += dt; if (P.airT > 2) P.flown = true; }
 
   // integrate
@@ -646,12 +685,18 @@ function physStep(dt, inp) {
 }
 
 function flightTick(dt, inp) {
-  G.t += dt;
+  G.t += dt; ME.assist = O.assist;
+  const live = bots.filter(b => !b.dead);
+  if (API.auto) inp = brain(ME, live[0] || null, live.length > 0, dt);
+  for (const b of live) b.inp = brain(b, ME, P.flown, dt);
   const steps = Math.max(1, Math.ceil(dt / (1 / 240))), h = dt / steps;
-  for (let i = 0; i < steps && G.mode === 'fly'; i++) physStep(h, inp);
+  for (let i = 0; i < steps && G.mode === 'fly'; i++) { physStep(ME, h, inp); for (const b of live) if (!b.dead) physStep(b, h, b.inp); }
+  if (G.mode !== 'fly') return;
+  tryFire(ME, dt, inp.fire); for (const b of live) if (!b.dead) tryFire(b, dt, b.inp.fire);
+  stepBullets(dt); if (G.hitT > 0) G.hitT -= dt;
   if (G.mode !== 'fly') return;
   // rings
-  if (G.ring < RINGS.length) {
+  if (!G.fight && G.ring < RINGS.length) {
     if (!G.ringOn && !P.onGround) G.ringOn = true;
     if (G.ringOn) G.ringT += dt;
     if (P.pos.distanceTo(RINGS[G.ring]) < RING_R + 2) {
@@ -666,10 +711,139 @@ function flightTick(dt, inp) {
   if (P.flown && P.onGround && !P.landed && P.vel.length() < 1.5) { P.landed = true; toast('Landed', onRunway(P.pos.x, P.pos.z) ? 'On the runway. Nice.' : 'Off the runway, but it counts.', 4); }
   if (P.pos.y > 30 && Math.hypot(P.pos.x, P.pos.z) > 7500 && G.msgT <= 0) toast('Open sea', 'The island is behind you.', 3);
 }
-function updateRings() { ringMeshes.forEach((m, i) => { m.visible = i >= G.ring; m.material.color.setHex(i === G.ring ? 0xf5b800 : 0xff6b1a); m.material.opacity = i === G.ring ? .95 : .35; }); }
+
+/* ================= combat ================= */
+const BUL = { speed: 620, life: 1.5, dmg: 10, rate: 9, max: 500 };
+const bullets = [], bots = [];
+const trPos = new Float32Array(BUL.max * 6), trGeo = new THREE.BufferGeometry(); trGeo.setAttribute('position', new THREE.BufferAttribute(trPos, 3));
+const tracers = new THREE.LineSegments(trGeo, new THREE.LineBasicMaterial({ color: 0xffe27a })); tracers.frustumCulled = false; scene.add(tracers);
+// smoke, sparks and fireballs: one instanced ball mesh
+const PUFN = 220, puffMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 7, 5), new THREE.MeshBasicMaterial({ transparent: true, opacity: .8, depthWrite: false }), PUFN), puffs = [], pm4 = new THREE.Matrix4(), pq = new Q4(), psc = new V3(), pcol = new THREE.Color();
+puffMesh.frustumCulled = false; scene.add(puffMesh);
+for (let i = 0; i < PUFN; i++) { puffs.push({ p: new V3(), v: new V3(), age: 1, life: 0, s0: 0, s1: 0 }); puffMesh.setColorAt(i, pcol.setHex(0)); puffMesh.setMatrixAt(i, pm4.makeScale(0, 0, 0)); }
+let puffI = 0;
+function puff(p, vx, vy, vz, life, s0, s1, hex) { puffI = (puffI + 1) % PUFN; const o = puffs[puffI]; o.p.copy(p); o.v.set(vx, vy, vz); o.age = 0; o.life = life; o.s0 = s0; o.s1 = s1; puffMesh.setColorAt(puffI, pcol.setHex(hex)); puffMesh.instanceColor.needsUpdate = true; }
+function stepPuffs(dt) {
+  for (let i = 0; i < PUFN; i++) { const o = puffs[i]; let s = 0; if (o.age < o.life) { o.age += dt; o.p.addScaledVector(o.v, dt); const k = o.age / o.life; s = lerp(o.s0, o.s1, k) * (1 - k * k * k); } psc.set(s, s, s); puffMesh.setMatrixAt(i, pm4.compose(o.p, pq, psc)); }
+  puffMesh.instanceMatrix.needsUpdate = true;
+}
+function fireball(p, big) { for (let i = 0; i < (big ? 16 : 6); i++) puff(p, (Math.random() - .5) * 22, (Math.random() - .2) * 16, (Math.random() - .5) * 22, .7 + Math.random() * 1.3, big ? 3 : 1, big ? 13 : 5, i % 3 ? 0x2c2a28 : 0xff8a2a); }
+
+function tryFire(C, dt, want) {
+  C.fireT -= dt; if (!want || C.ammo <= 0 || C.fireT > 0 || C.dead) return;
+  C.fireT = 1 / BUL.rate; const S = C.st;
+  for (const g of C.sp.gunPts) {
+    if (C.ammo <= 0) break; C.ammo--; if (bullets.length >= BUL.max) bullets.shift();
+    const dir = new V3(-g[0], -g[1], -320 - g[2]).normalize(); dir.x += (Math.random() - .5) * .008; dir.y += (Math.random() - .5) * .008; // guns converge 1,050 ft out
+    bullets.push({ p: new V3(g[0], g[1], g[2]).applyQuaternion(S.q).add(S.pos), v: dir.applyQuaternion(S.q).multiplyScalar(BUL.speed).add(S.vel), life: BUL.life, by: C });
+  }
+  if (C.me) Sound.gun();
+}
+// squared distance between two segments (p1-q1, p2-q2), and how far along the second the closest point is
+const sA = new V3(), sB = new V3(), sR = new V3(), sC1 = new V3(), sC2 = new V3(); let segT = 0;
+function segDist2(p1, q1, p2, q2) {
+  sA.subVectors(q1, p1); sB.subVectors(q2, p2); sR.subVectors(p1, p2);
+  const a = sA.dot(sA), e = sB.dot(sB), f = sB.dot(sR); let s, t;
+  if (a < 1e-9 && e < 1e-9) { segT = 0; return sR.dot(sR); }
+  if (a < 1e-9) { s = 0; t = clamp(f / e, 0, 1); }
+  else { const c = sA.dot(sR); if (e < 1e-9) { t = 0; s = clamp(-c / a, 0, 1); } else { const b = sA.dot(sB), den = a * e - b * b; s = den > 1e-9 ? clamp((b * f - c * e) / den, 0, 1) : 0; t = (b * s + f) / e; if (t < 0) { t = 0; s = clamp(-c / a, 0, 1); } else if (t > 1) { t = 1; s = clamp((b - c) / a, 0, 1); } } }
+  segT = t; sC1.copy(p1).addScaledVector(sA, s); sC2.copy(p2).addScaledVector(sB, t); return sC1.distanceToSquared(sC2);
+}
+const b0 = new V3(), b1 = new V3(), c0 = new V3(), c1 = new V3(), bq = new Q4();
+function stepBullets(dt) {
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i]; b0.copy(b.p); b.p.addScaledVector(b.v, dt); b.v.y -= G0 * dt; b.life -= dt;
+    let gone = b.life <= 0;
+    if (!gone && b.p.y < Math.max(SEA, groundH(b.p.x, b.p.z))) { gone = true; puff(b.p, 0, 3, 0, .5, .6, 2.2, 0xb9a98a); }
+    if (!gone) for (let k = -1; k < bots.length && !gone; k++) {
+      const X = k < 0 ? ME : bots[k]; if (X === b.by || X.dead || (!X.me && !b.by.me)) continue; // bandits do not shoot each other
+      const reach = X.sp.size + BUL.speed * dt + 60 * dt; if (X.st.pos.distanceToSquared(b.p) > reach * reach) continue;
+      bq.copy(X.st.q).invert(); c0.copy(b0).sub(X.st.pos).applyQuaternion(bq); c1.copy(b.p).sub(X.st.pos).applyQuaternion(bq); // the shot, seen from the target plane
+      let zone = null, best = 1e9; const hb = X.sp.hitBody;
+      t1.set(hb.a[0], hb.a[1], hb.a[2]); t2.set(hb.b[0], hb.b[1], hb.b[2]);
+      let d2 = segDist2(c0, c1, t1, t2); if (d2 < hb.rad * hb.rad) { best = d2 / (hb.rad * hb.rad); const e = X.sp.eng.type; zone = (e === 'prop' && segT < .25) || (e === 'jet' && segT > .7) ? 'eng' : 'body'; }
+      for (const h of X.sp.halves) { if (X.lost[h.i]) continue; t1.set(h.a[0], h.a[1], h.a[2]); t2.set(h.b[0], h.b[1], h.b[2]); d2 = segDist2(c0, c1, t1, t2) / (h.rad * h.rad); if (d2 < 1 && d2 < best) { best = d2; zone = h.i; } }
+      if (zone != null) { gone = true; puff(b.p, X.st.vel.x, X.st.vel.y + 2, X.st.vel.z, .35, .5, 2.4, 0xffd24a); if (b.by.me) { G.hitT = .15; Sound.hit(); } damage(X, zone, BUL.dmg, b.by); }
+    }
+    if (gone) bullets.splice(i, 1);
+  }
+}
+function damage(X, zone, amt, by) {
+  if (X.dead || X.god) return; X.lastBy = by;
+  if (zone === 'eng') { X.hp.eng -= amt; X.hp.body -= amt * .3; if (X.hp.eng <= 0 && X.engOK) { X.engOK = 0; if (X.me) toast('Engine out', 'No power. Glide it down.', 4, '#e8402f'); } }
+  else if (zone === 'body') X.hp.body -= amt;
+  else { X.hp.half[zone] -= amt; if (X.hp.half[zone] <= 0 && !X.lost[zone]) loseHalf(X, zone); }
+  if (X.hp.body <= 0) X.crash(X.me ? 'Shot down by a bandit.' : 'shot');
+}
+function loseHalf(X, i) {
+  X.lost[i] = true; X.panels = X.sp.panels.filter(p => p.hi < 0 || !X.lost[p.hi]); X.contacts = X.sp.contacts.filter(c => c.hi == null || !X.lost[c.hi]);
+  for (const o of X.v.halfObjs[i]) o.visible = false; fireball(X.st.pos, false);
+  const h = X.sp.halves[i]; if (X.me) toast((h.fin ? 'Fin' : h.side > 0 ? 'Right ' + h.sf.nm.toLowerCase() : 'Left ' + h.sf.nm.toLowerCase()) + ' shot off', '', 3, '#e8402f');
+}
+function clearBots() { for (const b of bots) { scene.remove(b.grp); disposeTree(b.grp); } bots.length = 0; }
+// Bandits start miles out to the north, already flying, so nobody pops into view.
+function spawnBots() {
+  clearBots(); if (G.mode !== 'fly') return;
+  for (let i = 0; i < (O.foes | 0); i++) {
+    const d = sanitize(JSON.parse(JSON.stringify(O.foeType === 'mine' || !PRESETS[O.foeType] ? D : PRESETS[O.foeType]))); if (d.guns < 2) d.guns = 2; d.col = ['#8f1f1a', '#2a2825'];
+    const sp = buildSpec(d), grp = new THREE.Group(); scene.add(grp);
+    const B = { st: newState(), sp, grp, v: buildMesh(grp, sp, false), me: false, assist: true, ai: newAI(i + 1), inp: null }; B.crash = why => killBot(B, why); resetDamage(B);
+    const S = B.st, v = clamp(Math.max(sp.stats.vs * 1.6, 45), 40, 170);
+    S.pos.set((i - ((O.foes | 0) - 1) / 2) * 500, 780 + i * 70, -3800 - i * 250); S.q.setFromAxisAngle(new V3(0, 1, 0), Math.PI); S.vel.set(0, 0, v); S.thr = S.thrEff = .85; S.gear = 0; S.onGround = false; S.flown = true;
+    bots.push(B);
+  }
+}
+function killBot(B, why) {
+  if (B.dead) return; B.dead = true; B.grp.visible = false; fireball(B.st.pos, true); Sound.boom();
+  const mine = B.lastBy === ME; if (mine) G.kills++;
+  const left = bots.filter(b => !b.dead).length;
+  if (!left) { G.won = true; toast('Sky is clear', G.kills + ' of ' + bots.length + ' shot down in ' + G.t.toFixed(0) + ' s. Take it home.', 7, '#5cc96b'); }
+  else toast(why === 'shot' && mine ? 'Bandit down' : 'Bandit crashed', left + ' left', 3);
+}
+// The bot pilot. It flies through the same assist controls you do: roll the target above the nose, pull, shoot when lined up.
+const aim = new V3(), loc = new V3(), aq = new Q4(), aux = new V3();
+function brain(C, T, engaged, dt) {
+  const S = C.st, ai = C.ai, inp = { pitch: 0, roll: 0, yaw: 0, thrAbs: 1, thrUp: 0, brake: false, fire: false };
+  ai.t += dt; aq.copy(S.q).invert();
+  const V = S.vel.length(); let d0 = 1e9;
+  if (engaged && T && !ai.hold) {
+    const TS = T.st; d0 = S.pos.distanceTo(TS.pos); const tof = Math.min(2, d0 / BUL.speed);
+    aim.copy(TS.vel).sub(S.vel).multiplyScalar(tof).add(TS.pos); aim.y += .5 * G0 * tof * tof;
+    aim.x += Math.sin(ai.t * 1.7 + ai.ph) * d0 * .012; aim.y += Math.cos(ai.t * 2.3 + ai.ph) * d0 * .012; // nobody aims perfectly
+  } else aim.set(Math.sin(ai.t * .1 + ai.ph) * 1100, 820, -3200 + Math.cos(ai.t * .1 + ai.ph) * 1100); // circle north of the field and wait
+  loc.copy(aim).sub(S.pos); const d = loc.length() + 1e-6; loc.applyQuaternion(aq);
+  const lx = loc.x, ly = loc.y, lz = -loc.z, ang = Math.atan2(Math.hypot(lx, ly), lz);
+  aux.set(1, 0, 0).applyQuaternion(S.q); const rty = aux.y; aux.set(0, 1, 0).applyQuaternion(S.q); const bank = Math.atan2(-rty, aux.y);
+  // Bank to turn: turn rate wanted = how fast the bearing to the target is moving + closing the angle that is left.
+  const wrap = a => a > Math.PI ? a - 2 * Math.PI : a < -Math.PI ? a + 2 * Math.PI : a;
+  aux.set(0, 0, -1).applyQuaternion(S.q); const hdg = Math.atan2(aux.x, -aux.z);
+  const brg = Math.atan2(aim.x - S.pos.x, -(aim.z - S.pos.z)), dpsi = wrap(brg - hdg);
+  if (ai.pb == null) ai.pb = brg; ai.lr += (clamp(wrap(brg - ai.pb) / Math.max(dt, 1e-3), -1.5, 1.5) - ai.lr) * Math.min(1, dt * 3); ai.pb = brg;
+  const turn = clamp(ai.lr + dpsi * 1.1, -2, 2), el = Math.asin(clamp((aim.y - S.pos.y) / d, -1, 1)), ev = el - Math.asin(clamp(S.vel.y / Math.max(V, 1), -1, 1));
+  const bmax = 1.4 - clamp(ev * 1.5, 0, .7), bdes = clamp(Math.atan(V * turn / G0), -bmax, bmax), maxRate = Math.min(1.5, 7 * G0 / Math.max(V, 20));
+  inp.roll = clamp((bdes - bank) * 1.8, -1, 1);
+  inp.pitch = clamp(clamp(ly / d * 10, -.5, 1) + Math.abs(turn) * Math.sin(Math.abs(bank)) / maxRate * .9 + (ang > .3 ? ev * 2 * Math.cos(bank) : 0), -.6, 1);
+  if (engaged && T && !ai.hold) {
+    // someone on my tail and lined up? break hard
+    const TS = T.st; loc.copy(S.pos).sub(TS.pos); aq.copy(TS.q).invert(); loc.applyQuaternion(aq);
+    if (-loc.z > 0 && d0 < 450 && Math.atan2(Math.hypot(loc.x, loc.y), -loc.z) < .2 && ang > .6) { ai.jt -= dt; if (ai.jt <= 0) { ai.jdir = Math.random() < .5 ? -1 : 1; ai.jt = 1.5 + Math.random() * 1.5; } inp.roll = clamp((ai.jdir * 1.35 - bank) * 2, -1, 1); inp.pitch = 1; }
+    if (d0 < 75) { inp.pitch = 1; inp.roll = clamp((1.2 - bank) * 2, -1, 1); } // do not ram
+    inp.fire = lz > 0 && ang < .04 && d0 < 560;
+    if (ang < .3 && d0 < 170 && V > T.st.vel.length()) inp.thrAbs = .3;
+  }
+  if (V < C.sp.stats.vs * 1.25) inp.pitch = Math.min(inp.pitch, .05);
+  // the ground always wins the argument
+  const px = S.pos.x, pz = S.pos.z, flo = Math.max(SEA, groundH(px, pz), groundH(px + S.vel.x * 1.5, pz + S.vel.z * 1.5), groundH(px + S.vel.x * 3.5, pz + S.vel.z * 3.5));
+  const gam = Math.asin(clamp(S.vel.y / Math.max(V, 1), -1, 0)), pull = V * V / (2.5 * G0) * (1 - Math.cos(gam)) * 1.5; // height a pull-out from this dive will eat
+  if (S.pos.y + Math.min(0, S.vel.y) * 3.5 - flo < 110 || S.pos.y - flo < 80 + pull) ai.avoid = .6;
+  if (ai.avoid > 0) { ai.avoid -= dt; inp.roll = clamp(-bank * 2.5, -1, 1); inp.pitch = Math.abs(bank) < 1.1 ? 1 : 0; inp.yaw = 0; inp.fire = false; inp.thrAbs = 1; }
+  return inp;
+}
+
+function updateRings() { ringMeshes.forEach((m, i) => { m.visible = i >= G.ring && !G.fight; m.material.color.setHex(i === G.ring ? 0xf5b800 : 0xff6b1a); m.material.opacity = i === G.ring ? .95 : .35; }); }
 
 /* ================= input ================= */
-const keys = {}, touchIn = { pitch: 0, roll: 0, yaw: 0, brake: false, thr: null }, tilt = { on: false, b0: null, g0: null, pitch: 0, roll: 0 };
+const keys = {}, touchIn = { pitch: 0, roll: 0, yaw: 0, brake: false, fire: false, thr: null }, tilt = { on: false, b0: null, g0: null, pitch: 0, roll: 0 };
 const isTouch = matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window;
 addEventListener('keydown', e => {
   if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
@@ -682,9 +856,9 @@ addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 const padPrev = {};
 function readInput(dt) {
-  const k = keys, inp = { pitch: 0, roll: 0, yaw: 0, thrUp: 0, thrAbs: null, brake: false };
+  const k = keys, inp = { pitch: 0, roll: 0, yaw: 0, thrUp: 0, thrAbs: null, brake: false, fire: false };
   inp.pitch = (k.ArrowDown ? 1 : 0) - (k.ArrowUp ? 1 : 0); inp.roll = (k.ArrowRight ? 1 : 0) - (k.ArrowLeft ? 1 : 0);
-  inp.yaw = (k.KeyD ? 1 : 0) - (k.KeyA ? 1 : 0); inp.thrUp = (k.KeyW ? 1 : 0) - (k.KeyS ? 1 : 0); inp.brake = !!k.Space;
+  inp.yaw = (k.KeyD ? 1 : 0) - (k.KeyA ? 1 : 0); inp.thrUp = (k.KeyW ? 1 : 0) - (k.KeyS ? 1 : 0); inp.brake = !!k.KeyX; inp.fire = !!k.Space || touchIn.fire;
   inp.pitch += touchIn.pitch + tilt.pitch; inp.roll += touchIn.roll + tilt.roll; inp.yaw += touchIn.yaw; inp.brake = inp.brake || touchIn.brake;
   if (touchIn.thr != null) { inp.thrAbs = touchIn.thr; touchIn.thr = null; }
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -692,7 +866,7 @@ function readInput(dt) {
     if (!gp || !gp.connected) continue;
     const dz = v => Math.abs(v) < .12 ? 0 : (v - Math.sign(v) * .12) / .88, b = i => gp.buttons[i] ? gp.buttons[i].value : 0;
     inp.roll += dz(gp.axes[0] || 0); inp.pitch += dz(gp.axes[1] || 0); inp.yaw += dz(gp.axes[2] || 0);
-    inp.thrUp += b(7) - b(6); inp.brake = inp.brake || b(0) > .5;
+    inp.thrUp += b(7) - b(6); inp.brake = inp.brake || b(0) > .5; inp.fire = inp.fire || b(5) > .5;
     const edge = (i, fn) => { const d = b(i) > .5; if (d && !padPrev[i]) fn(); padPrev[i] = d; };
     edge(3, nextCam); edge(2, toggleAssist); edge(1, restart); edge(9, () => G.mode === 'build' ? startFlight() : toHangar());
     break;
@@ -713,7 +887,7 @@ function readInput(dt) {
   tb.addEventListener('pointermove', e => { if (e.pointerId === tid) ts(e); });
   tb.addEventListener('pointerup', () => { tid = null; }); tb.addEventListener('pointercancel', () => { tid = null; });
   const hold = (id, on, off) => { const b = $(id); b.addEventListener('pointerdown', e => { b.setPointerCapture(e.pointerId); b.classList.add('down'); on(); }); const u = () => { b.classList.remove('down'); off(); }; b.addEventListener('pointerup', u); b.addEventListener('pointercancel', u); };
-  hold('rudL', () => touchIn.yaw = -1, () => touchIn.yaw = 0); hold('rudR', () => touchIn.yaw = 1, () => touchIn.yaw = 0); hold('brk', () => touchIn.brake = true, () => touchIn.brake = false);
+  hold('rudL', () => touchIn.yaw = -1, () => touchIn.yaw = 0); hold('rudR', () => touchIn.yaw = 1, () => touchIn.yaw = 0); hold('brk', () => touchIn.brake = true, () => touchIn.brake = false); hold('fireB', () => touchIn.fire = true, () => touchIn.fire = false);
 })();
 // Tilt steering: hold the phone how you like, press Tilt, and that pose is "level".
 function onTilt(e) {
@@ -755,7 +929,7 @@ const Sound = (() => {
       engG.gain.setTargetAtTime(g, n, .1); eng.frequency.setTargetAtTime(ty === 'jet' ? 90 + 220 * P.thrEff : 48 + 62 * P.thrEff + V * .12, n, .1); flt.frequency.setTargetAtTime(ty === 'jet' ? 1800 : 380 + 500 * P.thrEff, n, .1);
       windG.gain.setTargetAtTime(on ? clamp(V / 260, 0, .22) + (ty === 'jet' ? .08 * P.thrEff : 0) : 0, n, .15); windF.frequency.setTargetAtTime(350 + V * 9, n, .15);
     },
-    ding: () => blip(880, 1320, .25, .12), chirp: () => blip(300, 90, .18, .1, 'square'), boom: () => blip(140, 30, .7, .3, 'sawtooth')
+    ding: () => blip(880, 1320, .25, .12), gun: () => blip(170, 70, .07, .09, 'square'), hit: () => blip(1100, 600, .05, .05, 'triangle'), chirp: () => blip(300, 90, .18, .1, 'square'), boom: () => blip(140, 30, .7, .3, 'sawtooth')
   };
 })();
 
@@ -785,6 +959,7 @@ function toast(a, b, secs, col) { $('hMsg').textContent = a; $('hMsg').style.col
 const shadowTex = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d'), g = x.createRadialGradient(32, 32, 4, 32, 32, 32); g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(cv); })();
 const shadow = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, opacity: .3, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -12 }));
 shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
+const foeEls = [...document.querySelectorAll('.foe')];
 function updateHUD(dt) {
   const V = P.vel.length();
   $('hSpd').textContent = Math.round(V * MPH) + ' mph';
@@ -793,8 +968,22 @@ function updateHUD(dt) {
   $('thrFill').style.height = (P.thr * 100) + '%'; $('thrPct').textContent = Math.round(P.thr * 100) + '%';
   $('hStall').hidden = !(P.stall > .45 && !P.onGround && G.mode === 'fly');
   if (G.msgT > 0) { G.msgT -= dt; if (G.msgT <= 0) { $('hMsg').textContent = ''; $('hSub').textContent = ''; } }
+  $('hAmmo').textContent = ME.ammo; $('hHull').textContent = Math.max(0, Math.round(ME.hp.body / SPEC.hpBody * 100)) + '%' + (ME.engOK ? '' : ' ENG');
+  const W2 = innerWidth, H2 = innerHeight, flying = G.mode === 'fly', sg = $('sight'), ld = $('lead');
+  const scr = v => { const p = t3.copy(v).project(camera), bh = p.z > 1; let x = (p.x * .5 + .5) * W2, y = (-p.y * .5 + .5) * H2; if (bh) { x = W2 - x; y = H2 - y; } return { x, y, bh }; };
+  if (flying && SPEC.ng > 0) { fwd.set(0, 0, -1).applyQuaternion(P.q); const a = scr(t1.copy(P.pos).addScaledVector(fwd, 320)); sg.hidden = a.bh; sg.style.left = a.x + 'px'; sg.style.top = a.y + 'px'; sg.classList.toggle('hit', G.hitT > 0); } else sg.hidden = true;
+  let near = null, nd = 900;
+  foeEls.forEach((e, i) => {
+    const b = bots[i]; if (!flying || !b || b.dead) { e.hidden = true; return; }
+    const d = P.pos.distanceTo(b.st.pos), a = scr(b.st.pos), off = a.bh || a.x < 24 || a.x > W2 - 24 || a.y < 56 || a.y > H2 - 24;
+    if (a.bh) { const cx = W2 / 2, cy = H2 / 2, dx = a.x - cx, dy = a.y - cy, k = Math.max(Math.abs(dx) / (cx - 24), Math.abs(dy) / (cy - 56), .001); a.x = cx + dx / k; a.y = cy + dy / k; }
+    e.hidden = false; e.classList.toggle('off', off); e.style.left = clamp(a.x, 24, W2 - 24) + 'px'; e.style.top = clamp(a.y, 56, H2 - 24) + 'px'; e.firstChild.textContent = d * FT > 2640 ? (d * FT / 5280).toFixed(1) + ' mi' : Math.round(d * FT / 10) * 10 + ' ft';
+    if (!off && d < nd) { nd = d; near = b; }
+  });
+  if (near && SPEC.ng > 0) { const tof = nd / BUL.speed, a = scr(t1.copy(near.st.vel).sub(P.vel).multiplyScalar(tof).add(near.st.pos).setY(t1.y + .5 * G0 * tof * tof)); ld.hidden = a.bh; ld.style.left = a.x + 'px'; ld.style.top = a.y + 'px'; } else ld.hidden = true;
   const rm = $('ringMark');
-  if (G.ring < RINGS.length && G.mode === 'fly') {
+  if (G.fight) { rm.hidden = true; $('hRing').textContent = flying ? (G.won ? 'SKY CLEAR' : 'BANDITS ' + bots.filter(b => !b.dead).length + (P.flown ? '' : '  (they wait until you are airborne)')) : ''; }
+  else if (G.ring < RINGS.length && G.mode === 'fly') {
     $('hRing').textContent = 'RING ' + (G.ring + 1) + '/' + RINGS.length + (G.ringOn ? '  ' + G.ringT.toFixed(1) + ' s' : '');
     const p = t1.copy(RINGS[G.ring]).project(camera), W = innerWidth, H = innerHeight, behind = p.z > 1;
     let sx = (p.x * .5 + .5) * W, sy = (-p.y * .5 + .5) * H; if (behind) { sx = W - sx; sy = H - sy; }
@@ -807,7 +996,7 @@ function updateHUD(dt) {
 
 /* ================= hangar UI ================= */
 let sel = 'body';
-const fmt = (v, u) => u === 'ft' ? (v * FT).toFixed(1) + ' ft' : u === '%' ? Math.round(v * 100) + '%' : u === 'deg' ? v + '°' : u === 'hp' ? v + ' hp' : u === 'lbf' ? Math.round(v * 224.81).toLocaleString('en-US') + ' lb' : u === 'ht' ? (v < -.4 ? 'Low' : v < .4 ? 'Mid' : v <= 1.05 ? 'High' : 'Above') : v;
+const fmt = (v, u) => u === 'ft' ? (v * FT).toFixed(1) + ' ft' : u === '%' ? Math.round(v * 100) + '%' : u === 'deg' ? v + '°' : u === 'hp' ? v + ' hp' : u === 'lbf' ? Math.round(v * 224.81).toLocaleString('en-US') + ' lb' : u === 'guns' ? (v ? v + (v > 1 ? ' guns' : ' gun') : 'none') : u === 'ht' ? (v < -.4 ? 'Low' : v < .4 ? 'Mid' : v <= 1.05 ? 'High' : 'Above') : v;
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 function slider(obj, key, label, r, unit) {
   const row = el('label', 'prow', `<span>${label}</span><input type="range" min="${r[0]}" max="${r[1]}" step="${r[2]}" value="${obj[key]}"><output></output>`), i = row.querySelector('input'), o = row.querySelector('output');
@@ -821,7 +1010,7 @@ function picker(obj, key, label, opts) {
 function renderChips() {
   const c = $('bChips'); c.innerHTML = '';
   const chip = (id, txt, cls) => { const b = el('button', (sel === id ? 'on ' : '') + (cls || ''), txt); b.addEventListener('click', () => { if (id === '+wing' || id === '+fin') addSurf(id === '+fin'); else { sel = id; renderChips(); renderParams(); } }); c.appendChild(b); };
-  chip('body', 'Body'); chip('eng', 'Engine'); D.surfs.forEach((s, i) => chip(i, s.nm));
+  chip('body', 'Body'); chip('eng', 'Engine'); chip('guns', 'Guns'); D.surfs.forEach((s, i) => chip(i, s.nm));
   if (D.surfs.length < 6) { chip('+wing', '+ Wing', 'add'); chip('+fin', '+ Fin', 'add'); }
 }
 function addSurf(fin) {
@@ -836,6 +1025,7 @@ function renderParams() {
     p.append(picker(D.eng, 'type', 'Type', [['none', 'None (glider)'], ['prop', 'Propeller'], ['jet', 'Jet']]));
     if (D.eng.type === 'prop') p.append(slider(D.eng, 'hp', 'Power', RANGE.eng.hp, 'hp')); if (D.eng.type === 'jet') p.append(slider(D.eng, 'kn', 'Thrust', RANGE.eng.kn, 'lbf')); return;
   }
+  if (sel === 'guns') { p.append(slider(D, 'guns', 'Guns', [0, 6, 1], 'guns'), el('p', 'legend', 'Each gun adds 100 lb and carries 300 rounds. They sit on the main wing and converge about 1,050 ft ahead.')); return; }
   const s = D.surfs[sel]; if (!s) { sel = 'body'; return renderParams(); }
   const R = s.k === 'fin' ? RANGE.fin : RANGE.wing;
   p.append(slider(s, 'pos', 'Position', R.pos, '%'));
@@ -867,13 +1057,14 @@ function renderStats() {
     if (!glider && !s.vmax) msg.push(['', 'Not enough engine to stay in the air.']);
     else if (s.vs * MPH > 150) msg.push(['note', 'Needs ' + Math.round(s.vs * MPH) + ' mph to fly. It may run out of runway.']);
     if (glider && O.start !== 'air') msg.push(['note', 'No engine: pick "Start in the air".']);
+    if (O.foes > 0 && !D.guns) msg.push(['note', 'You picked a fight with no guns. Tap Guns to add some.']);
   }
   if (!msg.length) msg.push(['ok', 'Looks flyable. Balance is good.']);
   w.innerHTML = msg.slice(0, 3).map(m => `<p class="${m[0]}">${m[1]}</p>`).join('');
 }
 function save() { store.set('bnd-current', D); }
 function changed() { SPEC = buildSpec(D); rebuildPlane(); parkPlane(); renderStats(); save(); }
-function parkPlane() { plane.position.set(SPAWN.x, SPEC.restY, SPAWN.z); plane.quaternion.set(0, 0, 0, 1); plane.visible = true; if (gearGrp) gearGrp.visible = true; }
+function parkPlane() { plane.position.set(SPAWN.x, SPEC.restY, SPAWN.z); plane.quaternion.set(0, 0, 0, 1); plane.visible = true; ME.v.gearGrp.visible = true; }
 function loadDesign(d) { D = sanitize(JSON.parse(JSON.stringify(d))); sel = 'body'; $('bName').value = D.name; $('bCol0').value = D.col[0]; $('bCol1').value = D.col[1]; if (D.eng.type === 'none') { O.start = 'air'; $('bStart').value = 'air'; } changed(); renderChips(); renderParams(); }
 function renderHangar() {
   const mine = store.get('bnd-planes', {}), h = $('bHangar');
@@ -886,6 +1077,7 @@ $('bSave').addEventListener('click', () => { const m = store.get('bnd-planes', {
 $('bDel').addEventListener('click', () => { const m = store.get('bnd-planes', {}); if (m[D.name]) { delete m[D.name]; store.set('bnd-planes', m); renderHangar(); $('bDel').textContent = 'Gone'; setTimeout(() => $('bDel').textContent = 'Del', 1200); } });
 $('bCol0').addEventListener('input', e => { D.col[0] = e.target.value; changed(); }); $('bCol1').addEventListener('input', e => { D.col[1] = e.target.value; changed(); });
 $('bStart').addEventListener('change', e => { O.start = e.target.value; store.set('bnd-opts', O); renderStats(); });
+$('bFoes').addEventListener('change', e => { O.foes = +e.target.value; store.set('bnd-opts', O); renderStats(); }); $('bFoeType').addEventListener('change', e => { O.foeType = e.target.value; store.set('bnd-opts', O); });
 $('bFly').addEventListener('click', () => startFlight());
 $('bHelp').addEventListener('click', () => $('help').hidden = false); $('helpOk').addEventListener('click', () => $('help').hidden = true);
 $('bShare').addEventListener('click', () => { $('shareTxt').value = encodeDesign(D); $('shareMsg').textContent = ''; $('share').hidden = false; });
@@ -898,9 +1090,10 @@ function toggleAssist() { O.assist = !O.assist; store.set('bnd-opts', O); $('tAs
 function setMode(m) {
   G.mode = m; const fly = m !== 'build';
   $('builder').hidden = fly; $('hud').hidden = !fly; $('crash').hidden = true; $('touch').hidden = !isTouch; $('tTilt').hidden = !isTouch;
-  cgBall.visible = npBall.visible = !fly; plane.visible = true; boom.mesh.visible = false; resize();
+  ME.v.cgBall.visible = ME.v.npBall.visible = !fly; plane.visible = true; if (!fly) { clearBots(); bullets.length = 0; }
+  for (const e of document.querySelectorAll('.cmb')) e.hidden = !(fly && (SPEC.ng > 0 || O.foes > 0)); $('fireB').hidden = !SPEC.ng; boom.mesh.visible = false; resize();
 }
-function startFlight() { Sound.init(); SPEC = buildSpec(D); rebuildPlane(); setMode('fly'); resetFlight(); $('tAssist').classList.toggle('on', O.assist); toast(O.start === 'air' ? 'You have the plane' : 'Cleared for takeoff', O.start === 'air' ? '' : (isTouch ? 'Slide THR up, then ease the stick down to lift off.' : 'Hold W for power, then Down arrow to lift off.'), 5); }
+function startFlight() { Sound.init(); SPEC = buildSpec(D); rebuildPlane(); setMode('fly'); resetFlight(); $('tAssist').classList.toggle('on', O.assist); toast(O.start === 'air' ? 'You have the plane' : 'Cleared for takeoff', O.start === 'air' ? (G.fight ? 'Bandits inbound from the north.' : '') : (isTouch ? 'Slide THR up, then ease the stick down to lift off.' : 'Hold W for power, then Down arrow to lift off.'), 5); }
 function restart() { if (G.mode === 'build') return; setMode('fly'); resetFlight(); }
 function toHangar() { if (G.mode === 'build') return; setMode('build'); parkPlane(); $('hStall').hidden = true; Sound.update(false); }
 
@@ -925,16 +1118,26 @@ function resize() {
   camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
+// iPhone: no pinch page zoom (the game areas block the pinch that would undo it); double-tap zoom is off via touch-action
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
 
 /* ================= main loop ================= */
+const ZERO = { p: 0, r: 0, y: 0 };
+function syncCraft(C, dt, build) {
+  const S = C.st, v = C.v;
+  if (!build) { C.grp.position.copy(S.pos); C.grp.quaternion.copy(S.q); }
+  const cmd = build ? ZERO : S.cmd, thr = build ? 0 : S.thrEff * C.engOK;
+  for (const f of v.flaps) f.mesh.rotation.x = clamp(f.cs[0] * cmd.p + f.cs[1] * cmd.r + f.cs[2] * cmd.y, -1, 1) * .42;
+  if (v.propObj) { v.propObj.rotation.z += dt * (6 + thr * 60); v.propObj.visible = thr < .35; v.propDisc.material.opacity = thr < .35 ? 0 : .16; }
+  if (v.jetGlow) v.jetGlow.material.opacity = .15 + thr * .8;
+  v.gearGrp.visible = build || S.gear > .5;
+  if (!build && !C.dead && (C.engOK === 0 || C.hp.body < C.sp.hpBody * .45)) { C.smokeT -= dt; if (C.smokeT <= 0) { C.smokeT = .05; puff(S.pos, 0, 1.5, 0, 1.8, 1, 5.5, C.engOK ? 0x8a8782 : 0x2a2826); } }
+}
 function syncVisuals(dt) {
-  if (G.mode !== 'build') { plane.position.copy(P.pos); plane.quaternion.copy(P.q); }
-  const cmd = G.mode === 'build' ? { p: 0, r: 0, y: 0 } : P.cmd;
-  for (const f of flaps) f.mesh.rotation.x = clamp(f.cs[0] * cmd.p + f.cs[1] * cmd.r + f.cs[2] * cmd.y, -1, 1) * .42;
-  const thr = G.mode === 'build' ? 0 : P.thrEff;
-  if (propObj) { propObj.rotation.z += dt * (6 + thr * 60); propObj.visible = thr < .35; propDisc.material.opacity = thr < .35 ? 0 : .16; }
-  if (jetGlow) jetGlow.material.opacity = .15 + thr * .8;
-  if (gearGrp) gearGrp.visible = G.mode === 'build' || P.gear > .5;
+  syncCraft(ME, dt, G.mode === 'build'); for (const b of bots) if (!b.dead) syncCraft(b, dt, false);
+  stepPuffs(dt);
+  let n = 0; for (const b of bullets) { trPos[n++] = b.p.x; trPos[n++] = b.p.y; trPos[n++] = b.p.z; trPos[n++] = b.p.x - b.v.x * .04; trPos[n++] = b.p.y - b.v.y * .04; trPos[n++] = b.p.z - b.v.z * .04; }
+  trGeo.setDrawRange(0, n / 3); trGeo.attributes.position.needsUpdate = true;
   const px = plane.position.x, pz = plane.position.z, gh = Math.max(SEA, groundH(px, pz)), alt = plane.position.y - gh;
   shadow.visible = alt < 500 && plane.visible; shadow.position.set(px, gh + .12, pz); const s = SPEC.size * .55 * (1 + alt / 400); shadow.scale.set(s, s, 1); shadow.material.opacity = .55 * (1 - alt / 500);
   if (boom.mesh.visible) { boom.t += dt; const k = boom.t / 1.4; boom.mesh.scale.setScalar(3 + k * 26); boom.mesh.material.opacity = Math.max(0, .9 - k); boom.mesh.material.color.setHex(k < .3 ? 0xffb347 : 0x3a3633); if (k > 1) boom.mesh.visible = false; }
@@ -951,17 +1154,17 @@ function frame(now) {
 
 /* ================= test hook ================= */
 const API = window.__fly = {
-  G, P, O, PRESETS, RINGS, paused: false, fast: false, groundH, buildSpec, sanitize, encodeDesign, decodeDesign,
+  G, P, O, ME, bots, bullets, BUL, damage, brain, PRESETS, RINGS, paused: false, fast: false, auto: false, groundH, buildSpec, sanitize, encodeDesign, decodeDesign,
   get spec() { return SPEC; }, get design() { return D; },
   load(d) { loadDesign(typeof d === 'string' ? PRESETS[d] : d); }, start(where) { if (where) O.start = where; startFlight(); }, hangar: toHangar,
   // run the sim headless; input is an object or a function of (state) returning {pitch, roll, yaw, thrAbs, brake}
-  sim(seconds, input) { const h = 1 / 60; for (let t = 0; t < seconds && G.mode === 'fly'; t += h) { const i = Object.assign({ pitch: 0, roll: 0, yaw: 0, thrUp: 0, thrAbs: null, brake: false }, typeof input === 'function' ? input(API.state()) : input); flightTick(h, i); } return API.state(); },
+  sim(seconds, input) { const h = 1 / 60; for (let t = 0; t < seconds && G.mode === 'fly'; t += h) { const i = Object.assign({ pitch: 0, roll: 0, yaw: 0, thrUp: 0, thrAbs: null, brake: false, fire: false }, typeof input === 'function' ? input(API.state()) : input); flightTick(h, i); } return API.state(); },
   state() { fwd.set(0, 0, -1).applyQuaternion(P.q); const rt = t2.set(1, 0, 0).applyQuaternion(P.q); return { mode: G.mode, t: G.t, x: P.pos.x, y: P.pos.y, z: P.pos.z, agl: P.pos.y - Math.max(SEA, groundH(P.pos.x, P.pos.z)), V: P.vel.length(), vy: P.vel.y, pitch: Math.asin(clamp(fwd.y, -1, 1)), bank: Math.atan2(-rt.y, Math.hypot(rt.x, rt.z)) * (new V3(0, 1, 0).applyQuaternion(P.q).y < 0 ? -1 : 1) + (new V3(0, 1, 0).applyQuaternion(P.q).y < 0 ? Math.PI * Math.sign(-rt.y || 1) : 0), hdg: Math.atan2(fwd.x, -fwd.z), thr: P.thr, onGround: P.onGround, stall: P.stall, ring: G.ring, why: G.crashWhy, g: P.g }; },
   frame() { syncVisuals(1 / 60); updateCamera(1); if (G.mode !== 'build') updateHUD(1 / 60); renderer.render(scene, camera); }
 };
 
 loadDesign(store.get('bnd-current', null) || PRESETS.Trainer);
-$('bStart').value = O.start; renderHangar(); setMode('build');
+$('bStart').value = O.start; $('bFoes').value = String(O.foes | 0); $('bFoeType').value = O.foeType; renderHangar(); setMode('build');
 if (!store.get('bnd-seen', false)) { $('help').hidden = false; store.set('bnd-seen', true); }
 requestAnimationFrame(frame);
 })();
