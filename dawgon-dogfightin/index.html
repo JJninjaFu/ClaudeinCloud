@@ -965,12 +965,15 @@ async function mpHost() {
   const name = takeName(); if (!name) return;
   mpMsg('Opening a room…'); mpBusy(true);
   try { await loadPeer(); } catch (e) { mpBusy(false); return mpMsg("Couldn't load the multiplayer engine. Check your connection."); }
+  // Your room code stays the same all day, so friends can rejoin after a crash, a refresh or a dropped call without a new text.
+  const today = new Date().toDateString(), kept = store.get('bnd-room', null), mine = kept && kept.day === today && /^[A-Z0-9]{4}$/.test(kept.code) ? kept.code : null;
   const tryCode = n => {
-    const code = Array.from({ length: 4 }, () => CODE_ABC[Math.floor(Math.random() * CODE_ABC.length)]).join('');
+    // the server can hold an old code for a few seconds after you leave, so retry it before giving up on it
+    const reuse = mine && n < 3, code = reuse ? mine : Array.from({ length: 4 }, () => CODE_ABC[Math.floor(Math.random() * CODE_ABC.length)]).join('');
     const peer = new Peer(NETID + code, { debug: 0 }); let opened = false;
-    peer.on('open', () => { opened = true; Object.assign(mp, { on: true, host: true, peer, code, myId: 'host', kills: 0 }); mp.players.clear(); mp.conns.clear(); mp.players.set('host', { id: 'host', name, slot: 0, d: D }); mpBusy(false); mpUI(); });
+    peer.on('open', () => { opened = true; store.set('bnd-room', { code, day: today }); Object.assign(mp, { on: true, host: true, peer, code, myId: 'host', kills: 0 }); mp.players.clear(); mp.conns.clear(); mp.players.set('host', { id: 'host', name, slot: 0, d: D }); mpBusy(false); mpUI(); });
     peer.on('connection', conn => { conn.on('data', d => hostOnData(conn, d)); conn.on('close', () => hostDrop(conn.peer)); conn.on('error', () => hostDrop(conn.peer)); });
-    peer.on('error', err => { if (!opened) { try { peer.destroy(); } catch (e) {} if (err.type === 'unavailable-id' && n < 4) return tryCode(n + 1); mpBusy(false); return mpMsg(netErr(err)); } if (err.type !== 'peer-unavailable') mpMsg(netErr(err)); });
+    peer.on('error', err => { if (!opened) { try { peer.destroy(); } catch (e) {} if (err.type === 'unavailable-id' && n < 7) { if (reuse) { mpMsg('Getting your room ' + code + ' back…'); return setTimeout(() => tryCode(n + 1), 1500); } return tryCode(n + 1); } mpBusy(false); return mpMsg(netErr(err)); } if (err.type !== 'peer-unavailable') mpMsg(netErr(err)); });
     peer.on('disconnected', () => { if (mp.on && mp.host && mp.peer === peer && !peer.destroyed) try { peer.reconnect(); } catch (e) {} });
   };
   tryCode(0);
@@ -988,7 +991,7 @@ async function mpJoin() {
   const name = takeName(); if (!name) return;
   const code = $('mpCode').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (code.length !== 4) return mpMsg('Room codes are 4 letters and numbers.');
-  mpMsg('Joining ' + code + '…'); mpBusy(true);
+  store.set('bnd-join', code); mpMsg('Joining ' + code + '…'); mpBusy(true);
   try { await loadPeer(); } catch (e) { mpBusy(false); return mpMsg("Couldn't load the multiplayer engine. Check your connection."); }
   const peer = new Peer({ debug: 0 }); let joined = false, done = false;
   const fail = m => { if (joined || done) return; done = true; clearTimeout(mp.joinTimer); mpBusy(false); try { peer.destroy(); } catch (e) {} mpMsg(m); };
@@ -1076,7 +1079,7 @@ function netTick(dt) {
     if (s.f) { r.fireT -= dt; if (r.fireT <= 0) { r.fireT = 1 / BUL.rate; for (const g of r.sp.gunPts) { if (bullets.length >= BUL.max) bullets.shift(); const dir = new V3(-g[0], -g[1], -320 - g[2]).normalize().applyQuaternion(S.q).multiplyScalar(BUL.speed).add(S.vel); bullets.push({ p: new V3(g[0], g[1], g[2]).applyQuaternion(S.q).add(S.pos), v: dir, life: BUL.life, by: r, cos: true }); } } } // their tracers, for show only
   }
 }
-$('mpHost').addEventListener('click', mpHost); $('mpJoin').addEventListener('click', mpJoin); $('mpLeave').addEventListener('click', mpLeave); $('mpName').value = store.get('bnd-name', '');
+$('mpHost').addEventListener('click', mpHost); $('mpJoin').addEventListener('click', mpJoin); $('mpLeave').addEventListener('click', mpLeave); $('mpName').value = store.get('bnd-name', ''); $('mpCode').value = store.get('bnd-join', '');
 
 function updateRings() { ringMeshes.forEach((m, i) => { m.visible = i >= G.ring && !G.fight; m.material.color.setHex(i === G.ring ? 0xf5b800 : 0xff6b1a); m.material.opacity = i === G.ring ? .95 : .35; }); }
 
