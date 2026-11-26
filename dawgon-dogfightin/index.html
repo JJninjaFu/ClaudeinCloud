@@ -8,6 +8,8 @@
 :root{--bg:#1d1c1a;--panel:rgba(26,25,23,.8);--panel-solid:#2a2825;--line:rgba(243,239,230,.16);--ink:#f3efe6;--muted:#b9b2a5;--yellow:#f5b800;--orange:#ff6b1a;--red:#e8402f;--green:#5cc96b;--blue:#59b0ff;
   --f-display:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;--f-body:'IBM Plex Sans Condensed',system-ui,sans-serif;--f-mono:'IBM Plex Mono',ui-monospace,monospace;color-scheme:dark}
 [hidden]{display:none!important}
+/* if the page ever ends up zoomed, stop blocking touch gestures so a pinch can always undo it */
+html.zoomed,html.zoomed *{touch-action:auto!important}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;overflow:hidden;background:#8fb4d6;color:var(--ink);font-family:var(--f-body);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;touch-action:manipulation;-webkit-text-size-adjust:100%}
 #c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
@@ -1376,8 +1378,22 @@ function resize() {
   camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
-// iPhone: no pinch page zoom (the game areas block the pinch that would undo it); double-tap zoom is off via touch-action
-for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
+// Page zoom on phones. The game never wants to be zoomed, so: block pinch while at normal size, snap back to normal size
+// whenever the browser reports a zoom (after tapping a field, rotating the phone, a stray double tap), and if it is
+// zoomed anyway, unblock gestures so a pinch can always get out. Nothing here can leave the player stuck.
+const vv = window.visualViewport, vpMeta = document.querySelector('meta[name=viewport]'), VP = 'width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no';
+const isZoomed = () => !!vv && vv.scale > 1.02; let zoomTry = 0;
+function fixZoom() {
+  const z = isZoomed(); document.documentElement.classList.toggle('zoomed', z); if (!z || !vpMeta) return;
+  const now = Date.now(); if (now - zoomTry < 700) return; zoomTry = now;
+  vpMeta.setAttribute('content', VP + ',minimum-scale=1,maximum-scale=1.001'); // changing the limit makes the browser re-apply it
+  setTimeout(() => { vpMeta.setAttribute('content', VP + ',maximum-scale=1'); try { scrollTo(0, 0); } catch (e) {} document.documentElement.classList.toggle('zoomed', isZoomed()); resize(); }, 80);
+}
+if (vv) { vv.addEventListener('resize', () => { fixZoom(); resize(); }); vv.addEventListener('scroll', fixZoom); }
+addEventListener('orientationchange', () => { for (const ms of [120, 450, 900]) setTimeout(() => { fixZoom(); resize(); }, ms); }); // iPhones report the old size for a moment after turning
+document.addEventListener('focusout', () => setTimeout(fixZoom, 60));
+setInterval(fixZoom, 1500);
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => { if (!isZoomed()) e.preventDefault(); }, { passive: false });
 
 /* ================= main loop ================= */
 const ZFWD = new V3(0, 0, -1), mslMeshes = []; let mslPuffT = 0;
