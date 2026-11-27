@@ -8,6 +8,8 @@
 :root{--bg:#1d1c1a;--panel:rgba(26,25,23,.8);--panel-solid:#2a2825;--line:rgba(243,239,230,.16);--ink:#f3efe6;--muted:#b9b2a5;--yellow:#f5b800;--orange:#ff6b1a;--red:#e8402f;--green:#5cc96b;--blue:#59b0ff;
   --f-display:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;--f-body:'IBM Plex Sans Condensed',system-ui,sans-serif;--f-mono:'IBM Plex Mono',ui-monospace,monospace;color-scheme:dark}
 [hidden]{display:none!important}
+/* if the page ever ends up zoomed, stop blocking touch gestures so a pinch can always undo it */
+html.zoomed,html.zoomed *{touch-action:auto!important}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;overflow:hidden;background:#8fb4d6;color:var(--ink);font-family:var(--f-body);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;touch-action:manipulation;-webkit-text-size-adjust:100%}
 #c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
@@ -963,12 +965,15 @@ async function mpHost() {
   const name = takeName(); if (!name) return;
   mpMsg('Opening a room…'); mpBusy(true);
   try { await loadPeer(); } catch (e) { mpBusy(false); return mpMsg("Couldn't load the multiplayer engine. Check your connection."); }
+  // Your room code stays the same all day, so friends can rejoin after a crash, a refresh or a dropped call without a new text.
+  const today = new Date().toDateString(), kept = store.get('bnd-room', null), mine = kept && kept.day === today && /^[A-Z0-9]{4}$/.test(kept.code) ? kept.code : null;
   const tryCode = n => {
-    const code = Array.from({ length: 4 }, () => CODE_ABC[Math.floor(Math.random() * CODE_ABC.length)]).join('');
+    // the server can hold an old code for a few seconds after you leave, so retry it before giving up on it
+    const reuse = mine && n < 3, code = reuse ? mine : Array.from({ length: 4 }, () => CODE_ABC[Math.floor(Math.random() * CODE_ABC.length)]).join('');
     const peer = new Peer(NETID + code, { debug: 0 }); let opened = false;
-    peer.on('open', () => { opened = true; Object.assign(mp, { on: true, host: true, peer, code, myId: 'host', kills: 0 }); mp.players.clear(); mp.conns.clear(); mp.players.set('host', { id: 'host', name, slot: 0, d: D }); mpBusy(false); mpUI(); });
+    peer.on('open', () => { opened = true; store.set('bnd-room', { code, day: today }); Object.assign(mp, { on: true, host: true, peer, code, myId: 'host', kills: 0 }); mp.players.clear(); mp.conns.clear(); mp.players.set('host', { id: 'host', name, slot: 0, d: D }); mpBusy(false); mpUI(); });
     peer.on('connection', conn => { conn.on('data', d => hostOnData(conn, d)); conn.on('close', () => hostDrop(conn.peer)); conn.on('error', () => hostDrop(conn.peer)); });
-    peer.on('error', err => { if (!opened) { try { peer.destroy(); } catch (e) {} if (err.type === 'unavailable-id' && n < 4) return tryCode(n + 1); mpBusy(false); return mpMsg(netErr(err)); } if (err.type !== 'peer-unavailable') mpMsg(netErr(err)); });
+    peer.on('error', err => { if (!opened) { try { peer.destroy(); } catch (e) {} if (err.type === 'unavailable-id' && n < 7) { if (reuse) { mpMsg('Getting your room ' + code + ' back…'); return setTimeout(() => tryCode(n + 1), 1500); } return tryCode(n + 1); } mpBusy(false); return mpMsg(netErr(err)); } if (err.type !== 'peer-unavailable') mpMsg(netErr(err)); });
     peer.on('disconnected', () => { if (mp.on && mp.host && mp.peer === peer && !peer.destroyed) try { peer.reconnect(); } catch (e) {} });
   };
   tryCode(0);
@@ -986,7 +991,7 @@ async function mpJoin() {
   const name = takeName(); if (!name) return;
   const code = $('mpCode').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (code.length !== 4) return mpMsg('Room codes are 4 letters and numbers.');
-  mpMsg('Joining ' + code + '…'); mpBusy(true);
+  store.set('bnd-join', code); mpMsg('Joining ' + code + '…'); mpBusy(true);
   try { await loadPeer(); } catch (e) { mpBusy(false); return mpMsg("Couldn't load the multiplayer engine. Check your connection."); }
   const peer = new Peer({ debug: 0 }); let joined = false, done = false;
   const fail = m => { if (joined || done) return; done = true; clearTimeout(mp.joinTimer); mpBusy(false); try { peer.destroy(); } catch (e) {} mpMsg(m); };
@@ -1074,7 +1079,7 @@ function netTick(dt) {
     if (s.f) { r.fireT -= dt; if (r.fireT <= 0) { r.fireT = 1 / BUL.rate; for (const g of r.sp.gunPts) { if (bullets.length >= BUL.max) bullets.shift(); const dir = new V3(-g[0], -g[1], -320 - g[2]).normalize().applyQuaternion(S.q).multiplyScalar(BUL.speed).add(S.vel); bullets.push({ p: new V3(g[0], g[1], g[2]).applyQuaternion(S.q).add(S.pos), v: dir, life: BUL.life, by: r, cos: true }); } } } // their tracers, for show only
   }
 }
-$('mpHost').addEventListener('click', mpHost); $('mpJoin').addEventListener('click', mpJoin); $('mpLeave').addEventListener('click', mpLeave); $('mpName').value = store.get('bnd-name', '');
+$('mpHost').addEventListener('click', mpHost); $('mpJoin').addEventListener('click', mpJoin); $('mpLeave').addEventListener('click', mpLeave); $('mpName').value = store.get('bnd-name', ''); $('mpCode').value = store.get('bnd-join', '');
 
 function updateRings() { ringMeshes.forEach((m, i) => { m.visible = i >= G.ring && !G.fight; m.material.color.setHex(i === G.ring ? 0xf5b800 : 0xff6b1a); m.material.opacity = i === G.ring ? .95 : .35; }); }
 
@@ -1376,8 +1381,22 @@ function resize() {
   camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
-// iPhone: no pinch page zoom (the game areas block the pinch that would undo it); double-tap zoom is off via touch-action
-for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
+// Page zoom on phones. The game never wants to be zoomed, so: block pinch while at normal size, snap back to normal size
+// whenever the browser reports a zoom (after tapping a field, rotating the phone, a stray double tap), and if it is
+// zoomed anyway, unblock gestures so a pinch can always get out. Nothing here can leave the player stuck.
+const vv = window.visualViewport, vpMeta = document.querySelector('meta[name=viewport]'), VP = 'width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no';
+const isZoomed = () => !!vv && vv.scale > 1.02; let zoomTry = 0;
+function fixZoom() {
+  const z = isZoomed(); document.documentElement.classList.toggle('zoomed', z); if (!z || !vpMeta) return;
+  const now = Date.now(); if (now - zoomTry < 700) return; zoomTry = now;
+  vpMeta.setAttribute('content', VP + ',minimum-scale=1,maximum-scale=1.001'); // changing the limit makes the browser re-apply it
+  setTimeout(() => { vpMeta.setAttribute('content', VP + ',maximum-scale=1'); try { scrollTo(0, 0); } catch (e) {} document.documentElement.classList.toggle('zoomed', isZoomed()); resize(); }, 80);
+}
+if (vv) { vv.addEventListener('resize', () => { fixZoom(); resize(); }); vv.addEventListener('scroll', fixZoom); }
+addEventListener('orientationchange', () => { for (const ms of [120, 450, 900]) setTimeout(() => { fixZoom(); resize(); }, ms); }); // iPhones report the old size for a moment after turning
+document.addEventListener('focusout', () => setTimeout(fixZoom, 60));
+setInterval(fixZoom, 1500);
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => { if (!isZoomed()) e.preventDefault(); }, { passive: false });
 
 /* ================= main loop ================= */
 const ZFWD = new V3(0, 0, -1), mslMeshes = []; let mslPuffT = 0;
