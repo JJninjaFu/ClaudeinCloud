@@ -102,9 +102,19 @@ body.hudcompact #menuBtn { display: inline-block; }
 body.hudcompact .controls:not(.open) > :not(#menuBtn) { display: none; }
 body.hudcompact .controls:not(.open) { padding: 4px; }
 body.hudcompact #perf, body.hudcompact #board, body.hudcompact #mini, body.hudcompact #build { display: none !important; }
-body.hudcompact .stats > span:nth-child(4), body.hudcompact .stats > span:nth-child(6), body.hudcompact .stats > span:nth-child(7) { display: none; }
+body.hudcompact .stats > span:nth-child(5), body.hudcompact .stats > span:nth-child(7), body.hudcompact .stats > span:nth-child(8) { display: none; }
 body.hudcompact .ledger { padding: 4px 10px 5px; }
 body.hudcompact .ledger h1 { font-size: 15px; }
+.crewrow { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; display: grid; gap: 4px; }
+.crtop { display: flex; gap: 6px; align-items: center; }
+.crtop .crname { background: none; border: 0; padding: 0; min-height: 32px; font-size: 16px; font-weight: 700; color: var(--ink); text-align: left; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crtop select { background: #12100c; border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; min-height: 34px; font-size: 15px; }
+.crtop button.warn { min-height: 34px; padding: 4px 8px; }
+.crst { color: var(--muted); font-size: 14px; }
+.crbars { display: flex; gap: 10px; font-size: 13px; color: var(--muted); }
+.crbar { display: flex; align-items: center; gap: 4px; flex: 1; }
+.crbar i { flex: 1; height: 6px; background: #2c261d; border-radius: 3px; overflow: hidden; display: block; }
+.crbar u { display: block; height: 100%; text-decoration: none; }
 .keys { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 14px; margin: 0; }
 .keys dt { color: var(--gold); font-weight: 600; }
 .keys dd { margin: 0; }
@@ -195,20 +205,22 @@ const money = v => (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString
 const DEFAULT_T = {
   digRate: 0.8, bucket: 1.6, siteRadius: 3.5, loaderCap: 1.6, washRate: 0.14, hopperCap: 20, recovery: 0.85, cutoff: 0.6,
   wage: 0.9, fuelExc: 0.35, fuelLoader: 0.15, fuelGen: 0.4, fuelPump: 0.12, repose: 0.75, goldPrice: 115, seasonMin: 20,
+  loan: 60000, loanPay: 5000, groc: 40,
 };
 const T_FIELDS = [
   ['digRate', 'Excavator digging, m³ per second', 0.05, 2, 0.05], ['bucket', 'Excavator bucket, m³', 0.3, 4, 0.1], ['siteRadius', 'Dig site radius, m', 2, 10, 0.5],
   ['loaderCap', 'Loader bucket, m³', 0.5, 6, 0.1], ['washRate', 'Wash plant, m³ per second', 0.02, 1, 0.01], ['hopperCap', 'Wash plant hopper, m³', 4, 80, 1],
   ['recovery', 'Gold recovery at the plant', 0.3, 1, 0.01], ['cutoff', 'Pay dirt cutoff, g per m³', 0, 4, 0.1],
-  ['wage', 'Wage per worker, $ per second', 0, 5, 0.1], ['fuelExc', 'Excavator diesel, $ per second', 0, 3, 0.05], ['fuelLoader', 'Loader diesel, $ per second', 0, 3, 0.05],
+  ['wage', 'Wage per worker, $ per second (paid once a month)', 0, 5, 0.1], ['fuelExc', 'Excavator diesel, $ per second', 0, 3, 0.05], ['fuelLoader', 'Loader diesel, $ per second', 0, 3, 0.05],
   ['fuelGen', 'Generator diesel, $ per second', 0, 3, 0.05], ['fuelPump', 'Pump diesel, $ per second', 0, 2, 0.02], ['repose', 'Pile steepness (angle of repose)', 0.3, 1.5, 0.05],
   ['goldPrice', 'Starting gold price, $ per gram', 20, 400, 5], ['seasonMin', 'Season length, minutes', 5, 90, 1],
+  ['loan', 'Bank loan at the start, $ (next claim)', 0, 200000, 5000], ['loanPay', 'Loan payment, $ per month', 0, 20000, 500], ['groc', 'Groceries, $ per worker per day (with a mess hall)', 0, 200, 5],
 ];
 const T = Object.assign({}, DEFAULT_T);
 const STORE_KEY = 'bedrockClaim.tune.v1';
 try { Object.assign(T, JSON.parse(localStorage.getItem(STORE_KEY) || '{}')); } catch (e) { /* storage unavailable */ }
 function saveTune() { try { localStorage.setItem(STORE_KEY, JSON.stringify(T)); } catch (e) { /* ignore */ } }
-const PRICES = { excavator: 14000, dozer: 16000, loader: 6000, pump: 2500, generator: 8000, plant: 18000, bunkhouse: 5000, survey: 1500, hire: 600 };
+const PRICES = { excavator: 14000, dozer: 16000, loader: 6000, pump: 2500, generator: 8000, plant: 18000, bunkhouse: 5000, mess: 6000, workshop: 7000, survey: 1500, hire: 600, suv: 9000 };
 
 // =============================================================== ground: surface, overburden, pay gravel, bedrock
 // Dirt grid: 641 x 641 cells of 0.625 m (2 ft). ?grid=321 gives the old 1.25 m cells for slow machines and quick tests.
@@ -226,6 +238,11 @@ function hAt(x, z) {
 let seed = 20261030;
 function srand() { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
 const hash = (i, j) => { const s = Math.sin(i * 12.9898 + j * 78.233) * 43758.5453; return s - Math.floor(s); };
+// smooth value noise: hash values on a lattice `cell` metres apart, blended between corners, so rich ground runs for several buckets
+function vnoise(u, v, cell) {
+  const fu = u / cell, fv = v / cell, i = Math.floor(fu), j = Math.floor(fv), a = fu - i, b = fv - j, sa = a * a * (3 - 2 * a), sb = b * b * (3 - 2 * b);
+  return lerp(lerp(hash(i, j), hash(i + 1, j), sa), lerp(hash(i, j + 1), hash(i + 1, j + 1), sa), sb);
+}
 // 8 claims in a ring around the mesa town, rotationally identical so every slot is fair.
 const SLOTS = 8, SEG = Math.PI * 2 / SLOTS, CLAIM_R = 120;
 function localOf(x, z) {
@@ -266,7 +283,7 @@ function genGround() {
     PAYTOP[k] = h - (pd < 7 ? 0.4 : over);
     BEDR[k] = PAYTOP[k] - pay;
     const dp = Math.abs(L.u - (6 * Math.sin(L.v * 0.07) - 4));
-    let g = (0.15 + 4.0 * Math.exp(-(dp * dp) / (2 * 9 * 9))) * (0.65 + 0.7 * hash(Math.round(L.u / CELL), Math.round(L.v / CELL)));
+    let g = (0.15 + 4.0 * Math.exp(-(dp * dp) / (2 * 9 * 9))) * (0.65 + 0.7 * vnoise(L.u + 300, L.v + 300, 6));   // claim-local, so all 8 claims match
     for (const [pu, pv, pr, pg] of LOCAL_POCKETS) g += pg * Math.exp(-((L.u - pu) ** 2 + (L.v - pv) ** 2) / (2 * pr * pr));
     // rich ground around the foot of the mesa: worth fighting over
     const mid = ((Math.atan2(x, z) + SEG / 2) % SEG + SEG) % SEG, md = dist(r, Math.min(mid, SEG - mid) * r, 54, SEG / 2 * 54);
@@ -281,7 +298,7 @@ const glCanvas = $('#gl'), hud = $('#hud'), hctx = hud.getContext('2d');
 // Graphics quality: 'high' (default) is the desktop renderer: soft sun shadows, ambient occlusion, sky reflections,
 // textured ground. 'low' skips all of that for weak machines and for tests. ?gfx=low|high or the Graphics button.
 // Shown next to the title so it is obvious which version is on screen. Bump the number and the note with every change that ships.
-const BUILD = { n: 9, note: 'tidier screen on phones' };
+const BUILD = { n: 10, note: 'a crew with names and jobs, and a bank loan' };
 // tidy HUD: tap the title to fold the top-left panel; Menu folds the top buttons. Phones start folded.
 const HUD_KEY = 'bedrockClaim.hudCompact';
 let hudCompact = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || innerWidth < 760;
@@ -705,6 +722,34 @@ function makeBunkhouse() {
   add(g, box(0.6, 1.8, 0.6), MAT.steel, 3.5, 4.6, -1);
   return g;
 }
+// the cookhouse: plank walls, a stove pipe that smokes while the cook works, a long table out front
+function makeMessHall() {
+  const g = new THREE.Group(), plank = M(0xa07a4c);
+  add(g, box(8, 3, 6), plank, 0, 1.5, 0);
+  add(g, box(8.6, 0.22, 3.6), MAT.roof, 0, 3.6, 1.5, 0.42); add(g, box(8.6, 0.22, 3.6), MAT.roof, 0, 3.6, -1.5, -0.42);
+  add(g, box(1.5, 2.3, 0.2), MAT.dark, -1.6, 1.15, 3.05);
+  add(g, box(1.2, 0.8, 0.12), MAT.glass, 1.6, 1.8, 3.02);
+  add(g, box(2.6, 0.55, 0.1), M(0xd8c7a0), 0, 2.75, 3.1);
+  add(g, cyl(0.22, 0.22, 2.0, 8), MAT.steel, 2.6, 4.2, -1.2);
+  add(g, box(2.6, 0.1, 0.9), MAT.wood, 1.9, 0.8, 4.3);
+  for (const dz of [-0.75, 0.75]) add(g, box(2.6, 0.08, 0.3), MAT.wood, 1.9, 0.48, 4.3 + dz);
+  for (const dx of [-1.0, 1.0]) add(g, box(0.1, 0.8, 0.8), MAT.wood, 1.9 + dx, 0.4, 4.3);
+  g.userData = { pipe: [2.6, 5.3, -1.2] };
+  return g;
+}
+// the mechanic's shed: steel walls, a wide roll-up door, a bench and an oil drum outside
+function makeWorkshop() {
+  const g = new THREE.Group(), tin = M(0x7b8288, 0.5, 0.3);
+  add(g, box(8, 3.6, 7), tin, 0, 1.8, 0);
+  add(g, box(8.6, 0.2, 7.6), M(0x4f555b, 0.5, 0.3), 0, 3.85, 0, 0.08);
+  add(g, box(3.6, 2.9, 0.15), MAT.dark, -1.2, 1.45, 3.55);
+  for (let n = 0; n < 5; n++) add(g, box(3.6, 0.06, 0.05), MAT.steel, -1.2, 0.4 + n * 0.55, 3.64);
+  add(g, box(1.8, 0.9, 0.7), MAT.wood, 2.6, 0.45, 4.1);
+  add(g, box(0.5, 0.3, 0.4), MAT.yel, 2.3, 1.05, 4.1);
+  add(g, cyl(0.35, 0.35, 0.95, 10), MAT.rust, 3.6, 0.48, 2.9);
+  add(g, cyl(0.55, 0.55, 0.12, 8), MAT.yel, 1.6, 3.0, 3.6, Math.PI / 2, 0, 0);
+  return g;
+}
 
 // =============================================================== effects
 function radialTexture(stops) {
@@ -739,8 +784,10 @@ function updateEffects(dt) {
 }
 
 // =============================================================== claim state
-const machines = [], structures = [], piles = [];
-const ledger = { money: 25000, goldSafe: 0, goldWashed: 0, goldSold: 0, earned: 0, spent: 0, workers: 3, price: T.goldPrice, seasonT: 0, over: false };
+const machines = [], structures = [], piles = [], workers = [], leavers = [];
+// clock: game seconds since the claim opened (months, paydays, groceries and the bank run on it; in a race it follows the shared start time)
+const ledger = { money: 25000, goldSafe: 0, goldWashed: 0, goldSold: 0, earned: 0, spent: 0, price: T.goldPrice, seasonT: 0, over: false, loan: T.loan, paidLoan: 0, clock: 0, monthN: 0, dayN: 0, groc: 1 };
+Object.defineProperty(ledger, 'workers', { get: () => workers.length, enumerable: true });
 let race = { active: false };
 let simTime = 0, timeScale = 1, toolMode = null, sel = null, surveyBought = false, ID = 1;
 const KIND = { waste: 1, pay: 2, tail: 3 };
@@ -758,18 +805,20 @@ class Machine {
     this.path = null; this.pathI = 0; this.goal = null; this.order = null; this.state = 'Idle'; this.crewed = false; this.moving = false;
     this.cargo = 0; this.cargoGold = 0; this.timer = 0; this.auto = type === 'loader'; this.swing = 0; this.boom = -0.3; this.stick = 0.4; this.bucketFull = false;
     this.speed = 0; this.manualT = -1;
+    this.wear = 0; this.broken = false; this.op = null; this.opComing = null; this.repairing = null; this.opRate = 0;
     this.mesh = type === 'excavator' ? makeExcavator() : type === 'suv' ? makeSUV() : type === 'dozer' ? makeDozer() : makeLoader();
     this.mesh.traverse(o => { o.userData.ent = this; });
     scene.add(this.mesh); machines.push(this);
   }
   get name() { return this.type === 'suv' ? 'Crew 4x4' : this.M.name + ' ' + (machines.filter(m => m.type === this.type).indexOf(this) + 1); }
 }
-const STYPE = { plant: { name: 'Wash Plant', r: 5.6 }, generator: { name: 'Generator', r: 3.2 }, pump: { name: 'Water Pump', r: 1.8 }, bunkhouse: { name: 'Bunkhouse', r: 5.8 } };
+const STYPE = { plant: { name: 'Wash Plant', r: 5.6 }, generator: { name: 'Generator', r: 3.2 }, pump: { name: 'Water Pump', r: 1.8 }, bunkhouse: { name: 'Bunkhouse', r: 5.8 }, mess: { name: 'Mess Hall', r: 5.0 }, workshop: { name: 'Workshop', r: 5.3 } };
 class Structure {
   constructor(kind, x, z, heading = 0) {
     this.id = ID++; this.kind = kind; this.S = STYPE[kind]; this.x = x; this.z = z; this.heading = heading; this.y = hAt(x, z);
     this.on = true; this.crewed = false; this.hopper = 0; this.hopperGold = 0; this.washed = 0; this.tailAcc = 0; this.goldAcc = 0; this.rate = 0; this.running = false;
-    this.mesh = { plant: makePlant, generator: makeGenerator, pump: makePump, bunkhouse: makeBunkhouse }[kind]();
+    this.wear = 0; this.broken = false; this.op = null; this.opComing = null; this.repairing = null; this.opRate = 0; this.meals = 0; this.cookT = 0; this.cook = null; this.cookOn = false;
+    this.mesh = { plant: makePlant, generator: makeGenerator, pump: makePump, bunkhouse: makeBunkhouse, mess: makeMessHall, workshop: makeWorkshop }[kind]();
     this.mesh.position.set(x, this.y, z); this.mesh.rotation.y = heading;
     this.mesh.traverse(o => { o.userData.ent = this; });
     scene.add(this.mesh); structures.push(this); this.block(1);
@@ -792,8 +841,10 @@ function setupClaim() {
   new Structure('bunkhouse', ...at(-26, -20), a + Math.PI);
   new Machine('excavator', ...at(-4, -14), a);
   new Machine('loader', ...at(-12, -2), a);
-  new Machine('suv', ...at(-32, -6), a + Math.PI);
+  new Machine('suv', ...at(-32, -6), a + Math.PI).home = [...at(-32, -6), a + Math.PI];
   new Machine('dozer', ...at(-10, 18), a);
+  // the starting crew: two operators and a cook (who needs a mess hall before there is anything to cook in)
+  for (const [job, u, v, hu, re] of [['operator', -24, -12, 100, 100], ['operator', -22, -15, 88, 93], ['cook', -28, -14, 94, 97]]) Object.assign(addWorker(job, ...at(u, v)), { hunger: hu, rest: re, yaw: a });
   const [jx, jz] = at(-30, -11);
   Object.assign(jim, { x: jx, z: jz, yaw: a, driving: null });
   cam.x = jx; cam.z = jz; cam.yaw = a + Math.PI * 1.25;
@@ -802,16 +853,18 @@ function setupClaim() {
 // =============================================================== simulation
 function waterSupply() { return structures.filter(s => s.kind === 'pump' && s.on && s.wetOK).length * 60; }
 function power() { return structures.filter(s => s.kind === 'generator' && s.on).length * 60; }
-function assignCrew() {
-  let w = ledger.workers;
-  for (const s of structures) s.crewed = false;
-  for (const m of machines) m.crewed = !!m.driven || m.type === 'suv';
-  const free = m => !m.crewed;
-  for (const s of structures) if (s.kind === 'plant' && w > 0) { s.crewed = true; w--; }
-  for (const m of machines) if (free(m) && m.type === 'excavator' && m.order && w > 0) { m.crewed = true; w--; }
-  for (const m of machines) if (free(m) && m.type === 'loader' && (m.auto || m.order) && w > 0) { m.crewed = true; w--; }
-  for (const m of machines) if (free(m) && w > 0) { m.crewed = true; w--; }
+// wear: every machine and wash plant wears out while it works and breaks down at 100
+const WEAR_MIN = { excavator: 9, loader: 12, dozer: 10, suv: 15, plant: 12 };   // minutes of work from new to broken
+function addWear(e, dt) {
+  if (e.broken) return;
+  e.wear = Math.min(100, e.wear + dt * 100 / ((WEAR_MIN[e.type || e.kind] || 12) * 60));
+  if (e.wear >= 100) {
+    e.broken = true; e.moving = false; e.speed = 0;
+    sfx('clang', e.x, e.z);
+    toast(`${e.name} broke down. ${workers.some(w => w.job === 'mechanic') ? 'Your mechanic is on the way.' : 'Nobody is on the Mechanic job, so it stays broken. You can patch it by hand: stand next to it and press Space.'}`, 4200);
+  }
 }
+function brokeState(m) { return m.broken ? (m.repairing ? `Broken down · ${m.repairing.name} is fixing it` : 'Broken down') : m.repairing ? `${m.repairing.name} is servicing it` : null; }
 function spend(v) { ledger.money -= v; ledger.spent += v; }
 function travel(m, gx2, gz2, dt) {
   // Follows a path to (gx2, gz2); returns true on arrival.
@@ -835,12 +888,15 @@ function updateExcavator(m, dt) {
   const o = m.order;
   m.moving = false;
   if (!o) { m.state = m.crewed ? 'Idle' : 'Parked'; m.boom = lerp(m.boom, -0.3, dt * 2); return; }
+  const bs = brokeState(m);
+  if (bs) { m.state = bs; return; }
   if (o.k === 'move') { m.state = 'Driving'; if (travel(m, o.x, o.z, dt)) { m.order = null; m.goal = null; } spend(T.fuelExc * dt); return; }
-  if (!m.crewed) { m.state = 'Waiting for an operator'; return; }
+  if (!m.crewed) { m.state = m.opComing ? `Waiting for ${m.opComing.name}` : 'Waiting for an operator'; return; }
+  const dtw = dt * m.opRate;                                                   // a happy, practised operator works faster
   if (!o.arrived) {
     m.state = 'Driving to the dig site';
     spend(T.fuelExc * dt * 0.6);
-    if (travel(m, o.sx, o.sz, dt)) {
+    if (travel(m, o.sx, o.sz, dtw)) {
       o.arrived = true; m.goal = null;
       if (dist(m.x, m.z, o.sx, o.sz) > 3) { m.order = null; toast('The excavator could not reach that spot. The ground is too steep or wet.', 3200); return; }
       const a = Math.atan2(o.x - m.x, o.z - m.z), rx = Math.cos(a), rz = -Math.sin(a);
@@ -850,38 +906,49 @@ function updateExcavator(m, dt) {
     }
     return;
   }
-  spend(T.fuelExc * dt);
+  spend(T.fuelExc * dt); addWear(m, dtw);
   const cycle = Math.max(1.2, T.bucket / T.digRate);
-  m.timer += dt;
+  m.timer += dtw;
   const ph = (m.timer % cycle) / cycle;
   const toPit = Math.atan2(o.x - m.x, o.z - m.z) - m.heading;
-  const toPile = m.bucketFull ? Math.atan2((m.bucketGrade >= T.cutoff ? o.pay : o.waste).x - m.x, (m.bucketGrade >= T.cutoff ? o.pay : o.waste).z - m.z) - m.heading : toPit;
+  const toPile = m.bucketFull ? Math.atan2((m.bucketSplit ? o.pay : o.waste).x - m.x, (m.bucketSplit ? o.pay : o.waste).z - m.z) - m.heading : toPit;
   if (ph < 0.35) { m.swing = lerp(m.swing, toPit, dt * 4); m.boom = lerp(m.boom, 0.35, dt * 3); m.stick = lerp(m.stick, 1.0, dt * 3); }
   else if (ph < 0.45) {
     if (!m.bucketFull) {
       const b = digAt(o.x, o.z, o.r, T.bucket);
       if (!b || b.vol < 0.02) { m.order = null; toast(`${m.name} reached bedrock everywhere in that dig site.`, 3200); return; }
-      m.bucketFull = true; m.bucketVol = b.vol; m.bucketGold = b.gold; m.bucketGrade = b.gold / Math.max(0.01, b.vol);
+      fillBucket(m, b);
       sfx('dig', o.x, o.z);
       puff(dustTex, o.x + rand(-1, 1), hAt(o.x, o.z) + 0.6, o.z + rand(-1, 1), 3, 1.4, 0.6);
     }
     m.boom = lerp(m.boom, -0.45, dt * 4); m.stick = lerp(m.stick, 0.3, dt * 4);
   } else if (ph < 0.8) { m.swing = lerp(m.swing, toPile, dt * 3.5); m.boom = lerp(m.boom, -0.4, dt * 3); }
   else if (m.bucketFull) {
-    const p = m.bucketGrade >= T.cutoff ? o.pay : o.waste;
-    p.add(m.bucketVol, m.bucketGold);
+    // the operator digs selectively: the pay gravel and all its gold go on the pay pile, the overburden in the same bucket goes to waste
+    const p = m.bucketSplit ? o.pay : o.waste;
+    if (m.bucketSplit) { o.pay.add(m.bucketPay, m.bucketGold); if (m.bucketVol - m.bucketPay > 0.02) o.waste.add(m.bucketVol - m.bucketPay, 0); }
+    else o.waste.add(m.bucketVol, m.bucketGold);
     m.bucketFull = false;
     sfx('dump', p.x, p.z);
     puff(dustTex, p.x, hAt(p.x, p.z) + 1, p.z, 3.5, 1.6, 0.8);
   }
-  m.state = m.bucketFull ? (m.bucketGrade >= T.cutoff ? `Pay dirt, ${m.bucketGrade.toFixed(1)} g/m³` : 'Overburden to waste') : 'Digging';
+  m.state = m.bucketFull ? (m.bucketSplit ? `Pay dirt ${m.bucketPay.toFixed(1)} m³ at ${m.bucketGrade.toFixed(1)} g/m³` : 'Overburden to waste') : 'Digging';
+}
+// a bucket holds pay gravel if digAt found more than 0.1 m³ of it; that part carries the gold. Rich enough (cutoff) and it is kept.
+function fillBucket(m, b) {
+  m.bucketFull = true; m.bucketVol = b.vol; m.bucketGold = b.gold; m.bucketPay = Math.min(b.vol, b.payVol);
+  m.bucketSplit = m.bucketPay > 0.1 && b.gold / m.bucketPay >= T.cutoff;
+  m.bucketGrade = m.bucketSplit ? b.gold / m.bucketPay : b.gold / Math.max(0.01, b.vol);
 }
 function updateLoader(m, dt) {
   const o = m.order;
   if (o && o.k === 'move') { m.state = 'Driving'; spend(T.fuelLoader * dt); if (travel(m, o.x, o.z, dt)) { m.order = null; m.goal = null; } return; }
   if (!m.auto) { m.moving = false; m.state = 'Parked'; return; }
-  if (!m.crewed) { m.moving = false; m.state = 'Waiting for an operator'; return; }
+  const bs = brokeState(m);
+  if (bs) { m.moving = false; m.state = bs; return; }
+  if (!m.crewed) { m.moving = false; m.state = m.opComing ? `Waiting for ${m.opComing.name}` : 'Waiting for an operator'; return; }
   spend(T.fuelLoader * dt);
+  const dtw = dt * m.opRate;
   m.job = m.job || { s: 'seek' };
   const j = m.job;
   if (j.s === 'seek') {
@@ -895,30 +962,32 @@ function updateLoader(m, dt) {
   if (j.s === 'toPile') {
     m.state = 'Heading to the pay dirt';
     const a = Math.atan2(m.x - j.pile.x, m.z - j.pile.z), tx = j.pile.x + Math.sin(a) * 3.2, tz = j.pile.z + Math.cos(a) * 3.2;
-    if (travel(m, tx, tz, dt)) { j.s = 'load'; m.timer = 0; m.goal = null; m.heading = Math.atan2(j.pile.x - m.x, j.pile.z - m.z); }
+    if (travel(m, tx, tz, dtw)) { j.s = 'load'; m.timer = 0; m.goal = null; m.heading = Math.atan2(j.pile.x - m.x, j.pile.z - m.z); }
   } else if (j.s === 'load') {
-    m.moving = false; m.state = 'Loading'; m.timer += dt;
+    m.moving = false; m.state = 'Loading'; m.timer += dtw;
     if (m.timer > 2.5) { const [v, g] = j.pile.take(T.loaderCap); m.cargo = v; m.cargoGold = g; sfx('dump', j.pile.x, j.pile.z); j.s = v > 0.05 ? 'toPlant' : 'seek'; m.goal = null; }
   } else if (j.s === 'toPlant') {
     m.state = `Hauling ${m.cargo.toFixed(1)} m³`;
     const [tx, tz] = j.plant.inPt;
-    if (travel(m, tx, tz, dt)) { j.s = 'dump'; m.timer = 0; m.goal = null; m.heading = Math.atan2(j.plant.x - m.x, j.plant.z - m.z); }
+    if (travel(m, tx, tz, dtw)) { j.s = 'dump'; m.timer = 0; m.goal = null; m.heading = Math.atan2(j.plant.x - m.x, j.plant.z - m.z); }
   } else if (j.s === 'dump') {
-    m.moving = false; m.state = 'Feeding the hopper'; m.timer += dt;
+    m.moving = false; m.state = 'Feeding the hopper'; m.timer += dtw;
     if (m.timer > 2) { j.plant.hopper += m.cargo; j.plant.hopperGold += m.cargoGold; m.cargo = 0; m.cargoGold = 0; sfx('dump', j.plant.x, j.plant.z); j.s = 'seek'; }
   }
+  addWear(m, dtw);
 }
 function updateStructures(dt) {
   const plants = structures.filter(s => s.kind === 'plant');
-  const running = plants.filter(s => s.on && s.crewed && s.hopper > 0.01);
+  const running = plants.filter(s => s.on && s.crewed && !s.broken && !s.repairing && s.hopper > 0.01);
   const pw = power(), wt = waterSupply();
   const pf = running.length ? Math.min(1, pw / (running.length * 40)) : 0;
   const wf = running.length ? Math.min(1, wt / (running.length * 100)) : 0;
   for (const s of plants) {
     s.running = running.includes(s) && pf > 0 && wf > 0;
-    s.rate = s.running ? T.washRate * pf * wf : 0;
+    s.rate = s.running ? T.washRate * pf * wf * s.opRate : 0;
     s.pf = pf; s.wf = wf;
     if (!s.running) continue;
+    addWear(s, dt * s.opRate);
     const v = Math.min(s.hopper, s.rate * dt), g = s.hopper > 0 ? s.hopperGold * v / s.hopper : 0;
     s.hopper -= v; s.hopperGold -= g;
     const won = g * T.recovery;
@@ -930,10 +999,11 @@ function updateStructures(dt) {
   for (const s of structures) {
     if (s.kind === 'generator' && s.on) { spend(T.fuelGen * dt * (running.length ? 1 : 0.35)); if (Math.random() < dt * 3) puff(smokeTex, s.x + 0.6, s.y + 3.8, s.z - 1.8, 1.6, 2.4, 1.4); }
     if (s.kind === 'pump' && s.on) spend(T.fuelPump * dt);
+    if (s.kind === 'mess' && s.cookOn && Math.random() < dt * 2) { const [px, py, pz] = s.mesh.userData.pipe, c = Math.cos(s.heading), sn = Math.sin(s.heading); puff(smokeTex, s.x + px * c + pz * sn, s.y + py, s.z - px * sn + pz * c, 1.2, 2.2, 1.2); }
   }
 }
 function updateLedger(dt) {
-  spend(T.wage * ledger.workers * dt);
+  calendarTick(dt);
   ledger.priceT = (ledger.priceT || 0) + dt;
   if (ledger.priceT > 8) { ledger.priceT = 0; ledger.priceN = (ledger.priceN || 0) + 1; ledger.price = clamp(ledger.price * (1 + hash(ledger.priceN, 3.7) * 0.051 - 0.025), T.goldPrice * 0.6, T.goldPrice * 1.6); }
   if (race.active) ledger.seasonT = (Date.now() - race.startAt) / 1000; else ledger.seasonT += dt;
@@ -953,11 +1023,400 @@ function sellGold() {
   if (jim.driving && jim.driving.type === 'suv') jim.driving.cargoGold = 0;
   sfx('cash', cam.x, cam.z); toast(`Sold gold for ${money(v)}.`, 2400); refreshCmd();
 }
+// =============================================================== the calendar: months, paydays, groceries, the bank
+// A year is 12 months over T.seasonMin minutes and 60 days, so a day is a few seconds and there are several in a real minute.
+function monthLen() { return T.seasonMin * 60 / 12; }
+function dayLen() { return T.seasonMin * 60 / 60; }
+function calendarTick(dt) {
+  if (race.active) ledger.clock = Math.max(0, ledger.seasonT); else ledger.clock += dt;
+  const mon = Math.floor(ledger.clock / monthLen()), day = Math.floor(ledger.clock / dayLen());
+  if (mon - ledger.monthN > 2) ledger.monthN = mon - 1;                       // the season length slider moved: no burst of paydays
+  if (day - ledger.dayN > 2) ledger.dayN = day - 1;
+  while (ledger.dayN < day) { ledger.dayN++; dayEnd(); }
+  while (ledger.monthN < mon) { ledger.monthN++; monthEnd(); }
+}
+function dayEnd() {
+  if (!messHall() || !workers.length) return;
+  const c = T.groc * workers.length;
+  if (ledger.money >= c) { spend(c); ledger.groc = 1; }
+  else { if (ledger.groc) toast('No cash for groceries. The cook has nothing to cook.', 2600); ledger.groc = 0; }
+}
+function machinePrice(m) { return PRICES[m.type] || 9000; }
+function monthEnd() {
+  // the bank first
+  if (ledger.loan > 0.5) {
+    const due = Math.min(T.loanPay, ledger.loan);
+    if (ledger.money >= due) { ledger.money -= due; ledger.loan -= due; ledger.paidLoan += due; toast(`The bank took this month's ${money(due)} payment. Loan left: ${money(ledger.loan)}.`, 3200); }
+    else repossess(due);
+  }
+  // then payday
+  if (workers.length) {
+    if (ledger.money < 0) { for (const w of workers) w.pay = 0; toast('Payday, and the cash box is empty. The crew is not happy.', 3600); }
+    else { spend(T.wage * monthLen() * workers.length); for (const w of workers) w.pay = 100; }
+  }
+}
+// short on the payment: the bank takes your most expensive machine that you are not sitting in, at half its shop price
+function repossess(due) {
+  const m = machines.filter(q => !q.driven).sort((a, b) => machinePrice(b) - machinePrice(a))[0];
+  if (!m) { ledger.money -= due; ledger.loan -= due; ledger.paidLoan += due; toast(`The bank took its ${money(due)} out of an empty cash box. You are in the red.`, 4000); return null; }
+  const credit = machinePrice(m) * 0.5, name = m.name;
+  ledger.loan = Math.max(0, ledger.loan - credit); ledger.repo = (ledger.repo || 0) + 1;
+  removeMachine(m);
+  toast(`Not enough cash for the ${money(due)} bank payment. The bank took ${name} and knocked ${money(credit)} off the loan.`, 6000);
+  sfx('clang', cam.x, cam.z);
+  return name;
+}
+function removeMachine(m) {
+  if (m.op) { const w = m.op; unboard(w); w.run = null; }
+  if (m.repairing) { m.repairing.fix = null; m.repairing = null; }
+  if (sel === m) select(null);
+  scene.remove(m.mesh);
+  const n = machines.indexOf(m); if (n >= 0) machines.splice(n, 1);
+}
+function payLoan() {
+  const v = Math.min(ledger.money, ledger.loan);
+  if (v < 1) return toast(ledger.loan < 0.5 ? 'The loan is paid off.' : 'You need cash to pay the bank.', 2000);
+  ledger.money -= v; ledger.loan -= v; ledger.paidLoan += v;
+  sfx('cash', cam.x, cam.z);
+  toast(ledger.loan < 0.5 ? 'Loan paid off. The claim is yours, free and clear.' : `Paid ${money(v)} on the loan. ${money(ledger.loan)} left.`, 3200);
+  refreshCmd();
+}
+
+// =============================================================== the crew: people with names, jobs and needs (RimWorld-lite)
+// Workers walk the claim on foot. Operators climb aboard machines that have work (a machine only works with someone in it),
+// mechanics fix worn machines, the cook turns groceries into meals at the mess hall, the driver runs the gold to town.
+// Hunger and rest run down; mood (hunger, rest and pay) sets how fast they work, and a miserable month makes them quit.
+const JOBS = {
+  operator: { name: 'Operator', shirt: 0x2f6fa8, hat: 0xf2c230, css: '#5a9be0' },
+  mechanic: { name: 'Mechanic', shirt: 0x5d6168, hat: 0xff6b1a, css: '#ff8a3d' },
+  cook: { name: 'Cook', shirt: 0xe9e3d5, hat: 0xf4f1ea, css: '#f1e6cf' },
+  driver: { name: 'Driver', shirt: 0x4d6b3c, hat: 0x6b4a2e, css: '#8db36a' },
+};
+const FIRST_NAMES = ['Hank', 'Earl', 'Wyatt', 'Clem', 'Amos', 'Ezra', 'Boone', 'Cody', 'Jesse', 'Mae', 'Hattie', 'Ada', 'Pete', 'Gus', 'Otis', 'Rufus', 'Dell', 'Lottie', 'Virgil', 'Silas', 'June', 'Etta', 'Walt', 'Jeb', 'Cass', 'Nell'];
+const NICKNAMES = ['Slim', 'Dusty', 'Lefty', 'Red', 'Shorty', 'Tex', 'Buck', 'Doc', 'Biscuit', 'Sarge', 'Patch', 'Smoky', 'Kit', 'Tiny', 'Rusty', 'Hoss'];
+const CREW = { walk: 4.2, hungerMin: 5, restMin: 7, eatT: 4, sleepT: 45, cookT: 5, repairT: 45, hungry: 35, tired: 25, quitMood: 10, runGold: 15, robChance: 0.5, skillT: 900, mealsPer: 2, nearMess: 18 };
+const messHall = () => structures.find(s => s.kind === 'mess');
+const workshop = () => structures.find(s => s.kind === 'workshop');
+function opRate(w) { return clamp(0.6 + 0.6 * w.mood / 100, 0.6, 1.2) * (1 + 0.25 * w.skill); }
+function sideSpot(s, side = 1) { const d = s.S.r * 0.8 + 1.1; return [s.x + Math.cos(s.heading) * d * side, s.z - Math.sin(s.heading) * d * side]; }
+function dropMesh(g) { scene.remove(g); g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); }
+function workerMesh(w) {
+  if (w.mesh) dropMesh(w.mesh);
+  const J = JOBS[w.job], g = makeJimbo(J.shirt, J.hat);
+  g.traverse(o => { o.userData.ent = w; });
+  scene.add(g); w.mesh = g;
+}
+function addWorker(job, x, z, route) {
+  const used = new Set([...workers, ...leavers].map(w => w.first)), free = FIRST_NAMES.filter(n => !used.has(n));
+  const first = (free.length ? free : FIRST_NAMES)[Math.floor(Math.random() * (free.length || FIRST_NAMES.length))];
+  const w = { id: ID++, isWorker: true, first, name: first, nick: NICKNAMES[Math.floor(Math.random() * NICKNAMES.length)], job, hunger: 100, rest: 100, mood: 100, pay: 100, skill: 0,
+    x, z, yaw: 0, walk: 0, moving: false, st: 'idle', label: 'Idle', claim: null, aboard: null, fix: null, cooking: null, act: null, actT: 0, inside: false,
+    noWork: 0, claimT: 0, lowT: 0, run: null, route: route || null, prog: 1e9, progT: 0, dodge: 0, side: 1, runs: 0, mesh: null, log: [] };
+  workerMesh(w); workers.push(w);
+  return w;
+}
+function say(w, st, label) { if (w.label !== label) { w.log.push([Math.round(ledger.clock), label]); if (w.log.length > 40) w.log.shift(); } w.st = st; w.label = label; }
+// straight-line steering with pushOut, a sidestep around water, and a dodge when stuck against something
+function walkTo(w, x, z, dt, near = 0.8) {
+  const d = dist(w.x, w.z, x, z);
+  if (d <= near) { w.prog = 1e9; return true; }
+  if (d < w.prog - 0.3) { w.prog = d; w.progT = 0; } else if ((w.progT += dt) > 1.5) { w.dodge = 1.0; w.side = -w.side; w.progT = 0; w.prog = d; }
+  let a = Math.atan2(x - w.x, z - w.z);
+  if (w.dodge > 0) { w.dodge -= dt; a += w.side * 1.2; }
+  const sp = Math.min(d, CREW.walk * dt);
+  let nx = w.x + Math.sin(a) * sp, nz = w.z + Math.cos(a) * sp;
+  if (hAt(nx, nz) < WATER_Y - 0.5) { a += w.side * 1.2; nx = w.x + Math.sin(a) * sp; nz = w.z + Math.cos(a) * sp; if (hAt(nx, nz) < WATER_Y - 0.5) { w.side = -w.side; return false; } }
+  w.x = nx; w.z = nz; w.yaw = angLerp(w.yaw, a, Math.min(1, dt * 8)); w.walk += dt * 10; w.moving = true;
+  pushOut(w, 0.5);
+  return false;
+}
+function unboard(w) {
+  const m = w.aboard;
+  if (!m) return;
+  m.op = null; m.crewed = false; w.aboard = null; w.inside = false;
+  if (m instanceof Machine) { const a = m.heading + Math.PI / 2; w.x = m.x + Math.sin(a) * 2.8; w.z = m.z + Math.cos(a) * 2.8; pushOut(w, 0.5); }
+}
+function release(w) {
+  unboard(w);
+  if (w.fix && w.fix.repairing === w) w.fix.repairing = null;
+  if (w.cooking) { w.cooking.cook = null; w.cooking.cookOn = false; }
+  w.fix = null; w.claim = null; w.cooking = null; w.inside = false; w.noWork = 0;
+}
+function setJob(w, job) {
+  if (!JOBS[job] || w.job === job) return;
+  release(w); w.run = null; w.act = null; w.job = job; workerMesh(w);
+  if (drawer === 'crew') renderDrawer();
+}
+// --- operators: what is there to do on e? 0 = nothing. `keep` is the looser test for someone already aboard.
+function haulWork(m) {
+  if (m.job && m.job.s !== 'seek') return true;
+  return structures.some(s => s.kind === 'plant' && s.hopper < T.hopperCap - 0.5) && piles.some(p => p.kind === 'pay' && p.vol >= 0.5 && (!m.only || p === m.only));
+}
+function opWork(e, keep) {
+  if (!e || e.broken) return 0;
+  if (e instanceof Machine) {
+    if (e.driven || !machines.includes(e)) return 0;
+    if (e.type === 'excavator') return e.order && (e.order.k === 'dig' || keep) ? 3 : 0;
+    if (e.type === 'loader') return (e.auto && haulWork(e)) || (keep && e.order) ? 2 : 0;
+    return 0;
+  }
+  if (e.kind === 'plant' && e.on && structures.includes(e)) return e.hopper > (keep ? 0.05 : 1) ? 1 + 3 * e.hopper / T.hopperCap : 0;
+  return 0;
+}
+function pickOpJob(w) {
+  const taken = new Set();
+  for (const o of workers) if (o !== w) { if (o.claim) taken.add(o.claim); if (o.aboard) taken.add(o.aboard); }
+  let best = null, bs = 0;
+  for (const e of [...machines, ...structures]) {
+    if (taken.has(e) || e.op) continue;
+    const p = opWork(e, false);
+    if (!p) continue;
+    const sc = p - dist(e.x, e.z, w.x, w.z) * 0.002;
+    if (sc > bs) { bs = sc; best = e; }
+  }
+  return best;
+}
+function idleTick(w, dt, label, spot) {
+  if (!spot) { const b = structures.find(s => s.kind === 'bunkhouse'); if (b) { const [dx, dz] = b.inPt, k = workers.indexOf(w); spot = [dx + Math.cos(k * 1.9) * 2.4, dz + Math.sin(k * 1.9) * 2.4]; } }
+  if (spot && !walkTo(w, spot[0], spot[1], dt, 0.7)) { say(w, 'walk', label); return; }
+  say(w, 'idle', label);
+}
+function operatorTick(w, dt) {
+  if (w.aboard) {
+    const m = w.aboard;
+    if (opWork(m, true)) w.noWork = 0; else w.noWork += dt;
+    if (w.noWork > 4) { unboard(w); return; }                                 // nothing left to do here: climb down and find work
+    if (!m.repairing) w.skill = Math.min(1, w.skill + dt / CREW.skillT);
+    if (m instanceof Machine) { w.x = m.x; w.z = m.z; say(w, 'op', `Operating ${m.name}`); }
+    else { w.yaw = Math.atan2(m.x - w.x, m.z - w.z); say(w, 'op', `Running the ${m.name}`); }
+    return;
+  }
+  if (w.claim && (!opWork(w.claim, false) || w.claim.op)) w.claim = null;
+  if (!w.claim && (w.claimT -= dt) <= 0) { w.claimT = 1; w.claim = pickOpJob(w); }
+  const e = w.claim;
+  if (!e) { idleTick(w, dt, 'Idle, no machine has work'); return; }
+  e.opComing = w;
+  const isM = e instanceof Machine, [tx, tz] = isM ? [e.x, e.z] : sideSpot(e, 1);
+  say(w, 'walk', `Walking to ${e.name}`);
+  if (walkTo(w, tx, tz, dt, isM ? 3.0 : 0.8)) { e.op = w; e.crewed = true; w.aboard = e; w.claim = null; w.noWork = 0; w.inside = isM; }
+}
+// --- mechanics
+function fixable(e) { return (e instanceof Machine ? machines.includes(e) && !e.driven && !(e.type === 'suv' && e.op && e.moving) : structures.includes(e)) && (e.broken || e.wear > 60); }
+function mechTick(w, dt) {
+  const shop = workshop();
+  const f = w.fix, keep = f && !f.driven && (machines.includes(f) || structures.includes(f)) && (fixable(f) || (f.repairing === w && f.wear > 1));
+  if (f && !keep) { if (f.repairing === w) f.repairing = null; w.fix = null; }
+  if (!w.fix) {
+    const cands = [...machines, ...structures.filter(s => s.kind === 'plant')].filter(e => fixable(e) && !(e.repairing && e.repairing !== w) && !workers.some(o => o !== w && o.fix === e));
+    cands.sort((a, b) => (b.broken - a.broken) || b.wear - a.wear);
+    w.fix = cands[0] || null;
+  }
+  const e = w.fix;
+  if (!e) { idleTick(w, dt, shop ? 'Idle at the workshop' : 'Idle, nothing to fix', shop ? sideSpot(shop, workers.indexOf(w) % 2 ? 1 : -1) : null); return; }
+  if (e.repairing !== w) {
+    const isM = e instanceof Machine, [tx, tz] = isM ? [e.x, e.z] : sideSpot(e, -1);
+    say(w, 'walk', `Walking to fix ${e.name}`);
+    if (walkTo(w, tx, tz, dt, isM ? 3.2 : 0.8)) e.repairing = w;
+    return;
+  }
+  w.yaw = Math.atan2(e.x - w.x, e.z - w.z);
+  e.wear = Math.max(0, e.wear - dt * 100 / CREW.repairT * opRate(w) * (shop ? 2 : 1));
+  w.skill = Math.min(1, w.skill + dt / CREW.skillT);
+  say(w, 'repair', `Repairing ${e.name}`);
+  if (e.wear <= 1) { if (e.broken) toast(`${w.name} got ${e.name} running again.`, 2400); e.wear = 0; e.broken = false; e.repairing = null; w.fix = null; }
+}
+// --- the cook
+function cookTick(w, dt) {
+  const mh = messHall();
+  if (!mh) { idleTick(w, dt, 'Idle, needs a mess hall to cook in'); return; }
+  if (w.cooking !== mh) {
+    say(w, 'walk', 'Walking to the mess hall');
+    if (walkTo(w, mh.inPt[0], mh.inPt[1], dt, 0.8)) { w.cooking = mh; mh.cook = w; w.inside = true; }
+    return;
+  }
+  mh.cook = w;
+  const cap = Math.max(4, workers.length * CREW.mealsPer);
+  if (!ledger.groc) { mh.cookOn = false; say(w, 'cook', 'Out of groceries (no cash)'); return; }
+  if (mh.meals >= cap) { mh.cookOn = false; say(w, 'cook', `Meals ready (${Math.floor(mh.meals)})`); return; }
+  mh.cookOn = true; mh.cookT += dt * opRate(w); w.skill = Math.min(1, w.skill + dt / CREW.skillT);
+  if (mh.cookT >= CREW.cookT) { mh.cookT = 0; mh.meals++; }
+  say(w, 'cook', 'Cooking');
+}
+// --- the driver: safe -> Crew 4x4 -> the hill road -> Assay Office -> back and park
+function suvOf() { return machines.find(m => m.type === 'suv'); }
+function roadPts() { return [worldOf(home, -36, 0), worldOf(home, -98, 0), [TOWN.x + Math.sin(home * SEG) * 7, TOWN.z + Math.cos(home * SEG) * 7]]; }
+function steerTo(m, x, z, dt, sp) {
+  const d = dist(m.x, m.z, x, z);
+  if (d < 1.5) { m.speed = 0; m.moving = false; return true; }
+  m.heading = angLerp(m.heading, Math.atan2(x - m.x, z - m.z), Math.min(1, dt * 3));
+  const st = Math.min(d, sp * dt);
+  m.x += Math.sin(m.heading) * st; m.z += Math.cos(m.heading) * st; m.speed = sp; m.moving = true;
+  pushOut(m, 2.0);
+  return false;
+}
+function driverTick(w, dt) {
+  const v = suvOf();
+  if (!w.run) {
+    const ready = v && !v.driven && !v.broken && !v.repairing && !v.order && !v.op && (ledger.goldSafe > CREW.runGold || v.cargoGold > 0.05) && structures.some(s => s.kind === 'plant');
+    if (ready) w.run = { s: 'walk' };
+    else {
+      const spot = v && !v.driven && !v.op ? [v.x + Math.cos(v.heading) * 3, v.z - Math.sin(v.heading) * 3] : null;
+      idleTick(w, dt, !v ? 'Idle, no 4x4' : v.driven ? 'Idle, you have the 4x4' : v.broken ? 'Idle, the 4x4 is broken down' : `Waiting for ${CREW.runGold} g in the safe`, spot);
+      return;
+    }
+  }
+  const r = w.run;
+  if (!v || v.driven || (v.op && v.op !== w)) { release(w); w.run = null; return; }
+  if (r.s === 'walk') {
+    say(w, 'walk', 'Walking to the Crew 4x4');
+    if (walkTo(w, v.x, v.z, dt, 3.0)) { v.op = w; v.crewed = true; w.aboard = v; w.inside = true; r.s = 'toPlant'; v.goal = null; }
+    return;
+  }
+  if (!w.aboard) { w.run = null; return; }
+  w.x = v.x; w.z = v.z; v.y = hAt(v.x, v.z);
+  const held = foes.some(f => f.hp > 0 && f.mode === 'rob' && dist(f.x, f.z, v.x, v.z) < 7);
+  if (v.broken || v.repairing || held) { v.moving = false; v.speed = 0; say(w, 'drive', held ? 'Held up by bandits' : v.broken ? 'Stuck: the 4x4 broke down' : 'Waiting for the mechanic'); v.state = w.label; return; }
+  const P = roadPts();
+  if (r.s === 'toPlant') {
+    const pl = structures.filter(s => s.kind === 'plant').sort((a, b) => dist(a.x, a.z, v.x, v.z) - dist(b.x, b.z, v.x, v.z))[0];
+    say(w, 'drive', 'Driving to the wash plant for the gold');
+    if (!pl) r.s = 'park';
+    else if (nearPlant(v.x, v.z, 6) || travel(v, pl.inPt[0], pl.inPt[1], dt)) {
+      v.goal = null; v.cargoGold += ledger.goldSafe; ledger.goldSafe = 0; sfx('dump', v.x, v.z);
+      r.s = v.cargoGold > 0.05 ? 'toRoad' : 'park';
+    }
+  } else if (r.s === 'toRoad') {
+    say(w, 'drive', 'Driving gold to town');
+    if (travel(v, P[0][0], P[0][1], dt)) { v.goal = null; r.s = 'up'; r.wi = 1; }
+  } else if (r.s === 'up') {
+    say(w, 'drive', 'Driving gold to town');
+    if (v.cargoGold <= 0.05) { r.s = 'down'; r.di = r.wi >= 2 ? 0 : 1; }       // robbed: turn for home
+    else if (steerTo(v, P[r.wi][0], P[r.wi][1], dt, 8)) {
+      if (r.wi < P.length - 1) r.wi++;
+      else {
+        const g = v.cargoGold, val = g * ledger.price;
+        ledger.money += val; ledger.earned += val; ledger.goldSold += g; v.cargoGold = 0; w.runs++;
+        toast(`${w.name} sold ${g.toFixed(1)} g at the Assay Office for ${money(val)}.`, 3200); sfx('cash', v.x, v.z);
+        r.s = 'down'; r.di = 0;
+      }
+    }
+  } else if (r.s === 'down') {
+    say(w, 'drive', 'Driving back to the claim');
+    const D = [P[1], P[0]];
+    if (steerTo(v, D[r.di][0], D[r.di][1], dt, 8) && ++r.di >= D.length) { r.s = 'park'; v.goal = null; }
+  } else if (r.s === 'park') {
+    say(w, 'drive', 'Parking the 4x4');
+    const [hx, hz, hh] = v.home || P[0];
+    if (travel(v, hx, hz, dt)) { v.goal = null; if (hh != null) v.heading = hh; v.moving = false; v.speed = 0; unboard(w); w.run = null; }
+  }
+  if (v.moving) { addWear(v, dt); v.spin = v.spin || 0; }
+  v.state = w.label;
+}
+// --- needs: sleep and meals come before work (a driver finishes the run first)
+function needsTick(w, dt) {
+  if (!w.act) {
+    if (w.run && w.run.s !== 'walk') return false;
+    const mh = messHall();
+    if (w.rest < CREW.tired) w.act = 'sleep';
+    else if (w.hunger < CREW.hungry && mh && mh.meals >= 1) w.act = 'eat';
+    else return false;
+    release(w); w.run = null; w.actT = 0;
+  }
+  if (w.act === 'sleep') {
+    let b = w.bunk && structures.includes(w.bunk) ? w.bunk : null;
+    if (!b) b = w.bunk = structures.filter(s => s.kind === 'bunkhouse').sort((p, q) => dist(p.x, p.z, w.x, w.z) - dist(q.x, q.z, w.x, w.z))[0] || null;
+    if (b && !w.inside) { say(w, 'walk', 'Heading to the bunkhouse to sleep'); if (!walkTo(w, b.inPt[0], b.inPt[1], dt, 0.8)) return true; w.inside = true; }
+    w.rest = Math.min(100, w.rest + dt * 100 / CREW.sleepT * (b ? 1 : 0.5));
+    say(w, 'sleep', b ? 'Sleeping' : 'Sleeping on the ground (no bunkhouse)');
+    if (w.rest >= 99) { w.act = null; w.inside = false; w.bunk = null; }
+    return true;
+  }
+  const mh = messHall();
+  if (!mh) { w.act = null; w.inside = false; return false; }
+  if (!w.inside) {
+    say(w, 'walk', 'Heading to the mess hall to eat');
+    if (!walkTo(w, mh.inPt[0], mh.inPt[1], dt, 0.8)) return true;
+    if (mh.meals < 1) { w.act = null; return false; }
+    mh.meals -= 1; w.inside = true; w.actT = 0;
+  }
+  w.actT += dt; say(w, 'eat', 'Eating');
+  if (w.actT >= CREW.eatT) { w.hunger = 100; w.act = null; w.inside = false; }
+  return true;
+}
+// --- hiring, letting go, quitting: people walk in from town and walk back up the road when they leave
+function homeRoute(into) {
+  const r = [[TOWN.x + Math.sin(home * SEG) * 14, TOWN.z + Math.cos(home * SEG) * 14], worldOf(home, -98, 0), worldOf(home, -36, 0)];
+  return into ? [...r, worldOf(home, -26, -12)] : [worldOf(home, -36, 0), worldOf(home, -98, 0), r[0], [TOWN.x, TOWN.z - 6.5]];
+}
+function sendAway(w) {
+  release(w); w.run = null; w.act = null; w.leaving = true; w.route = homeRoute(false);
+  const n = workers.indexOf(w); if (n >= 0) workers.splice(n, 1);
+  leavers.push(w);
+  if (sel === w) select(null);
+  if (drawer === 'crew') renderDrawer();
+}
+function workerTick(w, dt) {
+  w.moving = false;
+  if (w.act !== 'eat') w.hunger = Math.max(0, w.hunger - dt * 100 / (CREW.hungerMin * 60));
+  if (w.act !== 'sleep') w.rest = Math.max(0, w.rest - dt * 100 / (CREW.restMin * 60));
+  const mh = messHall(), bonus = mh && dist(w.x, w.z, mh.x, mh.z) < CREW.nearMess ? 10 : 0;
+  w.mood = lerp(w.mood, clamp((w.hunger + w.rest + w.pay) / 3 + bonus, 0, 100), Math.min(1, dt * 0.25));
+  w.lowT = w.mood < CREW.quitMood ? w.lowT + dt : 0;
+  if (w.lowT > monthLen()) { toast(`${w.name} has had a miserable month and quit. ${w.name} is walking back to town.`, 4000); sendAway(w); return; }
+  if (w.route) { const p = w.route[0]; say(w, 'walk', 'Walking in from town'); if (walkTo(w, p[0], p[1], dt, 1.2)) w.route.shift(); if (!w.route.length) w.route = null; return; }
+  if (needsTick(w, dt)) return;
+  if (w.job === 'operator') operatorTick(w, dt);
+  else if (w.job === 'mechanic') mechTick(w, dt);
+  else if (w.job === 'cook') cookTick(w, dt);
+  else driverTick(w, dt);
+}
+function crewTick(dt) {
+  for (const e of machines) e.opComing = null;
+  for (const s of structures) { s.opComing = null; if (s.kind === 'mess' && (!s.cook || s.cook.cooking !== s)) { s.cook = null; s.cookOn = false; } }
+  for (const w of workers.slice()) workerTick(w, dt);
+  for (let n = leavers.length - 1; n >= 0; n--) {
+    const w = leavers[n], p = w.route && w.route[0];
+    w.moving = false; say(w, 'walk', 'Leaving for town');
+    if (!p) { dropMesh(w.mesh); leavers.splice(n, 1); continue; }
+    if (walkTo(w, p[0], p[1], dt, 1.2)) w.route.shift();
+    if (!w.route.length) w.route = null;
+  }
+  for (const m of machines) { if (m.op && m.op.aboard !== m) m.op = null; m.crewed = !!m.op; m.opRate = m.op ? opRate(m.op) : 0; }
+  for (const s of structures) { if (s.op && s.op.aboard !== s) s.op = null; s.crewed = !!s.op; s.opRate = s.op ? opRate(s.op) : 0; }
+}
+function syncWorkers() {
+  for (const w of workers.concat(leavers)) {
+    const g = w.mesh, vis = !w.inside;
+    g.visible = vis;
+    if (!vis) continue;
+    g.position.set(w.x, hAt(w.x, w.z), w.z); g.rotation.y = w.yaw;
+    const u = g.userData, busy = w.st === 'repair' || (w.st === 'op' && !(w.aboard instanceof Machine));
+    u.legs[0].rotation.x = w.moving ? Math.sin(w.walk) * 0.5 : 0; u.legs[1].rotation.x = -u.legs[0].rotation.x;
+    u.armR.rotation.x = busy ? -1.1 + Math.sin(simTime * 7 + w.id) * 0.45 : -0.55; u.armL.rotation.x = u.armR.rotation.x * 0.8;
+  }
+}
+// Jimbo can patch a worn or broken machine himself, slowly: Space next to it
+function handFixTarget() {
+  if (jim.driving || jim.dead) return null;
+  let best = null, bd = 1e9;
+  for (const e of [...machines, ...structures.filter(s => s.kind === 'plant')]) {
+    if (!(e.broken || e.wear > 60) || e.driven) continue;
+    const d = dist(e.x, e.z, jim.x, jim.z) - (e instanceof Machine ? 4.5 : e.S.r + 3);
+    if (d < 0 && d < bd) { bd = d; best = e; }
+  }
+  return best;
+}
+function handFix(e) {
+  e.wear = Math.max(0, e.wear - 5); sfx('clang', e.x, e.z);
+  if (e.wear <= 1) { e.wear = 0; e.broken = false; toast(`${e.name} is running again.`, 2000); }
+  else toast(`Patching up ${e.name} by hand: ${Math.round(100 - e.wear)}% there. Keep pressing.`, 1400);
+}
 function step(dt) {
   simTime += dt;
-  assignCrew();
+  crewTick(dt);
   for (const m of machines) {
     if (m.driven) continue;
+    if (m.type === 'suv' && m.op) { m.y = hAt(m.x, m.z); continue; }            // the driver has it
     if (m.type === 'excavator') updateExcavator(m, dt);
     else if (m.type === 'loader') updateLoader(m, dt);
     else { m.moving = false; m.state = 'Parked'; if (m.order && m.order.k === 'move') { m.state = 'Driving'; if (travel(m, m.order.x, m.order.z, dt)) { m.order = null; m.goal = null; } } }
@@ -991,10 +1450,11 @@ function groundAt(cx, cy) { setRay(cx, cy); const hit = ray.intersectObject(terr
 function toScreen(x, y, z) { tmpV.set(x, y, z).project(camera); if (tmpV.z > 1 || tmpV.z < -1) return null; return [(tmpV.x + 1) / 2 * glCanvas.clientWidth, (1 - tmpV.y) / 2 * glCanvas.clientHeight]; }
 function pickEntity(cx, cy) {
   setRay(cx, cy);
-  const hit = ray.intersectObjects([...machines.map(m => m.mesh), ...structures.map(s => s.mesh)], true)[0];
+  const hit = ray.intersectObjects([...workers.filter(w => w.mesh.visible).map(w => w.mesh), ...machines.map(m => m.mesh), ...structures.map(s => s.mesh)], true)[0];
   if (hit) return hit.object.userData.ent;
   const r = glCanvas.getBoundingClientRect(), px = cx - r.left, py = cy - r.top;
   let best = null, bd = 34;
+  for (const w of workers) { if (w.inside) continue; const s = toScreen(w.x, hAt(w.x, w.z) + 1.5, w.z); if (s) { const d = Math.hypot(s[0] - px, s[1] - py) + 10; if (d < bd) { bd = d; best = w; } } }
   for (const m of machines) { const s = toScreen(m.x, m.y + 1.5, m.z); if (s) { const d = Math.hypot(s[0] - px, s[1] - py); if (d < bd) { bd = d; best = m; } } }
   for (const p of piles) { if (p.vol < 0.3) continue; const s = toScreen(p.x, hAt(p.x, p.z) + 0.5, p.z); if (s) { const d = Math.hypot(s[0] - px, s[1] - py); if (d < bd) { bd = d; best = p; } } }
   return best;
@@ -1040,14 +1500,20 @@ function useTool(cx, cy) {
     return;
   }
   if (toolMode && toolMode.startsWith('build:')) {
-    const kind = toolMode.split(':')[1], why = siteProblem(kind, g[0], g[1]);
-    if (why) { toastPersist(why + ' Tap somewhere else.'); return; }
-    if (ledger.money < PRICES[kind]) { setTool(null); toast(`Not enough money: ${STYPE[kind].name} costs ${money(PRICES[kind])}.`, 2600); return; }
-    spend(PRICES[kind]);
-    const s = new Structure(kind, g[0], g[1], Math.round(Math.atan2(cam.x - g[0], cam.z - g[1]) / (Math.PI / 2)) * (Math.PI / 2));
-    if (kind === 'pump') s.wetOK = true;
+    const kind = toolMode.split(':')[1], s = buildAt(kind, g[0], g[1]);
+    if (typeof s === 'string') { if (s.startsWith('Not enough')) { setTool(null); toast(s, 2600); } else toastPersist(s + ' Tap somewhere else.'); return; }
     markAt(g[0], g[1], '#e3b448'); setTool(null); select(s);
   }
+}
+// the one way a building gets placed: returns the Structure, or a reason it cannot go there
+function buildAt(kind, x, z, heading) {
+  const why = siteProblem(kind, x, z);
+  if (why) return why;
+  if (ledger.money < PRICES[kind]) return `Not enough money: ${STYPE[kind].name} costs ${money(PRICES[kind])}.`;
+  spend(PRICES[kind]);
+  const s = new Structure(kind, x, z, heading != null ? heading : Math.round(Math.atan2(cam.x - x, cam.z - z) / (Math.PI / 2)) * (Math.PI / 2));
+  if (kind === 'pump') s.wetOK = true;
+  return s;
 }
 const TOOL_TEXT = { dig: 'Tap the ground where the excavator should dig.', build: () => `Tap open, level ground for the ${STYPE[toolMode.split(':')[1]].name}.` };
 function setTool(t) {
@@ -1149,6 +1615,7 @@ function drawHUD() {
   for (const m of machines) if (m.order && m.order.k === 'dig') ring(m.order.x, m.order.z, m.order.r, sel === m ? 'rgba(227,180,72,0.95)' : 'rgba(227,180,72,0.5)');
   if (sel instanceof Structure) ring(sel.x, sel.z, sel.S.r + 1, 'rgba(227,180,72,0.9)');
   if (sel instanceof Machine) ring(sel.x, sel.z, 3, 'rgba(227,180,72,0.9)');
+  if (sel && sel.isWorker && !sel.inside) ring(sel.x, sel.z, 1.1, 'rgba(227,180,72,0.9)');
   fightBars(c);
   if (sel instanceof Pile) ring(sel.x, sel.z, 3.5, 'rgba(227,180,72,0.9)');
   for (let n = marks.length - 1; n >= 0; n--) {
@@ -1165,15 +1632,17 @@ function drawHUD() {
     badge(c, s[0], s[1], label, p.kind === 'pay' ? `${p.grade.toFixed(2)} g/m³ · ~${(p.gold * T.recovery).toFixed(0)} g` : null, p.kind === 'pay' ? '#c4762f' : p.kind === 'waste' ? '#8d7656' : '#a8a296', sel === p);
   }
   for (const s0 of structures) {
-    const s = toScreen(s0.x, s0.y + (s0.kind === 'plant' ? 6.5 : s0.kind === 'bunkhouse' ? 5.5 : 3.5), s0.z);
+    const s = toScreen(s0.x, s0.y + (s0.kind === 'plant' ? 6.5 : s0.kind === 'bunkhouse' || s0.kind === 'mess' || s0.kind === 'workshop' ? 5.5 : 3.5), s0.z);
     if (!s) continue;
     let sub = null, fill = null, stripe = '#8a8f96';
     if (s0.kind === 'plant') {
-      sub = !s0.crewed ? 'No operator' : s0.hopper < 0.05 ? 'Hopper empty' : s0.running ? `Washing ${(s0.rate * 60).toFixed(1)} m³/min` : (s0.pf <= 0 ? 'No power' : 'No water');
+      sub = brokeState(s0) || (!s0.crewed ? (s0.opComing ? `${s0.opComing.name} is walking over` : 'No operator') : s0.hopper < 0.05 ? 'Hopper empty' : s0.running ? `Washing ${(s0.rate * 60).toFixed(1)} m³/min` : (s0.pf <= 0 ? 'No power' : 'No water'));
       fill = s0.hopper / T.hopperCap; stripe = s0.running ? '#8db36a' : '#d4574a';
     } else if (s0.kind === 'pump') { sub = s0.on ? '60 water' : 'Off'; stripe = s0.on ? '#6fb1d6' : '#555'; }
     else if (s0.kind === 'generator') { sub = s0.on ? '60 kW' : 'Off'; stripe = s0.on ? '#8db36a' : '#555'; }
-    else { sub = `${ledger.workers}/${beds()} beds used`; }
+    else if (s0.kind === 'mess') { sub = `${Math.floor(s0.meals)} meals · ${s0.cook ? 'cook on duty' : 'no cook'}`; stripe = s0.cook ? '#8db36a' : '#d4574a'; }
+    else if (s0.kind === 'workshop') { const n = workers.filter(w => w.job === 'mechanic').length; sub = n ? `${n} mechanic${n > 1 ? 's' : ''} · repairs 2x` : 'No mechanic'; stripe = n ? '#ff8a3d' : '#555'; }
+    else { const z = workers.filter(w => w.act === 'sleep' && w.inside).length; sub = `${ledger.workers}/${beds()} beds${z ? ` · ${z} asleep` : ''}`; }
     badge(c, s[0], s[1], s0.name, sub, stripe, sel === s0, fill);
   }
   for (const [label, dx, dz, sub] of TOWN_LABELS) {
@@ -1193,7 +1662,16 @@ function drawHUD() {
   for (const m of machines) {
     const s = toScreen(m.x, m.y + 3.6, m.z);
     if (!s) continue;
-    badge(c, s[0], s[1], m.name, m.state, m.crewed ? '#e3b448' : '#d4574a', sel === m);
+    badge(c, s[0], s[1], m.name, m.state, m.broken ? '#d4574a' : m.crewed || m.driven ? '#e3b448' : '#8a7a5e', sel === m, m.wear > 50 ? m.wear / 100 : null);
+  }
+  // the crew: a small dot in their job colour (red ring when unhappy); the name only when selected or zoomed right in
+  for (const wk of workers.concat(leavers)) {
+    if (wk.inside) continue;
+    const s = toScreen(wk.x, hAt(wk.x, wk.z) + 3.0, wk.z);
+    if (!s) continue;
+    if (sel === wk || cam.size < 14) { badge(c, s[0], s[1] - 4, wk.name, sel === wk ? wk.label : null, JOBS[wk.job].css, sel === wk); continue; }
+    c.fillStyle = JOBS[wk.job].css; c.beginPath(); c.arc(s[0], s[1], 3.5, 0, 7); c.fill();
+    c.strokeStyle = wk.mood < 30 ? '#d4574a' : 'rgba(20,16,10,0.8)'; c.lineWidth = wk.mood < 30 ? 2 : 1; c.stroke();
   }
   if (race.active && Date.now() < race.startAt + 1000) {
     const n = Math.ceil((race.startAt - Date.now()) / 1000);
@@ -1218,7 +1696,7 @@ function btn(label, fn, cls) { const b = document.createElement('button'); b.tex
 function renderStats() {
   const left = Math.max(0, T.seasonMin * 60 - ledger.seasonT), mm = Math.floor(left / 60), ss = String(Math.floor(left % 60)).padStart(2, '0');
   const month = Math.min(12, Math.floor(Math.max(0, ledger.seasonT) / (T.seasonMin * 60) * 12) + 1);
-  $('#stats').innerHTML = `<span class="${ledger.money < 0 ? 'neg' : ''}"><b>${money(ledger.money)}</b></span><span>Safe <b>${ledger.goldSafe.toFixed(1)} g</b></span><span class="${jim.carry > 100 ? 'neg' : ''}">Carrying <b>${jim.carry.toFixed(0)} lb</b></span><span>Gold <b>$${ledger.price.toFixed(0)}/g</b></span><span class="${jim.hp < 40 ? 'neg' : ''}">Health <b>${Math.max(0, Math.round(jim.hp))}</b></span><span>Crew <b>${ledger.workers}/${beds()}</b></span>${ledger.seasonT < 0 ? '<span>Season <b>open</b></span>' : `<span>Month <b>${month}/12</b></span><span>${race.active ? 'Race' : 'Year'} <b>${mm}:${ss}</b></span>`}`;
+  $('#stats').innerHTML = `<span class="${ledger.money < 0 ? 'neg' : ''}"><b>${money(ledger.money)}</b></span><span>${ledger.loan > 0.5 ? `Loan <b>${money(ledger.loan)}</b>` : 'Loan <b>paid</b>'}</span><span>Safe <b>${ledger.goldSafe.toFixed(1)} g</b></span><span class="${jim.carry > 100 ? 'neg' : ''}">Carrying <b>${jim.carry.toFixed(0)} lb</b></span><span>Gold <b>$${ledger.price.toFixed(0)}/g</b></span><span class="${jim.hp < 40 ? 'neg' : ''}">Health <b>${Math.max(0, Math.round(jim.hp))}</b></span><span>Crew <b>${ledger.workers}/${beds()}</b></span>${ledger.seasonT < 0 ? '<span>Season <b>open</b></span>' : `<span>Month <b>${month}/12</b></span><span>${race.active ? 'Race' : 'Year'} <b>${mm}:${ss}</b></span>`}`;
 }
 let lastCmdSig = '';
 function refreshCmd() {
@@ -1230,20 +1708,24 @@ function refreshCmd() {
 }
 function buildCmd(info, cmds) {
   const goldBtn = btn(inTown() ? `Sell gold ${carried().toFixed(1)} g` : `Carrying ${carried().toFixed(1)} g (sell in town)`, sellGold, inTown() ? 'goldbtn' : '');
+  const loanBtn = inTown() && ledger.loan > 0.5 && ledger.money >= 1 ? btn(`Pay off loan ${money(Math.min(ledger.money, ledger.loan))}`, payLoan) : null;
   if (jim.driving) {
     const m = jim.driving;
-    info.innerHTML = `<b>Driving ${m.name}</b><br><span class="st">${DRIVE_HELP[m.type]}</span>`;
+    info.innerHTML = `<b>Driving ${m.name}</b>${m.broken ? ' · <span class="st">broken down, hop out and fix it</span>' : ''}<br><span class="st">${DRIVE_HELP[m.type]}</span>`;
     if (m.type !== 'suv') cmds.append(btn(actLabel(m), () => pressed.add('act'), 'on'));
     cmds.append(btn('Hop out', () => pressed.add('hop')));
     if (inTown()) cmds.append(goldBtn);
+    if (loanBtn) cmds.append(loanBtn);
     if (view === 'boss') cmds.append(btn('Drive view', () => setView('drive')));
     return;
   }
   if (!sel && view === 'drive') {
-    const nm = nearestMachine(5);
-    info.innerHTML = `<b>${jim.dead ? 'Down' : 'On foot'}</b> · <span class="st">${jim.dead ? 'Back at your claim in a moment.' : inTown() ? 'In town. The Assay Office buys gold.' : nm ? `Hop in the ${nm.name} with X or the Hop in button.` : (ledger.goldSafe > 0.5 && !jim.carry ? `${ledger.goldSafe.toFixed(1)} g of gold is waiting at the wash plant: walk up to it and press Space to pick it up. ` : jim.carry > 0.05 ? 'You are carrying gold: take the Crew 4x4 up the hill road and sell it in town. ' : '') + 'Walk with WASD or the stick. Tab switches to the boss view.'}</span>`;
+    const nm = nearestMachine(5), fx = handFixTarget();
+    info.innerHTML = `<b>${jim.dead ? 'Down' : 'On foot'}</b> · <span class="st">${jim.dead ? 'Back at your claim in a moment.' : inTown() ? `In town. The Assay Office buys gold${ledger.loan > 0.5 ? ' and takes loan payments' : ''}.` : fx ? `${fx.name} is ${fx.broken ? 'broken down' : 'worn'}: press Space (or Fix) to patch it up by hand. A mechanic does it faster.` : nm ? `Hop in the ${nm.name} with X or the Hop in button.` : (ledger.goldSafe > 0.5 && !jim.carry ? `${ledger.goldSafe.toFixed(1)} g of gold is waiting at the wash plant: walk up to it and press Space to pick it up. ` : jim.carry > 0.05 ? 'You are carrying gold: take the Crew 4x4 up the hill road and sell it in town. ' : '') + 'Walk with WASD or the stick. Tab switches to the boss view.'}</span>`;
     if (nm) cmds.append(btn(`Hop in: ${nm.name}`, () => pressed.add('hop'), 'on'));
-    cmds.append(goldBtn, btn('Boss view', () => setView('boss')));
+    cmds.append(goldBtn);
+    if (loanBtn) cmds.append(loanBtn);
+    cmds.append(btn('Boss view', () => setView('boss')));
     return;
   }
   if (!sel) {
@@ -1252,9 +1734,16 @@ function buildCmd(info, cmds) {
     cmds.append(goldBtn, btn('Excavator', () => select(machines.find(m => m.type === 'excavator'))), btn('Wash plant', () => select(structures.find(s => s.kind === 'plant'))));
     return;
   }
+  if (sel && sel.isWorker) {
+    const w = sel;
+    info.innerHTML = `<b>${w.name} "${w.nick}"</b> · ${JOBS[w.job].name}${w.leaving ? ' · leaving' : ''}<br><span class="st">${w.label} · Hunger ${Math.round(w.hunger)} · Rest ${Math.round(w.rest)} · Mood ${Math.round(w.mood)} · Skill +${Math.round(w.skill * 25)}%</span>`;
+    if (!w.leaving) { for (const j in JOBS) cmds.append(btn(JOBS[j].name, () => { setJob(w, j); refreshCmd(); }, w.job === j ? 'on' : '')); cmds.append(btn('Let go', () => fireWorker(w), 'warn')); }
+    cmds.append(btn('Deselect', () => select(null)));
+    return;
+  }
   if (sel instanceof Machine) {
     const m = sel;
-    info.innerHTML = `<b>${m.name}</b> · ${m.crewed ? 'operator on board' : 'no operator, hire more crew'}<br><span class="st">${m.state}${m.type === 'loader' && m.only ? ' · hauling from one chosen pile' : ''}</span>`;
+    info.innerHTML = `<b>${m.name}</b> · ${m.op ? `${m.op.name} on board` : m.driven ? 'you are driving' : m.opComing ? `${m.opComing.name} is walking over` : m.type === 'dozer' ? 'you drive this one' : 'no operator aboard'} · wear ${Math.round(m.wear)}%<br><span class="st">${m.state}${m.type === 'loader' && m.only ? ' · hauling from one chosen pile' : ''}</span>`;
     if (m.type === 'suv' || m.type === 'dozer') cmds.append(btn('Take the wheel', () => takeWheel(m), 'on'));
     else if (m.type === 'excavator') cmds.append(btn('Dig here', () => setTool('dig')), btn('Stop', () => { m.order = null; refreshCmd(); }), btn('Take the wheel', () => takeWheel(m)));
     else cmds.append(btn('Take the wheel', () => takeWheel(m)), btn(m.auto ? 'Auto-haul: on' : 'Auto-haul: off', () => { m.auto = !m.auto; m.order = null; m.job = null; m.only = null; refreshCmd(); }, m.auto ? 'on' : ''), btn('Haul from any pile', () => { m.only = null; m.auto = true; m.order = null; m.job = null; refreshCmd(); }));
@@ -1270,24 +1759,40 @@ function buildCmd(info, cmds) {
   }
   const s = sel;
   if (s.kind === 'plant') {
-    const st = !s.crewed ? 'No operator. Hire more crew.' : s.hopper < 0.05 ? 'Waiting for pay dirt. Loaders feed the hopper.' : s.running ? `Washing ${(s.rate * 60).toFixed(1)} m³ per minute${s.wf < 1 ? `, slowed by water (${Math.round(s.wf * 100)}%)` : ''}${s.pf < 1 ? `, slowed by power (${Math.round(s.pf * 100)}%)` : ''}.` : s.pf <= 0 ? 'No power. Turn on a generator.' : 'No water. Place a pump at the creek.';
-    info.innerHTML = `<b>${s.name}</b> · hopper ${s.hopper.toFixed(1)}/${T.hopperCap} m³ · washed ${s.washed.toFixed(0)} m³<br><span class="st">${st}</span>`;
+    const st = brokeState(s) ? brokeState(s) + '.' : !s.crewed ? (s.opComing ? `${s.opComing.name} is walking over to run it.` : 'No operator. An operator runs it when the hopper has pay dirt.') : s.hopper < 0.05 ? 'Waiting for pay dirt. Loaders feed the hopper.' : s.running ? `Washing ${(s.rate * 60).toFixed(1)} m³ per minute${s.wf < 1 ? `, slowed by water (${Math.round(s.wf * 100)}%)` : ''}${s.pf < 1 ? `, slowed by power (${Math.round(s.pf * 100)}%)` : ''}.` : s.pf <= 0 ? 'No power. Turn on a generator.' : 'No water. Place a pump at the creek.';
+    info.innerHTML = `<b>${s.name}</b> · hopper ${s.hopper.toFixed(1)}/${T.hopperCap} m³ · washed ${s.washed.toFixed(0)} m³ · wear ${Math.round(s.wear)}%<br><span class="st">${st}</span>`;
     cmds.append(goldBtn, btn(s.on ? 'Shut down' : 'Start up', () => { s.on = !s.on; refreshCmd(); }));
   } else if (s.kind === 'generator' || s.kind === 'pump') {
     info.innerHTML = `<b>${s.name}</b> · ${s.on ? 'running' : 'off'}<br><span class="st">${s.kind === 'pump' ? 'Pumps 60 units of creek water. Each wash plant needs 100.' : 'Makes 60 kW. Each running wash plant needs 40 kW.'} Burns diesel while on.</span>`;
     cmds.append(btn(s.on ? 'Turn off' : 'Turn on', () => { s.on = !s.on; refreshCmd(); }));
+  } else if (s.kind === 'mess') {
+    info.innerHTML = `<b>${s.name}</b> · ${Math.floor(s.meals)} meals ready<br><span class="st">${s.cook ? `${s.cook.name} is cooking.` : 'No cook. Put someone on the Cook job.'} Hungry crew eat here. Groceries cost ${money(T.groc)} per worker per day. Crew nearby are a bit happier.</span>`;
+    cmds.append(btn('Crew list', () => { drawer = 'crew'; renderDrawer(); }));
+  } else if (s.kind === 'workshop') {
+    info.innerHTML = `<b>${s.name}</b><br><span class="st">Mechanics fix worn and broken machines twice as fast while you have a workshop, and wait here when nothing needs fixing.</span>`;
+    cmds.append(btn('Crew list', () => { drawer = 'crew'; renderDrawer(); }));
   } else {
-    info.innerHTML = `<b>${s.name}</b> · ${ledger.workers}/${beds()} beds used<br><span class="st">Every machine and wash plant needs one crew member. Wages are ${money(T.wage * 60)} per worker per minute.</span>`;
-    cmds.append(btn(`Hire worker ${money(PRICES.hire)}`, hireWorker), btn('Let one go', fireWorker));
+    info.innerHTML = `<b>${s.name}</b> · ${ledger.workers}/${beds()} beds used<br><span class="st">Tired crew sleep here. Payday is once a month: ${money(T.wage * monthLen())} per worker.</span>`;
+    cmds.append(btn(`Hire worker ${money(PRICES.hire)}`, () => hireWorker()), btn('Let one go', () => fireWorker()));
   }
   cmds.append(btn('Deselect', () => select(null)));
 }
-function hireWorker() {
-  if (ledger.workers >= beds()) return toast('No free beds. Build another bunkhouse first.', 2400);
+function hireWorker(job = 'operator') {
+  if (workers.length >= beds()) return toast('No free beds. Build another bunkhouse first.', 2400);
   if (ledger.money < PRICES.hire) return toast('Not enough money to hire.', 2000);
-  spend(PRICES.hire); ledger.workers++; sfx('click', cam.x, cam.z); refreshCmd(); if (drawer === 'crew') renderDrawer();
+  spend(PRICES.hire);
+  const w = addWorker(job, TOWN.x, TOWN.z - 6.5, homeRoute(true));
+  w.hunger = rand(80, 100); w.rest = rand(80, 100);
+  sfx('click', cam.x, cam.z); toast(`Hired ${w.name} as ${JOBS[job].name.toLowerCase()}. ${w.name} is walking down from town.`, 2800);
+  refreshCmd(); if (drawer === 'crew') renderDrawer();
+  return w;
 }
-function fireWorker() { if (ledger.workers > 0) ledger.workers--; refreshCmd(); if (drawer === 'crew') renderDrawer(); }
+function fireWorker(w) {
+  if (!w) w = workers.slice().reverse().find(o => o.st === 'idle') || workers[workers.length - 1];
+  if (!w) return;
+  toast(`${w.name} is let go and walks back to town.`, 2400);
+  sendAway(w); refreshCmd();
+}
 
 let drawer = null;
 for (const b of document.querySelectorAll('[data-drawer]')) b.addEventListener('click', () => { drawer = drawer === b.dataset.drawer ? null : b.dataset.drawer; renderDrawer(); });
@@ -1333,6 +1838,32 @@ function deliver(type) {
   m.order = { k: 'move', x: dx, z: dz };
   toast(`${m.name} delivered at the dealer in town. It is driving down to the claim.`, 3000); select(m);
 }
+function crewRow(w) {
+  const d = document.createElement('div'); d.className = 'crewrow'; d.dataset.w = w.id;
+  const top = document.createElement('div'); top.className = 'crtop';
+  const nm = document.createElement('button'); nm.className = 'crname'; nm.textContent = `${w.name} "${w.nick}"`; nm.title = 'Show on the map';
+  nm.addEventListener('click', () => { if (view === 'drive') setView('boss'); select(w); cam.x = w.x; cam.z = w.z; if (innerWidth < 640) { drawer = null; renderDrawer(); } });
+  const sl = document.createElement('select'); sl.setAttribute('aria-label', `${w.name}'s job`);
+  for (const j in JOBS) { const o = document.createElement('option'); o.value = j; o.textContent = JOBS[j].name; sl.append(o); }
+  sl.value = w.job; sl.addEventListener('change', () => setJob(w, sl.value));
+  top.append(nm, sl, btn('Let go', () => fireWorker(w), 'warn'));
+  const st = document.createElement('div'); st.className = 'crst';
+  const bars = document.createElement('div'); bars.className = 'crbars';
+  for (const k of ['hunger', 'rest', 'mood']) { const b = document.createElement('span'); b.className = 'crbar'; b.dataset.k = k; b.innerHTML = `${k[0].toUpperCase() + k.slice(1)} <i><u></u></i>`; bars.append(b); }
+  d.append(top, st, bars);
+  fillCrewRow(d, w);
+  return d;
+}
+function fillCrewRow(d, w) {
+  d.querySelector('.crst').textContent = `${w.label}${w.skill > 0.04 ? ` · skill +${Math.round(w.skill * 25)}%` : ''}`;
+  for (const b of d.querySelectorAll('.crbar')) { const v = clamp(w[b.dataset.k], 0, 100), u = b.querySelector('u'); u.style.width = v + '%'; u.style.background = v < 30 ? 'var(--danger)' : v < 60 ? 'var(--gold)' : 'var(--ok)'; }
+}
+function updateCrewDrawer() {
+  const list = $('#crewList');
+  if (drawer !== 'crew' || !list) return;
+  if (list.dataset.ids !== workers.map(w => w.id + w.job).join(',')) { if (!list.contains(document.activeElement)) renderDrawer(); return; }
+  for (const d of list.children) { const w = workers.find(o => o.id === +d.dataset.w); if (w) fillCrewRow(d, w); }
+}
 function renderDrawer() {
   const d = $('#drawer'), body = $('#drawerBody');
   for (const b of document.querySelectorAll('[data-drawer]')) b.classList.toggle('on', b.dataset.drawer === drawer);
@@ -1351,13 +1882,18 @@ function renderDrawer() {
       shopItem('Water pump', PRICES.pump, 'Place within 9 m of water. 60 water units.', () => setTool('build:pump')),
       shopItem('Generator', PRICES.generator, 'Diesel generator, 60 kW. A wash plant needs 40 kW.', () => setTool('build:generator')),
       shopItem('Wash plant', PRICES.plant, 'Trommel and sluice. Needs 40 kW, 100 water and an operator.', () => setTool('build:plant')),
-      shopItem('Bunkhouse', PRICES.bunkhouse, 'Four beds for crew.', () => setTool('build:bunkhouse')));
+      shopItem('Bunkhouse', PRICES.bunkhouse, 'Four beds. Tired crew sleep here.', () => setTool('build:bunkhouse')),
+      shopItem('Mess Hall', PRICES.mess, 'Your cook turns groceries into meals here. Without one the crew goes hungry and slows down.', () => setTool('build:mess')),
+      shopItem('Workshop', PRICES.workshop, 'Mechanics repair machines twice as fast and wait here between jobs.', () => setTool('build:workshop')));
   } else if (drawer === 'crew') {
     $('#drawerTitle').textContent = 'Crew';
-    const need = machines.length + structures.filter(s => s.kind === 'plant').length;
-    body.append(p(`${ledger.workers} workers on the payroll, ${beds()} beds. Your machines and plants need ${need} operators to all run at once. Wages: ${money(T.wage * 60)} per worker per minute.`),
-      (() => { const r = document.createElement('div'); r.className = 'row'; r.append(btn(`Hire worker ${money(PRICES.hire)}`, hireWorker), btn('Let one go', fireWorker)); return r; })(),
-      p('Crew are assigned automatically: wash plants first, then excavators with a dig site, then loaders.'));
+    body.append(p(`${workers.length} on the payroll, ${beds()} beds. Payday is once a month: ${money(T.wage * monthLen())} each. ${messHall() ? `Groceries: ${money(T.groc)} per worker per day.` : 'No mess hall yet, so nobody eats.'}`),
+      (() => { const r = document.createElement('div'); r.className = 'row'; r.append(btn(`Hire worker ${money(PRICES.hire)}`, () => hireWorker()), btn('Let one go', () => fireWorker())); return r; })());
+    const list = document.createElement('div'); list.id = 'crewList'; list.dataset.ids = workers.map(w => w.id + w.job).join(',');
+    for (const w of workers) list.append(crewRow(w));
+    body.append(list, h3('Jobs'),
+      p('Operators climb aboard the excavators, loaders and wash plants that have work. Mechanics fix worn and broken machines (twice as fast with a Workshop). The cook makes meals at the Mess Hall. The driver runs the gold to town in the Crew 4x4 once the safe holds 15 g.'),
+      p('Tired crew sleep in the bunkhouse, hungry crew eat at the mess hall. Mood is hunger, rest and pay together: a happy hand works up to twice as fast as a miserable one, and someone who stays miserable for a month quits.'));
   } else if (drawer === 'tune') {
     $('#drawerTitle').textContent = 'Tune numbers';
     if (race.active) { body.append(p('Tuning is locked to the defaults during a race, so every claim is fair. Your own numbers come back after the race.')); return; }
@@ -1369,19 +1905,20 @@ function renderDrawer() {
     body.append(r, p('Copy my tuning copies every number you changed, so you can paste it into the chat with Claude.'), box2);
   } else if (drawer === 'season') {
     $('#drawerTitle').textContent = race.active ? 'Year over' : 'Season over';
-    const worth = ledger.money + ledger.goldSafe * ledger.price;
+    const worth = ledger.money + ledger.goldSafe * ledger.price - Math.max(0, ledger.loan);
     const tbl = document.createElement('table'); tbl.className = 'rep';
-    tbl.innerHTML = `<tr><td>Gold washed</td><td class="n">${ledger.goldWashed.toFixed(1)} g</td></tr><tr><td>Gold sold</td><td class="n">${ledger.goldSold.toFixed(1)} g</td></tr><tr><td>Gold still in the safe</td><td class="n">${ledger.goldSafe.toFixed(1)} g</td></tr><tr><td>Money earned</td><td class="n">${money(ledger.earned)}</td></tr><tr><td>Money spent</td><td class="n">${money(ledger.spent)}</td></tr><tr><td>Cash plus gold</td><td class="n">${money(worth)}</td></tr><tr><td>Started with</td><td class="n">$25,000</td></tr>`;
+    tbl.innerHTML = `<tr><td>Gold washed</td><td class="n">${ledger.goldWashed.toFixed(1)} g</td></tr><tr><td>Gold sold</td><td class="n">${ledger.goldSold.toFixed(1)} g</td></tr><tr><td>Gold still in the safe</td><td class="n">${ledger.goldSafe.toFixed(1)} g</td></tr><tr><td>Money earned</td><td class="n">${money(ledger.earned)}</td></tr><tr><td>Money spent</td><td class="n">${money(ledger.spent)}</td></tr><tr><td>Paid to the bank</td><td class="n">${money(ledger.paidLoan)}</td></tr><tr><td>Loan still owed</td><td class="n">${money(Math.max(0, ledger.loan))}</td></tr><tr><td>Cash plus gold, less the loan</td><td class="n">${money(worth)}</td></tr><tr><td>Started with</td><td class="n">$25,000 and a ${money(T.loan)} loan</td></tr>`;
+    const clear = ledger.loan < 0.5 ? 'You own the claim free and clear.' : `You still owe the bank ${money(ledger.loan)}. The claim is not yours yet.`;
     if (race.active) {
       const rows = mpPlayers(), waiting = rows.some(r => r.phase === 'race' || r.phase === 'count');
       const top = rows.slice().sort((a, b) => b.gold - a.gold)[0];
       const tg = rows.filter(r => r.team === 'gold').reduce((a, r) => a + r.gold, 0), ts = rows.filter(r => r.team === 'silver').reduce((a, r) => a + r.gold, 0);
       const teamWin = tg && ts ? (tg >= ts ? `Team Gold wins, ${tg.toFixed(1)} g to ${ts.toFixed(1)} g.` : `Team Silver wins, ${ts.toFixed(1)} g to ${tg.toFixed(1)} g.`) : null;
-      body.append(h3('Standings'), p(waiting ? 'Waiting for the others to finish their year.' : teamWin || (top.me ? `You win with ${top.gold.toFixed(1)} g!` : `${top.nick} wins with ${top.gold.toFixed(1)} g.`)), standings(), h3('Your claim'), tbl,
+      body.append(p(clear), h3('Standings'), p(waiting ? 'Waiting for the others to finish their year.' : teamWin || (top.me ? `You win with ${top.gold.toFixed(1)} g!` : `${top.nick} wins with ${top.gold.toFixed(1)} g.`)), standings(), h3('Your claim'), tbl,
         (() => { const r = document.createElement('div'); r.className = 'row'; r.append(btn('Back to the lobby', endRace)); return r; })());
       return;
     }
-    body.append(p(worth >= 25000 ? 'The claim paid. The bank is happy.' : 'The claim lost money this season.'), tbl, h3('Gold sold this year'), p(`You: ${ledger.goldSold.toFixed(1)} g. ` + outfits.map(o => `${o.name}: ${o.sold.toFixed(1)} g`).join('. ') + '.'),
+    body.append(p(clear + ' ' + (worth >= 25000 - T.loan ? 'The claim paid its way this year.' : 'The claim lost money this year.')), tbl, h3('Gold sold this year'), p(`You: ${ledger.goldSold.toFixed(1)} g. ` + outfits.map(o => `${o.name}: ${o.sold.toFixed(1)} g`).join('. ') + '.'),
       (() => { const r = document.createElement('div'); r.className = 'row'; r.append(btn('Keep digging', () => { ledger.seasonT = -1e9; drawer = null; renderDrawer(); setSpeed(1); }), btn('New claim', () => location.reload(), 'warn')); return r; })());
   } else if (drawer === 'race') {
     renderRaceDrawer(body, p, h3);
@@ -1395,6 +1932,10 @@ function renderDrawer() {
       p('Under the grass is brown overburden with almost no gold, then orange pay gravel, then grey bedrock. Gold follows a buried ancient riverbed and is richest in the last half meter above bedrock.'),
       p('The excavator digs top down. Buckets below the pay dirt cutoff go to the waste pile, the rest to the pay dirt pile. Loaders haul pay dirt to the wash plant. The plant needs an operator, power and water. Gold goes to the safe. Sell it when the price is good.'),
       p('Dig below the water table and the pit floods. Machines cannot drive into water or up pit walls steeper than about 30 degrees.'),
+      h3('The crew and the bank'),
+      p('Machines only work with an operator aboard. Each crew member has a job (change it in the Crew list): operators run machines and the wash plant, the mechanic fixes worn and broken machines, the cook makes meals at the Mess Hall, the driver takes the gold to town. Hungry, tired or unpaid crew work slower and may quit.'),
+      p('Machines wear out as they work and break down at 100%. Without a mechanic you can patch one up by hand: stand next to it and press Space (or Fix).'),
+      p(`The bank lent you ${money(T.loan)}. ${money(T.loanPay)} comes out of your cash every month; if the cash is not there, the bank takes your most expensive machine. Pay it off early at the Assay Office in town and the claim is yours free and clear.`),
       p('Sound is made live. On iPhone, tap the sound button once.'));
   }
 }
@@ -1542,7 +2083,7 @@ const DRIVE_HELP = {
   excavator: 'WASD drives the tracks, Q/E (or ◀ ▶) swings, Space digs and dumps. Dumps sort themselves into pay dirt or waste piles. Dump next to the wash plant to fill its hopper.',
   loader: 'Space scoops from a pile in front of you, then dumps. Dump at the wash plant to feed the hopper.',
 };
-const TOWN_LABELS = [['Assay Office', 0, -12, 'Sells gold'], ['Equipment Dealer', 13, 2, 'Deliveries'], ['Saloon', -13, 2, 'Opening soon'], ['Town square', 0, 0, null]];
+const TOWN_LABELS = [['Assay Office', 0, -12, 'Buys gold · bank'], ['Equipment Dealer', 13, 2, 'Deliveries'], ['Saloon', -13, 2, 'Opening soon'], ['Town square', 0, 0, null]];
 const TOWNSPOTS = [];
 (function buildTown() {
   const y0 = hAt(TOWN.x, TOWN.z);
@@ -1601,6 +2142,7 @@ function nearestMachine(r) {
   return best;
 }
 function enterMachine(m) {
+  if (m.op) { const w = m.op; unboard(w); w.run = null; toast(`${w.name} climbs out and lets you drive.`, 2000); }
   jim.driving = m; m.driven = true; m.order = null; m.job = null; m.goal = null; m.speed = 0; m.manualT = -1;
   if (m.type === 'loader') m.auto = false;
   if (m.type === 'excavator') { m.swing = 0; m.bucketFull = false; }
@@ -1705,12 +2247,17 @@ function manualExcavator(m, inp, dt) {
         const b = digAt(tx, tz, 1.6, T.bucket);
         if (!b || b.vol < 0.05) toast('Nothing to dig there. That is bedrock or out of reach.', 1800);
         else {
-          m.bucketFull = true; m.bucketVol = b.vol; m.bucketGold = b.gold; m.bucketGrade = b.gold / Math.max(0.01, b.vol);
+          fillBucket(m, b);
           sfx('dig', tx, tz); puff(dustTex, tx, hAt(tx, tz) + 0.6, tz, 3, 1.4, 0.6);
-          toast(m.bucketGrade >= T.cutoff ? `Pay dirt! ${m.bucketGrade.toFixed(1)} g per m³. Dump it beside the plant.` : 'Overburden, no gold worth washing. Dump it on the waste pile.', 1800);
+          toast(m.bucketSplit ? `Pay dirt! ${m.bucketPay.toFixed(1)} m³ at ${m.bucketGrade.toFixed(1)} g per m³${m.bucketVol - m.bucketPay > 0.05 ? ', the rest is overburden' : ''}. Dump it beside the plant.` : 'Overburden, no gold worth washing. Dump it on the waste pile.', 1800);
         }
       } else {
-        dropLoad(tx, tz, m.bucketVol, m.bucketGold, m.bucketGrade >= T.cutoff ? 'pay' : 'waste');
+        // sorted as it is dumped: the pay part lands where you aim, the overburden in the same bucket a few metres to the right
+        if (m.bucketSplit) {
+          dropLoad(tx, tz, m.bucketPay, m.bucketGold, 'pay');
+          const rest = m.bucketVol - m.bucketPay, a = m.heading + m.swing;
+          if (rest > 0.02) dropLoad(tx + Math.cos(a) * 3.2, tz - Math.sin(a) * 3.2, rest, 0, 'waste');
+        } else dropLoad(tx, tz, m.bucketVol, m.bucketGold, 'waste');
         m.bucketFull = false;
       }
     }
@@ -1758,8 +2305,10 @@ function updatePlayer(dt, live) {
     refreshCmd(); updateTouchUI();
   }
   const m = jim.driving;
+  if (m && m.broken) { inp.fwd = inp.turn = inp.swing = 0; if (inp.action) hintOnce('broke', `${m.name} is broken down. Hop out and press Space next to it to patch it up, or put someone on the Mechanic job.`); inp.action = false; }
   if (m) {
     driveMachine(m, inp, dt);
+    if (m.moving || m.manualT >= 0 || (m.bladeDown && m.speed > 0.15)) addWear(m, dt);
     m.y = hAt(m.x, m.z);
     if (m.type === 'excavator') manualExcavator(m, inp, dt);
     else if (m.type === 'loader') { manualLoader(m, inp); m.state = 'You are driving'; if (m.moving) spend(T.fuelLoader * dt); }
@@ -1805,7 +2354,7 @@ function updateTouchUI() {
   if (!on) return;
   const m = jim.driving;
   $('#tbHop').textContent = m ? 'Hop out' : 'Hop in';
-  $('#tbAct').hidden = jim.dead; $('#tbAct').textContent = m ? actLabel(m) : ledger.goldSafe > 0.05 && nearPlant(jim.x, jim.z, 4) ? 'Load' : 'Shovel';
+  $('#tbAct').hidden = jim.dead; $('#tbAct').textContent = m ? actLabel(m) : ledger.goldSafe > 0.05 && nearPlant(jim.x, jim.z, 4) ? 'Load' : handFixTarget() ? 'Fix' : 'Shovel';
   for (const id of ['tbDash', 'tbBomb', 'tbBerm']) $('#' + id).hidden = !!m || jim.dead;
   $('#tbL').hidden = $('#tbR').hidden = !(m && m.type === 'excavator');
 }
@@ -1977,10 +2526,11 @@ function leaveRoom() {
 function resetClaim() {
   for (const m of machines) scene.remove(m.mesh);
   for (const s of structures) scene.remove(s.mesh);
-  machines.length = 0; structures.length = 0; piles.length = 0;
+  for (const w of workers.concat(leavers)) dropMesh(w.mesh);
+  machines.length = 0; structures.length = 0; piles.length = 0; workers.length = 0; leavers.length = 0;
   loose.fill(0); looseKind.fill(0); blocked.fill(0);
   genGround(); blockTown();
-  Object.assign(ledger, { money: 25000, goldSafe: 0, goldWashed: 0, goldSold: 0, earned: 0, spent: 0, workers: 3, price: T.goldPrice, seasonT: 0, over: false, priceT: 0, priceN: 0 });
+  Object.assign(ledger, { money: 25000, goldSafe: 0, goldWashed: 0, goldSold: 0, earned: 0, spent: 0, price: T.goldPrice, seasonT: 0, over: false, priceT: 0, priceN: 0, loan: T.loan, paidLoan: 0, clock: 0, monthN: 0, dayN: 0, groc: 1, repo: 0 });
   sel = null; toolMode = null; hideToast(); surveyBought = false; survey = false;
   $('#surveyBtn').classList.remove('on'); $('#surveyBtn').textContent = 'Survey';
   setupClaim();
@@ -2117,7 +2667,7 @@ function applyPatch(t) {
   applyingRemote = false;
 }
 const MAKERS = { excavator: makeExcavator, loader: makeLoader, suv: makeSUV, dozer: makeDozer };
-const SMAKERS = { plant: makePlant, generator: makeGenerator, pump: makePump, bunkhouse: makeBunkhouse };
+const SMAKERS = { plant: makePlant, generator: makeGenerator, pump: makePump, bunkhouse: makeBunkhouse, mess: makeMessHall, workshop: makeWorkshop };
 function dropGhost(peer) {
   const g = ghosts.get(peer);
   if (!g) return;
@@ -2422,10 +2972,14 @@ function fightBars(c) {
     c.fillStyle = here ? '#15130f' : '#f1e6cf'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(txt, s[0], s[1] + 1); c.textAlign = 'left'; c.textBaseline = 'alphabetic';
   }
 }
+function robTarget() { const v = machines.find(m => m.type === 'suv' && m.op && m.op.run && m.op.run.s === 'up' && m.cargoGold > 0.05); return v || null; }
 function hurtBandit(f, dmg) {
   f.hp -= dmg; for (const o of foes) if (o.hp > 0) { o.mode = 'hunt'; o.mad = 40; }   // hit one and both come for you
   if (f.hp <= 0) f.deadT = 0; puff(dustTex, f.x, hAt(f.x, f.z) + 1.3, f.z, 1, 0.4, 0.3);
-  if (f.hp <= 0) { f.mesh.rotation.z = Math.PI / 2; ledger.money += 400; ledger.earned += 400; toast('Bandit down. $400 bounty.', 1800); sfx('cash', jim.x, jim.z); }
+  if (f.hp <= 0) {
+    f.mesh.rotation.z = Math.PI / 2; ledger.money += 400; ledger.earned += 400; sfx('cash', jim.x, jim.z);
+    if (f.loot > 0.05) { dropLoot(f.x, f.z, f.loot); toast(`Bandit down. $400 bounty, and he dropped the ${f.loot.toFixed(1)} g he stole.`, 3000); f.loot = 0; } else toast('Bandit down. $400 bounty.', 1800);
+  }
 }
 function hurtMe(dmg, why) {
   if (jim.dead) return;
@@ -2450,7 +3004,9 @@ function heroAbilities(inp, dt) {
   jim.block = (aim.blocking || keys.has('c')) && canAct(jim);
   if (inp.roll) startRoll(jim, jim.mvx || 0, jim.mvz || 0);
   const loadable = ledger.goldSafe > 0.05 && nearPlant(jim.x, jim.z, 4) && !hostiles().some(h => dist(h.x, h.z, jim.x, jim.z) < 30);
-  if (inp.action && loadable) { jim.carry += ledger.goldSafe; toast(`Loaded ${ledger.goldSafe.toFixed(1)} g. That is ${jim.carry.toFixed(0)} lb with the black-sand concentrate. ${jim.carry > 40 ? 'Heavy: the 4x4 carries it easier.' : ''}`, 3200); ledger.goldSafe = 0; sfx('dump', jim.x, jim.z); }
+  const fixT = inp.action && !loadable ? handFixTarget() : null;
+  if (fixT && !hostiles().some(h => dist(h.x, h.z, jim.x, jim.z) < 14)) handFix(fixT);
+  else if (inp.action && loadable) { jim.carry += ledger.goldSafe; toast(`Loaded ${ledger.goldSafe.toFixed(1)} g. That is ${jim.carry.toFixed(0)} lb with the black-sand concentrate. ${jim.carry > 40 ? 'Heavy: the 4x4 carries it easier.' : ''}`, 3200); ledger.goldSafe = 0; sfx('dump', jim.x, jim.z); }
   else if ((inp.action || aim.firing) && !jim.block) playerAttack();
   if (inp.bomb) {
     if (jim.cd.bomb > 0) toast(`Satchel ready in ${jim.cd.bomb.toFixed(0)} s.`, 900);
@@ -2534,18 +3090,34 @@ function combatTick(dt) {
     banditT = 75;
     if (spawnBandits()) toast('Two men step off the saloon porch. They want your gold. Click swings, hold for a heavy chop, right click blocks, R rolls clear.', 5200);
   }
+  // your driver coming up the hill road with gold: the porch crew may flag him down (one roll per run)
+  const rv = robTarget();
+  if (rv && !rv.op.run.rolled && dist(rv.x, rv.z, TOWN.x, TOWN.z) < 70 && banditT <= 0 && foes.some(f => f.hp > 0) && !foes.some(f => f.hp > 0 && f.mode !== 'idle')) {
+    rv.op.run.rolled = true;
+    if (Math.random() < CREW.robChance) { banditT = 75; for (const f of foes) if (f.hp > 0) { f.mode = 'rob'; f.block = false; } toast(`Two men step off the saloon porch and flag down ${rv.op.name} in the Crew 4x4. Get up there if you want that gold.`, 4200); }
+  }
   const farFromSaloon = dist(jim.x, jim.z, TOWN.x - 8, TOWN.z + 2) > BANDIT.unseen;
   for (const f of foes) {
     if (f.hp <= 0) {                                                          // down: the body lies a while, a new man turns up at the saloon when you are not around
       f.deadT += dt; if (f.deadT > 8) f.mesh.visible = false;
-      if (f.deadT > BANDIT.rehire && farFromSaloon) { newFight(f); Object.assign(f, { x: f.hx, z: f.hz, hp: 75, yaw: Math.PI / 2, mode: 'idle', mad: 0, deadT: 0 }); f.mesh.visible = true; f.mesh.rotation.z = 0; }
+      if (f.deadT > BANDIT.rehire && farFromSaloon) { newFight(f); Object.assign(f, { x: f.hx, z: f.hz, hp: 75, yaw: Math.PI / 2, mode: 'idle', mad: 0, deadT: 0, loot: 0 }); f.mesh.visible = true; f.mesh.rotation.z = 0; }
       else continue;
     }
     const d = dist(f.x, f.z, jim.x, jim.z);
     f.mad = Math.max(0, f.mad - dt);
     if (f.mode === 'hunt' && (jim.dead || (f.mad <= 0 && (carried() <= 3 || dist(jim.x, jim.z, TOWN.x, TOWN.z) > BANDIT.quit)))) { f.mode = 'idle'; f.block = false; if (jimToken === f) jimToken = null; }
+    if (f.mode === 'rob' && (f.mad > 0 || !rv)) f.mode = f.mad > 0 ? 'hunt' : 'idle';
     if (f.mode === 'hunt') foeBrain(f, jim.x, jim.z, d, dt, true);
-    else if (canAct(f)) {                                                     // walk back to the porch and stand there
+    else if (f.mode === 'rob' && canAct(f)) {                                  // walk up to the 4x4 and take the gold
+      const dv = dist(f.x, f.z, rv.x, rv.z), a = Math.atan2(rv.x - f.x, rv.z - f.z);
+      f.yaw = angLerp(f.yaw, a, Math.min(1, dt * 8));
+      if (dv > 3.4) { f.x += Math.sin(a) * 6 * dt; f.z += Math.cos(a) * 6 * dt; f.walk += dt * 11; }
+      else {
+        const g = rv.cargoGold; f.loot = (f.loot || 0) + g; rv.cargoGold = 0; ledger.robbed = (ledger.robbed || 0) + g;
+        for (const o of foes) if (o.mode === 'rob') o.mode = 'idle';
+        toast(`Bandits robbed ${rv.op.name} of ${g.toFixed(1)} g and are walking it back to the saloon. ${rv.op.name} turns for home.`, 4200); sfx('hurt', rv.x, rv.z);
+      }
+    } else if (canAct(f)) {                                                     // walk back to the porch and stand there
       f.block = false;
       const hd = dist(f.x, f.z, f.hx, f.hz);
       if (hd > 0.4) { const a = Math.atan2(f.hx - f.x, f.hz - f.z); f.yaw = angLerp(f.yaw, a, Math.min(1, dt * 8)); f.x += Math.sin(a) * 3.4 * dt; f.z += Math.cos(a) * 3.4 * dt; f.walk += dt * 9; }
@@ -2771,6 +3343,7 @@ function syncMeshes(dt) {
     else { m.spin = (m.spin || 0) + (m.speed || 0) * dt / 0.6; for (const w of u.wheels) w.rotation.x = m.spin; }
   }
   for (const s of structures) if (s.kind === 'plant' && s.running) s.mesh.userData.trommel.rotation.y += dt * 2.5;
+  syncWorkers();
 }
 let last = performance.now(), uiT = 0;
 const perf = { frames: 0, t: 0, sim: 0, draw: 0 };
@@ -2803,7 +3376,7 @@ function frame(now) {
   perf.sim += t1 - t0; perf.draw += t2 - t1; perf.frames++; perf.t += real;
   if (perf.t >= 0.5) { $('#perf').textContent = `${Math.round(perf.frames / perf.t)} fps · logic ${(perf.sim / perf.frames).toFixed(1)} ms · draw ${(perf.draw / perf.frames).toFixed(1)} ms`; perf.frames = 0; perf.t = 0; perf.sim = 0; perf.draw = 0; }
   uiT -= real;
-  if (uiT <= 0) { uiT = 0.4; renderStats(); refreshCmd(); renderBoard(); pushPresence(); updateTouchUI(); drawMini(); }
+  if (uiT <= 0) { uiT = 0.4; renderStats(); refreshCmd(); renderBoard(); pushPresence(); updateTouchUI(); drawMini(); updateCrewDrawer(); }
   requestAnimationFrame(frame);
 }
 // high quality draws through a small chain: scene (4x MSAA, HDR) -> ambient occlusion -> tone mapping
@@ -2832,12 +3405,15 @@ makeOutfits();
 makeBandits();
 bakeMini();
 for (const s of structures) if (s.kind === 'pump') s.wetOK = waterNear(s.x, s.z, 9) > 0;
-window.__claim = { machines, structures, piles, ledger, T, digAt, jim, TOWN, worldOf, ghosts, H, I: (x, z) => I(Math.round(gx(x)), Math.round(gx(z))), get home() { return home; }, BUILD, foes, loots, hurtMe, toScreen, aim, outfits, blast, CONVOY, outfitTick, cam, GFX, terrain, step, N, CELL, renderer, scene, sunL, hemiL, get gtao() { return gtao; }, swingShovel, hostiles, spawnBandits, resetBandits, BANDIT, combatTick, SHOVEL, ATK, FIGHT, startAttack, startRoll, tickFight, poseFighter, newFight, makeJimbo, keys, get hitStop() { return hitStop; }, get token() { return jimToken; }, paytop: k => PAYTOP[k], outfits, sendConvoy, setBanditT: v => { banditT = v; } };
+window.__claim = { machines, structures, piles, ledger, T, digAt, jim, TOWN, worldOf, ghosts, H, I: (x, z) => I(Math.round(gx(x)), Math.round(gx(z))), get home() { return home; }, BUILD, foes, loots, hurtMe, toScreen, aim, outfits, blast, CONVOY, outfitTick, cam, GFX, terrain, step, N, CELL, renderer, scene, sunL, hemiL, get gtao() { return gtao; }, swingShovel, hostiles, spawnBandits, resetBandits, BANDIT, combatTick, SHOVEL, ATK, FIGHT, startAttack, startRoll, tickFight, poseFighter, newFight, makeJimbo, keys, get hitStop() { return hitStop; }, get token() { return jimToken; }, paytop: k => PAYTOP[k], outfits, sendConvoy, setBanditT: v => { banditT = v; },
+  workers, leavers, JOBS, CREW, WEAR_MIN, PRICES, addWorker, hireWorker, fireWorker, setJob, buildAt, siteProblem, crewTick, monthLen, dayLen, repossess, payLoan, removeMachine, handFix, handFixTarget, messHall, robTarget, setSpeed, select, get sel() { return sel; },
+  openDrawer: d => { drawer = d; renderDrawer(); }, setView, renderStats, resetClaim, worldState, syncMeshes };
 resize();
 renderStats();
 refreshCmd();
 setView('drive');
 toast(touchIn.on ? 'You are Jimbo. Walk to the excavator with the left stick, tap Hop in, swing with ◀ ▶ and tap Dig. Boss view is up top.' : 'You are Jimbo. Walk to the excavator (WASD), hop in with X, swing with Q/E and dig with Space. Tab is the boss view.', 7000);
+setTimeout(() => toast(`The bank lent you ${money(ledger.loan)} for this claim and wants ${money(T.loanPay)} every month. Miss one and it takes a machine.`, 5000), 7400);
 requestAnimationFrame(frame);
 })();
 </script>
